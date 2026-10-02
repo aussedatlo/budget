@@ -8,7 +8,12 @@ enum DemoData {
         ProcessInfo.processInfo.arguments.contains("-demo-data")
     }
 
+    /// Settings that tests expect at their default value. Not passed as
+    /// launch arguments: those would override what the app saves during the test.
+    static let resetKeys = ["includeHome", "netWorthHigh", "investmentsHigh"]
+
     static func makeContainer(for schema: Schema) -> ModelContainer {
+        for key in resetKeys { UserDefaults.standard.removeObject(forKey: key) }
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try! ModelContainer(for: schema, configurations: configuration)
         let context = ModelContext(container)
