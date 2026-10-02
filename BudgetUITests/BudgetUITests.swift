@@ -14,6 +14,7 @@ final class BudgetUITests: XCTestCase {
             // UserDefaults read by @AppStorage
             "-monthlyIncome", "2500",
             "-currencyCode", "EUR",
+            "-includeHome", "NO",
             "-AppleLanguages", "(en)",
             "-AppleLocale", "en_US",
         ]
@@ -62,8 +63,15 @@ final class BudgetUITests: XCTestCase {
 
     func testInvestments() {
         openTab("Investments")
-        XCTAssertTrue(app.staticTexts["Net worth"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Investments value"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Apartment"].exists, "Home is hidden in investments mode")
         snapshot("06-investments")
+
+        // Net worth includes the home and its loan
+        app.buttons["Net worth"].tap()
+        XCTAssertTrue(app.staticTexts["Home equity"].waitForExistence(timeout: 5)
+                      || app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Home equity'")).firstMatch.exists)
+        snapshot("06-net-worth")
         XCTAssertTrue(scrollUntilVisible(app.staticTexts["Saved per month"]))
         snapshot("06-saved-per-month")
 
