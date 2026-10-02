@@ -48,17 +48,3 @@ struct Moji: View {
         .accessibilityHidden(true)
     }
 }
-
-/// A line of text followed by an emoji.
-struct TextWithMoji: View {
-    let text: String
-    let emoji: String
-    var size: CGFloat = 18
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Text(text)
-            Moji(emoji, size: size)
-        }
-    }
-}

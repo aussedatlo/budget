@@ -34,8 +34,8 @@ struct EmojiPicker: View {
                     Moji(item, size: 30)
                         .frame(width: 40, height: 40)
                         .background(item == emoji ? Theme.pink : .clear, in: Circle())
-                        .scaleEffect(item == emoji ? 1.15 : 1)
-                        .animation(.bouncy, value: emoji)
+                        .scaleEffect(item == emoji ? 1.05 : 1)
+                        .animation(.snappy, value: emoji)
                 }
                 .buttonStyle(.plain)
             }

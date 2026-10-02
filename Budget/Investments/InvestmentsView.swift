@@ -11,9 +11,8 @@ struct InvestmentsView: View {
     @State private var showingSnapshot = false
     @State private var editing: Investment?
     @State private var confetti = 0
-
-    /// Celebrate a portfolio in the green once per app launch.
-    private static var celebrated = false
+    /// Highest net worth seen so far: confetti only when it's beaten.
+    @AppStorage("netWorthHigh") private var netWorthHigh: Double = 0
 
     private var value: Double { investments.reduce(0) { $0 + $1.currentValue } }
     private var invested: Double { investments.reduce(0) { $0 + $1.investedAmount } }
@@ -31,14 +30,14 @@ struct InvestmentsView: View {
                     } else {
                         header
                         if !loans.isEmpty {
-                            SectionTitle(title: "Our home")
+                            SectionTitle(title: "Home")
                             ForEach(loans) { loan in
                                 NavigationLink(value: loan) { LoanCard(loan: loan) }
                                     .buttonStyle(SquishyButtonStyle())
                             }
                         }
                         if !investments.isEmpty {
-                            SectionTitle(title: "Our treasures")
+                            SectionTitle(title: "Investments")
                         }
                         ForEach(investments) { investment in
                             NavigationLink(value: investment) {
@@ -48,19 +47,19 @@ struct InvestmentsView: View {
                             .contextMenu {
                                 Button("Edit", systemImage: "pencil") { editing = investment }
                                 Button("Delete", systemImage: "trash", role: .destructive) {
-                                    withAnimation(.bouncy) { context.delete(investment) }
+                                    withAnimation(.snappy) { context.delete(investment) }
                                 }
                             }
-                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                            .transition(.opacity)
                         }
                     }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 24)
-                .animation(.bouncy, value: investments.count + loans.count)
+                .animation(.snappy, value: investments.count + loans.count)
             }
             .background(Theme.background)
-            .navigationTitle("Our treasure")
+            .navigationTitle("Investments")
             .navigationDestination(for: Investment.self) { InvestmentDetailView(investment: $0) }
             .navigationDestination(for: Loan.self) { LoanDetailView(loan: $0) }
             .toolbar {
@@ -68,17 +67,16 @@ struct InvestmentsView: View {
                     Button {
                         showingSnapshot = true
                     } label: {
-                        Label("Snapshot all", systemImage: "camera.fill")
+                        Label("Snapshot all", systemImage: "camera")
                     }
                     .disabled(investments.isEmpty && loans.isEmpty)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button("Add investment", systemImage: "sparkles") { showingAdd = true }
-                        Button("Add home loan", systemImage: "house.fill") { showingAddLoan = true }
+                        Button("Add investment", systemImage: "chart.line.uptrend.xyaxis") { showingAdd = true }
+                        Button("Add home loan", systemImage: "house") { showingAddLoan = true }
                     } label: {
-                        Label("Add", systemImage: "plus.circle.fill")
-                            .symbolEffect(.bounce, value: investments.count + loans.count)
+                        Label("Add", systemImage: "plus")
                     }
                 }
             }
@@ -89,14 +87,13 @@ struct InvestmentsView: View {
             .overlay { ConfettiView(trigger: confetti).ignoresSafeArea() }
             .sensoryFeedback(.success, trigger: confetti)
             .onAppear {
-                if gain > 0 && !Self.celebrated {
-                    Self.celebrated = true
-                    confetti += 1
-                }
+                if netWorthHigh == 0 { netWorthHigh = netWorth }
             }
             .onChange(of: netWorth) { old, new in
-                // A new snapshot made us richer 🎉
-                if new > old + 0.01 && gain > 0 { confetti += 1 }
+                // A small celebration only for a new all-time high
+                guard new > old + 0.01 else { return }
+                if netWorthHigh > 0 && new > netWorthHigh + 0.01 { confetti += 1 }
+                netWorthHigh = max(netWorthHigh, new)
             }
         }
     }
@@ -105,7 +102,7 @@ struct InvestmentsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    TextWithMoji(text: "All that's ours", emoji: "💎", size: 16)
+                    Text("Net worth")
                         .font(.subheadline)
                         .foregroundStyle(Theme.softInk)
                     Text(netWorth.currency)
@@ -118,34 +115,32 @@ struct InvestmentsView: View {
                         .animation(.snappy, value: netWorth)
                 }
                 Spacer()
-                Moji(gain >= 0 ? "🌱" : "🍂", size: 44)
             }
             FlowChips {
                 if !investments.isEmpty {
-                    Chip(text: "Investments \(value.currency)", emoji: "✨")
+                    Chip(text: "Investments \(value.currency)")
                     Chip(
                         text: invested > 0 ? "\(gain.signedCurrency) · \((gain / invested).signedPercent)" : gain.signedCurrency,
                         color: Theme.gain(gain)
                     )
                 }
                 if !loans.isEmpty {
-                    Chip(text: "Home \(homeEquity.currency)", emoji: "🏠")
+                    Chip(text: "Home equity \(homeEquity.currency)")
                 }
             }
             if !investments.isEmpty {
                 HistoryChart(points: History.points(for: investments))
             }
         }
-        .card(LinearGradient(colors: [Theme.lavender, Theme.mint], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .card()
     }
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Moji("🌱", size: 72)
-            Text("Plant your first seed")
-                .font(.title3.bold())
+            Text("No investments yet")
+                .font(.headline)
                 .foregroundStyle(Theme.ink)
-            Text("Add an ETF, some gold coins, crypto, a savings account or your home loan, then update it with a snapshot from time to time to watch it grow.")
+            Text("Add an ETF, gold coins, crypto, a savings account or your home loan, then update it with a snapshot from time to time.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.softInk)
@@ -153,7 +148,7 @@ struct InvestmentsView: View {
                 Button("Add an investment") { showingAdd = true }
                     .buttonStyle(PillButtonStyle())
                 Button("Add home loan") { showingAddLoan = true }
-                    .buttonStyle(PillButtonStyle(color: Theme.positive))
+                    .buttonStyle(PillButtonStyle(color: Theme.ink))
             }
             .padding(.top, 4)
         }
@@ -213,7 +208,7 @@ struct HistoryChart: View {
 
     var body: some View {
         if points.count < 2 {
-            TextWithMoji(text: "Record a few snapshots to see it grow", emoji: "📈", size: 16)
+            Text("Add a few snapshots to see the evolution.")
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
         } else {
@@ -229,7 +224,7 @@ struct HistoryChart: View {
                     )
                     .interpolationMethod(.catmullRom)
                     .foregroundStyle(
-                        LinearGradient(colors: [Theme.accent.opacity(0.35), Theme.accent.opacity(0.02)],
+                        LinearGradient(colors: [Theme.accent.opacity(0.18), Theme.accent.opacity(0.0)],
                                        startPoint: .top, endPoint: .bottom)
                     )
 
@@ -239,7 +234,7 @@ struct HistoryChart: View {
                         series: .value("Series", "Value")
                     )
                     .interpolationMethod(.catmullRom)
-                    .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                     .foregroundStyle(by: .value("Series", "Value"))
 
                     LineMark(

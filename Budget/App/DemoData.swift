@@ -70,7 +70,7 @@ enum DemoData {
         }
 
         // Home loan: a snapshot every 6 months over 4 years
-        let home = Loan(name: "Our apartment", borrowed: 240_000)
+        let home = Loan(name: "Apartment", borrowed: 240_000)
         context.insert(home)
         for half in 0...8 {
             let date = min(monthsAgo(48 - half * 6, day: 10), now)

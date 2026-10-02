@@ -57,7 +57,7 @@ struct SnapshotFields: View {
             DatePicker("Date", selection: $draft.date, displayedComponents: .date)
         }
         if showsUnitsToggle {
-            Toggle("Quantity × unit price", isOn: $draft.tracksUnits.animation(.bouncy))
+            Toggle("Quantity × unit price", isOn: $draft.tracksUnits.animation(.snappy))
         }
         if draft.tracksUnits {
             NumberField(title: "Quantity", value: $draft.quantity, identifier: "snapshot-quantity")
@@ -123,7 +123,7 @@ struct InvestmentFormView: View {
                         Text("What it's worth now and how much you put in so far. You can update it any time with a new snapshot.")
                     }
                 }
-                Section("Emoji") {
+                Section("Icon") {
                     EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.investments)
                 }
                 if let investment {

@@ -21,7 +21,7 @@ struct MonthlyView: View {
                 VStack(spacing: 14) {
                     header
                     incomeCard
-                    SectionTitle(title: "Every month", trailing: total.currency)
+                    SectionTitle(title: "Recurring charges", trailing: total.currency)
                     if charges.isEmpty {
                         emptyState
                     }
@@ -31,19 +31,19 @@ struct MonthlyView: View {
                             .contextMenu {
                                 Button("Edit", systemImage: "pencil") { editing = charge }
                                 Button("Delete", systemImage: "trash", role: .destructive) {
-                                    withAnimation(.bouncy) { context.delete(charge) }
+                                    withAnimation(.snappy) { context.delete(charge) }
                                 }
                             }
-                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                            .transition(.opacity)
                     }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 24)
-                .animation(.bouncy, value: charges.count)
+                .animation(.snappy, value: charges.count)
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Theme.background)
-            .navigationTitle("Our month")
+            .navigationTitle("This month")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showingSettings = true } label: {
@@ -52,8 +52,7 @@ struct MonthlyView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { adding = true } label: {
-                        Label("Add charge", systemImage: "plus.circle.fill")
-                            .symbolEffect(.bounce, value: charges.count)
+                        Label("Add charge", systemImage: "plus")
                     }
                 }
             }
@@ -67,11 +66,11 @@ struct MonthlyView: View {
     // MARK: - Header with the jar
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 18) {
             JarView(level: level)
-                .frame(width: 118)
+                .frame(width: 100)
             VStack(alignment: .leading, spacing: 6) {
-                Text(left >= 0 ? "You have" : "Oops, over by")
+                Text(left >= 0 ? "Left this month" : "Over budget")
                     .font(.subheadline)
                     .foregroundStyle(Theme.softInk)
                 Text(abs(left).currency)
@@ -82,33 +81,23 @@ struct MonthlyView: View {
                     .minimumScaleFactor(0.6)
                     .contentTransition(.numericText(value: left))
                     .animation(.snappy, value: left)
-                TextWithMoji(text: message.text, emoji: message.emoji, size: 18)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Theme.ink)
-                    .animation(.default, value: message.text)
+                if income <= 0 {
+                    Text("Enter your monthly income below.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.softInk)
+                }
                 HStack(spacing: 6) {
-                    Chip(text: income.currency, emoji: "💰")
-                    Chip(text: total.currency, emoji: "🧾")
+                    Chip(text: "Income \(income.currency)")
+                    Chip(text: "Charges \(total.currency)")
                 }
                 .padding(.top, 2)
             }
         }
-        .card(LinearGradient(colors: [Theme.pink, Theme.peach], startPoint: .topLeading, endPoint: .bottomTrailing))
-    }
-
-    private var message: (text: String, emoji: String) {
-        if income <= 0 { return ("Add your income to fill the jar", "✨") }
-        switch level {
-        case 0.5...: return ("left this month, lovely!", "🌸")
-        case 0.2..<0.5: return ("left this month", "💖")
-        case 0.0001..<0.2: return ("left, a bit tight", "🍃")
-        default: return left < 0 ? ("this month", "🙈") : ("left, the jar is empty", "🥺")
-        }
+        .card()
     }
 
     private var incomeCard: some View {
         HStack {
-            EmojiBubble(emoji: "💰", color: Theme.butter, size: 40)
             Text("Monthly income")
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
@@ -127,12 +116,10 @@ struct MonthlyView: View {
 
     private var emptyState: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                Moji("🏠", size: 40)
-                Moji("📺", size: 40)
-                Moji("🚗", size: 40)
-            }
-            Text("Add rent, subscriptions, insurance…\nanything paid every month.")
+            Text("No recurring charges yet")
+                .font(.headline)
+                .foregroundStyle(Theme.ink)
+            Text("Add rent, subscriptions, insurance and anything else paid every month.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.softInk)
@@ -213,7 +200,7 @@ struct FixedChargeFormView: View {
                     }
                     Stepper("Day of month: \(dayOfMonth)", value: $dayOfMonth, in: 1...31)
                 }
-                Section("Emoji") {
+                Section("Icon") {
                     EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.charges)
                 }
                 if let charge {

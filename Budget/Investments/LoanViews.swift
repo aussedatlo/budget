@@ -52,16 +52,13 @@ struct LoanCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                EmojiBubble(emoji: loan.emoji, color: Theme.card.opacity(0.7))
+                EmojiBubble(emoji: loan.emoji, color: Theme.peach)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(loan.name)
                         .font(.headline)
                         .foregroundStyle(Theme.ink)
                     if loan.homeValue > 0 {
-                        TextWithMoji(
-                            text: "\(loan.equityRatio.formatted(.percent.precision(.fractionLength(0)))) of the home is ours",
-                            emoji: "💖", size: 14
-                        )
+                        Text("\(loan.equityRatio.formatted(.percent.precision(.fractionLength(0)))) equity")
                             .font(.caption)
                             .foregroundStyle(Theme.softInk)
                     }
@@ -72,7 +69,7 @@ struct LoanCard: View {
                         .font(.headline)
                         .monospacedDigit()
                         .foregroundStyle(Theme.ink)
-                    Text("ours")
+                    Text("equity")
                         .font(.caption)
                         .foregroundStyle(Theme.softInk)
                 }
@@ -83,12 +80,12 @@ struct LoanCard: View {
                 StatTile(title: "Left to repay", value: loan.remaining.currency)
             }
         }
-        .card(LinearGradient(colors: [Theme.peach, Theme.butter], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .card()
         .contentShape(Rectangle())
     }
 }
 
-/// A rounded bar with a little house travelling along it.
+/// A thin rounded progress bar.
 struct LoanProgressBar: View {
     let ratio: Double
 
@@ -96,17 +93,14 @@ struct LoanProgressBar: View {
         GeometryReader { geometry in
             let width = geometry.size.width
             ZStack(alignment: .leading) {
-                Capsule().fill(Theme.card.opacity(0.7))
+                Capsule().fill(Theme.background)
                 Capsule()
-                    .fill(LinearGradient(colors: [Theme.accent.opacity(0.7), Theme.accent],
-                                         startPoint: .leading, endPoint: .trailing))
-                    .frame(width: max(width * ratio, 14))
-                Moji("🏡", size: 20)
-                    .offset(x: min(max(width * ratio - 12, 0), width - 22))
+                    .fill(Theme.accent)
+                    .frame(width: max(width * ratio, 8))
             }
-            .animation(.spring(duration: 1, bounce: 0.3), value: ratio)
+            .animation(.snappy, value: ratio)
         }
-        .frame(height: 14)
+        .frame(height: 8)
         .padding(.vertical, 4)
         .accessibilityElement()
         .accessibilityLabel("Repaid")
@@ -130,8 +124,8 @@ struct LoanDetailView: View {
                 LoanCard(loan: loan)
 
                 HStack(spacing: 10) {
-                    tile("🏦", "Borrowed", loan.borrowed.currency, Theme.sky)
-                    tile("🏡", "Home value", loan.homeValue > 0 ? loan.homeValue.currency : "–", Theme.mint)
+                    tile("Borrowed", loan.borrowed.currency)
+                    tile("Home value", loan.homeValue > 0 ? loan.homeValue.currency : "–")
                 }
 
                 LoanChart(loan: loan).card()
@@ -141,13 +135,13 @@ struct LoanDetailView: View {
                     Button { editing = snapshot } label: { LoanSnapshotRow(snapshot: snapshot) }
                         .buttonStyle(SquishyButtonStyle())
                 }
-                Button("New snapshot", systemImage: "camera.fill") { adding = true }
-                    .buttonStyle(PillButtonStyle(color: Theme.positive))
+                Button("New snapshot", systemImage: "plus") { adding = true }
+                    .buttonStyle(PillButtonStyle())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
-            .animation(.bouncy, value: loan.history.count)
+            .animation(.snappy, value: loan.history.count)
         }
         .background(Theme.background)
         .navigationTitle(loan.name)
@@ -159,12 +153,9 @@ struct LoanDetailView: View {
         .sensoryFeedback(.success, trigger: loan.history.count) { old, new in new > old }
     }
 
-    private func tile(_ emoji: String, _ title: String, _ value: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Moji(emoji, size: 26)
-            StatTile(title: title, value: value)
-        }
-        .card(color, padding: 12)
+    private func tile(_ title: String, _ value: String) -> some View {
+        StatTile(title: title, value: value)
+            .card(padding: 12)
     }
 }
 
@@ -175,7 +166,7 @@ private struct LoanChart: View {
     var body: some View {
         let points = loan.history.sorted { $0.date < $1.date }
         if points.count < 2 {
-            TextWithMoji(text: "Add a snapshot from time to time to watch the loan melt", emoji: "🍦", size: 16)
+            Text("Add a snapshot from time to time to see the loan go down.")
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
         } else {
@@ -184,13 +175,13 @@ private struct LoanChart: View {
                     AreaMark(x: .value("Date", point.date), y: .value("Amount", point.remaining))
                         .interpolationMethod(.catmullRom)
                         .foregroundStyle(
-                            LinearGradient(colors: [Theme.accent.opacity(0.3), Theme.accent.opacity(0.02)],
+                            LinearGradient(colors: [Theme.accent.opacity(0.18), Theme.accent.opacity(0.0)],
                                            startPoint: .top, endPoint: .bottom)
                         )
                     LineMark(x: .value("Date", point.date), y: .value("Amount", point.remaining),
                              series: .value("Series", "Left to repay"))
                         .interpolationMethod(.catmullRom)
-                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                         .foregroundStyle(by: .value("Series", "Left to repay"))
                     if point.homeValue > 0 {
                         LineMark(x: .value("Date", point.date), y: .value("Amount", point.homeValue),
@@ -218,7 +209,6 @@ private struct LoanSnapshotRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            EmojiBubble(emoji: "📸", color: Theme.lavender, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(snapshot.date.formatted(date: .abbreviated, time: .omitted))
                     .font(.headline)
@@ -262,7 +252,7 @@ struct LoanFormView: View {
 
     init(loan: Loan? = nil) {
         self.loan = loan
-        _name = State(initialValue: loan?.name ?? "Our home")
+        _name = State(initialValue: loan?.name ?? "Home")
         _emoji = State(initialValue: loan?.emoji ?? "🏠")
         _borrowed = State(initialValue: loan?.borrowed)
     }
@@ -291,7 +281,7 @@ struct LoanFormView: View {
                         Text("“Left to repay” is on your bank statement. The home value is your best estimate; you can update both with a new snapshot.")
                     }
                 }
-                Section("Emoji") {
+                Section("Icon") {
                     EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.homes)
                 }
                 if let loan {

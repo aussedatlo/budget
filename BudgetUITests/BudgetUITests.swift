@@ -31,7 +31,7 @@ final class BudgetUITests: XCTestCase {
     }
 
     func testMonthly() {
-        XCTAssertTrue(app.staticTexts["You have"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Left this month"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Rent"].exists)
         snapshot("01-monthly")
 
@@ -53,7 +53,7 @@ final class BudgetUITests: XCTestCase {
 
     func testInvestments() {
         openTab("Investments")
-        XCTAssertTrue(app.staticTexts["All that's ours"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Net worth"].waitForExistence(timeout: 10))
         snapshot("06-investments")
 
         // An investment and its snapshots
@@ -78,7 +78,7 @@ final class BudgetUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         // Home loan
-        let home = app.staticTexts["Our apartment"]
+        let home = app.staticTexts["Apartment"]
         XCTAssertTrue(scrollUntilVisible(home))
         home.tap()
         XCTAssertTrue(app.staticTexts["Already repaid"].waitForExistence(timeout: 5))
