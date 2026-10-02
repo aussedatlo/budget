@@ -114,6 +114,10 @@ private struct LendingChart: View {
             left = max(left - repayment.amount, 0)
             points.append(Point(date: max(repayment.date, lending.date), remaining: left))
         }
+        // Carry what's left up to today, so the last repayment shows as a step
+        if points.count > 1, let last = points.last, last.date < .now {
+            points.append(Point(date: .now, remaining: last.remaining))
+        }
         return points
     }
 
