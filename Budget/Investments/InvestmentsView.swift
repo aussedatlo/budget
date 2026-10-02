@@ -6,6 +6,7 @@ struct InvestmentsView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Investment.name) private var investments: [Investment]
     @Query(sort: \Loan.name) private var loans: [Loan]
+    @Query private var lendings: [Lending]
     @State private var showingAdd = false
     @State private var showingAddLoan = false
     @State private var showingSnapshot = false
@@ -14,16 +15,20 @@ struct InvestmentsView: View {
     /// Highest net worth seen so far: confetti only when it's beaten.
     @AppStorage("netWorthHigh") private var netWorthHigh: Double = 0
     @AppStorage("investmentsHigh") private var investmentsHigh: Double = 0
-    /// Off: investments only. On: net worth, including the home and its loan.
+    /// Off: investments only. On: net worth, including the home, its loan and money lent.
     @AppStorage("includeHome") private var includeHome = false
 
     private var value: Double { investments.reduce(0) { $0 + $1.currentValue } }
     private var invested: Double { investments.reduce(0) { $0 + $1.investedAmount } }
     private var gain: Double { value - invested }
     private var homeEquity: Double { loans.reduce(0) { $0 + $1.equity } }
-    /// Investments + the part of the home that is ours.
-    private var netWorth: Double { value + homeEquity }
-    private var showsHome: Bool { includeHome && !loans.isEmpty }
+    /// Money lent that hasn't come back yet (detail on the Income tab).
+    private var owed: Double { lendings.reduce(0) { $0 + $1.remaining } }
+    /// Investments + the part of the home that is ours + money owed to us.
+    private var netWorth: Double { value + homeEquity + owed }
+    private var hasNetWorthExtras: Bool { !loans.isEmpty || owed > 0 }
+    private var showsNetWorth: Bool { includeHome && hasNetWorthExtras }
+    private var showsHome: Bool { showsNetWorth && !loans.isEmpty }
 
     var body: some View {
         NavigationStack {
@@ -99,10 +104,10 @@ struct InvestmentsView: View {
             }
             // A small celebration only for a new all-time high of what's shown
             .onChange(of: netWorth) { old, new in
-                netWorthHigh = celebrateIfNewHigh(old: old, new: new, high: netWorthHigh, shown: showsHome)
+                netWorthHigh = celebrateIfNewHigh(old: old, new: new, high: netWorthHigh, shown: showsNetWorth)
             }
             .onChange(of: value) { old, new in
-                investmentsHigh = celebrateIfNewHigh(old: old, new: new, high: investmentsHigh, shown: !showsHome)
+                investmentsHigh = celebrateIfNewHigh(old: old, new: new, high: investmentsHigh, shown: !showsNetWorth)
             }
         }
     }
@@ -115,9 +120,9 @@ struct InvestmentsView: View {
     }
 
     private var header: some View {
-        let total = showsHome ? netWorth : value
+        let total = showsNetWorth ? netWorth : value
         return VStack(alignment: .leading, spacing: 12) {
-            if !loans.isEmpty {
+            if hasNetWorthExtras {
                 Picker("Show", selection: $includeHome.animation(.snappy)) {
                     Text("Investments").tag(false)
                     Text("Net worth").tag(true)
@@ -125,7 +130,7 @@ struct InvestmentsView: View {
                 .pickerStyle(.segmented)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(showsHome ? "Net worth" : "Investments value")
+                Text(showsNetWorth ? "Net worth" : "Investments value")
                     .font(.subheadline)
                     .foregroundStyle(Theme.softInk)
                 Text(total.currency)
@@ -138,9 +143,10 @@ struct InvestmentsView: View {
                     .animation(.snappy, value: total)
             }
             FlowChips {
-                if showsHome {
+                if showsNetWorth {
                     Chip(text: "Investments \(value.currency)")
-                    Chip(text: "Home equity \(homeEquity.currency)")
+                    if !loans.isEmpty { Chip(text: "Home equity \(homeEquity.currency)") }
+                    if owed > 0 { Chip(text: "Money lent \(owed.currency)") }
                 } else if !investments.isEmpty {
                     Chip(text: "Invested \(invested.currency)")
                 }

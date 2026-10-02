@@ -2,7 +2,8 @@
 
 A small iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 
-- **Month**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, drawn as a jar that fills up. A bar splits the income into charges, savings and what's left, with amounts and percentages.
+- **Income**: your main income, plus **other income** you only get some months (freelance work, a bonus…), each with a switch to count it or not. **Money lent** is followed like the home loan: log each repayment as it comes in to see what's repaid and what's left. An optional monthly repayment counts as income until everything is paid back, and money still owed is part of your net worth.
+- **Month**: your monthly income (from the Income tab) minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, drawn as a jar that fills up. A bar splits the income into charges, savings and what's left, with amounts and percentages.
 - **Savings plan**: set how much goes to each investment every month (for example 200 € to a savings account, 300 € to gold). The Month screen sets it aside, so the jar shows what's really left to spend, and new snapshots add it to "invested so far" automatically. A **Saved per month** chart shows what you actually saved each month, per position, from the changes in "invested so far". Market moves don't count.
 - **Investments**: investments (ETFs, gold coins, crypto, savings…) followed through **snapshots**. Each snapshot records what a position is worth and how much was put in so far, with quantity × unit price as an option. A new snapshot starts as a copy of the latest one, so you only change what moved, and the camera button updates everything at once. The **home loan** is followed the same way, through what's left to repay and the home's value. The app shows what's already repaid, your home equity, and your net worth (investments + home equity). A toggle at the top switches between investments only (the default) and net worth.
 
@@ -14,6 +15,7 @@ The design is calm: neutral cards, one dusty-rose accent, an [OpenMoji](https://
 project.yml                 XcodeGen spec (the .xcodeproj is generated, not committed)
 Budget/App                  App entry, tabs, settings, demo data
 Budget/Models               SwiftData models + calculations
+Budget/Income               Income, other income and money lent
 Budget/Monthly              Income vs. recurring charges
 Budget/Investments          Investments UI
 BudgetUITests               E2E tests (screenshots on PRs)
