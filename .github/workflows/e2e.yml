@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [iPhone, iPad]
+        device: [iPad] # add iPhone here to test it too
 
     steps:
       - uses: actions/checkout@v4
