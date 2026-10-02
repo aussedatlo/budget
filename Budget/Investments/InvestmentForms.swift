@@ -393,11 +393,45 @@ struct NumberField: View {
 
     var body: some View {
         LabeledContent(title) {
-            TextField("0", value: $value, format: .number)
-                .keyboardType(.decimalPad)
+            DecimalField(value: $value)
                 .multilineTextAlignment(.trailing)
-                .monospacedDigit()
                 .accessibilityIdentifier(identifier ?? title)
         }
+    }
+}
+
+/// A decimal text field that updates its value on every keystroke.
+/// (`TextField(value:format:)` only commits when the field loses focus,
+/// and the decimal keypad has no Return key: tapping Save right after
+/// typing would keep the old value.)
+struct DecimalField: View {
+    @Binding var value: Double?
+    @State private var text = ""
+
+    var body: some View {
+        TextField("0", text: $text)
+            .keyboardType(.decimalPad)
+            .monospacedDigit()
+            .onAppear { text = Self.format(value) }
+            .onChange(of: text) { value = Self.parse(text) }
+            .onChange(of: value) {
+                // Changed from outside (e.g. the savings plan): show it
+                if Self.parse(text) != value { text = Self.format(value) }
+            }
+    }
+
+    static func parse(_ text: String) -> Double? {
+        let cleaned = text.filter { !$0.isWhitespace && $0 != "\u{202F}" && $0 != "\u{00A0}" }
+        guard !cleaned.isEmpty else { return nil }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = .current
+        if let number = formatter.number(from: cleaned) { return number.doubleValue }
+        // Accept both "12.5" and "12,5" whatever the region
+        return Double(cleaned.replacingOccurrences(of: ",", with: "."))
+    }
+
+    static func format(_ value: Double?) -> String {
+        value.map { $0.formatted(.number.grouping(.never).precision(.fractionLength(0...6))) } ?? ""
     }
 }

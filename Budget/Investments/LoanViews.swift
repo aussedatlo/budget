@@ -247,14 +247,15 @@ struct LoanFormView: View {
     @State private var name: String
     @State private var emoji: String
     @State private var borrowed: Double?
-    /// First snapshot, only when creating.
-    @State private var draft = LoanDraft()
+    /// First snapshot when creating; the latest one when editing.
+    @State private var draft: LoanDraft
 
     init(loan: Loan? = nil) {
         self.loan = loan
         _name = State(initialValue: loan?.name ?? "Home")
         _emoji = State(initialValue: loan?.emoji ?? "🏠")
         _borrowed = State(initialValue: loan?.borrowed)
+        _draft = State(initialValue: loan.map { LoanDraft(from: $0.latest, loan: $0, keepDate: true) } ?? LoanDraft())
     }
 
     var body: some View {
@@ -272,12 +273,18 @@ struct LoanFormView: View {
                     TextField("Name", text: $name)
                     NumberField(title: "Amount borrowed", value: $borrowed, identifier: "loan-borrowed")
                 }
-                if loan == nil {
-                    Section {
-                        LoanFields(draft: $draft)
-                    } header: {
+                Section {
+                    LoanFields(draft: $draft)
+                } header: {
+                    if let latest = loan?.latest {
+                        Text("Latest snapshot · \(latest.date.formatted(date: .abbreviated, time: .omitted))")
+                    } else {
                         Text("Today")
-                    } footer: {
+                    }
+                } footer: {
+                    if loan?.latest != nil {
+                        Text("Corrects the latest snapshot. To keep the history, add a new snapshot from the loan page instead.")
+                    } else {
                         Text("“Left to repay” is on your bank statement. The home value is your best estimate; you can update both with a new snapshot.")
                     }
                 }
@@ -313,6 +320,14 @@ struct LoanFormView: View {
             loan.name = trimmed
             loan.emoji = emoji.isEmpty ? "🏠" : emoji
             loan.borrowed = borrowed ?? 0
+            if let latest = loan.latest {
+                draft.apply(to: latest)
+            } else if draft.isValid {
+                let snapshot = LoanSnapshot()
+                draft.apply(to: snapshot)
+                context.insert(snapshot)
+                loan.history.append(snapshot)
+            }
         } else {
             let new = Loan(name: trimmed, emoji: emoji.isEmpty ? "🏠" : emoji, borrowed: borrowed ?? 0)
             context.insert(new)

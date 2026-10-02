@@ -107,8 +107,10 @@ struct MonthlyView: View {
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
             Spacer()
-            TextField("0", value: $income, format: .number)
-                .keyboardType(.decimalPad)
+            DecimalField(value: Binding(
+                get: { income > 0 ? income : nil },
+                set: { income = max($0 ?? 0, 0) }
+            ))
                 .multilineTextAlignment(.trailing)
                 .font(.headline)
                 .monospacedDigit()
