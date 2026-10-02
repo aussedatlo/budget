@@ -85,29 +85,6 @@ jobs:
           path: ${{ runner.temp }}/unsigned/Budget-unsigned.ipa
           if-no-files-found: error
 
-      # ---------- Simulator build (to try the app in a browser on appetize.io) ----------
-
-      - name: Build simulator app
-        run: |
-          set -euo pipefail
-          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-            -configuration Release -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath "$RUNNER_TEMP/DerivedDataSim" \
-            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
-            MARKETING_VERSION="$APP_VERSION" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
-            build -quiet
-          (cd "$RUNNER_TEMP/DerivedDataSim/Build/Products/Release-iphonesimulator" \
-            && zip -qry "$RUNNER_TEMP/Budget-simulator.zip" Budget.app)
-
-      - name: Upload simulator app artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Budget-simulator-${{ github.run_number }}
-          path: ${{ runner.temp }}/Budget-simulator.zip
-          if-no-files-found: error
-
       # ---------- Signed build ----------
 
       - name: Install certificate and provisioning profile
@@ -239,7 +216,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -uo pipefail
-          files=("$RUNNER_TEMP/unsigned/Budget-unsigned.ipa" "$RUNNER_TEMP/Budget-simulator.zip")
+          files=("$RUNNER_TEMP/unsigned/Budget-unsigned.ipa")
           if compgen -G "$RUNNER_TEMP/export/*.ipa" > /dev/null; then
             files+=("$RUNNER_TEMP"/export/*.ipa)
           fi
