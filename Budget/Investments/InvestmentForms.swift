@@ -1,6 +1,75 @@
 import SwiftData
 import SwiftUI
 
+// MARK: - Snapshot draft
+
+/// Editable copy of a snapshot. New snapshots start from the previous one,
+/// so updating a position is just changing what moved.
+struct SnapshotDraft {
+    var date = Date.now
+    var tracksUnits = false
+    var quantity: Double?
+    var unitPrice: Double?
+    var value: Double?
+    var invested: Double?
+    var note = ""
+
+    init() {}
+
+    /// - Parameter keepDate: true to edit `snapshot`, false to start a new one from it.
+    init(from snapshot: ValueSnapshot?, keepDate: Bool = false) {
+        guard let snapshot else { return }
+        date = keepDate ? snapshot.date : .now
+        tracksUnits = snapshot.tracksUnits
+        quantity = snapshot.quantity
+        unitPrice = snapshot.unitPrice
+        value = snapshot.value
+        invested = snapshot.invested
+        note = keepDate ? snapshot.note : ""
+    }
+
+    var computedValue: Double {
+        tracksUnits ? (quantity ?? 0) * (unitPrice ?? 0) : (value ?? 0)
+    }
+
+    var isValid: Bool {
+        tracksUnits ? (quantity != nil && unitPrice != nil) : value != nil
+    }
+
+    func apply(to snapshot: ValueSnapshot) {
+        snapshot.date = date
+        snapshot.value = computedValue
+        snapshot.invested = invested ?? 0
+        snapshot.quantity = tracksUnits ? quantity : nil
+        snapshot.unitPrice = tracksUnits ? unitPrice : nil
+        snapshot.note = note
+    }
+}
+
+/// Form rows for a snapshot (inside a Form section).
+struct SnapshotFields: View {
+    @Binding var draft: SnapshotDraft
+    var showsDate = true
+    var showsUnitsToggle = true
+
+    var body: some View {
+        if showsDate {
+            DatePicker("Date", selection: $draft.date, displayedComponents: .date)
+        }
+        if showsUnitsToggle {
+            Toggle("Quantity × unit price", isOn: $draft.tracksUnits.animation(.bouncy))
+        }
+        if draft.tracksUnits {
+            NumberField(title: "Quantity", value: $draft.quantity, identifier: "snapshot-quantity")
+            NumberField(title: "Unit price", value: $draft.unitPrice, identifier: "snapshot-unit-price")
+            LabeledContent("Value", value: draft.computedValue.currency)
+        } else {
+            NumberField(title: "Value", value: $draft.value, identifier: "snapshot-value")
+        }
+        NumberField(title: "Invested so far", value: $draft.invested, identifier: "snapshot-invested")
+    }
+}
+
 // MARK: - Investment
 
 struct InvestmentFormView: View {
@@ -13,10 +82,8 @@ struct InvestmentFormView: View {
     @State private var ticker: String
     @State private var kind: InvestmentKind
     @State private var emoji: String
-    // Optional first purchase, only when creating.
-    @State private var quantity: Double?
-    @State private var unitPrice: Double?
-    @State private var date = Date.now
+    /// First snapshot, only when creating.
+    @State private var draft = SnapshotDraft()
 
     init(investment: Investment? = nil) {
         self.investment = investment
@@ -47,16 +114,24 @@ struct InvestmentFormView: View {
                         }
                     }
                 }
+                if investment == nil {
+                    Section {
+                        SnapshotFields(draft: $draft)
+                    } header: {
+                        Text("Today")
+                    } footer: {
+                        Text("What it's worth now and how much you put in so far. You can update it any time with a new snapshot.")
+                    }
+                }
                 Section("Emoji") {
                     EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.investments)
                 }
-                if investment == nil {
+                if let investment {
                     Section {
-                        DatePicker("Date", selection: $date, displayedComponents: .date)
-                        NumberField(title: "Quantity", value: $quantity)
-                        NumberField(title: "Unit price", value: $unitPrice)
-                    } header: {
-                        Text("First purchase (optional)")
+                        Button("Delete this investment", role: .destructive) {
+                            context.delete(investment)
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -91,92 +166,12 @@ struct InvestmentFormView: View {
         } else {
             let new = Investment(name: trimmed, ticker: ticker, kind: kind, emoji: customEmoji)
             context.insert(new)
-            if let quantity, let unitPrice, quantity > 0 {
-                let trade = Trade(date: date, quantity: quantity, unitPrice: unitPrice)
-                context.insert(trade)
-                new.trades.append(trade)
+            if draft.isValid {
+                let snapshot = ValueSnapshot()
+                draft.apply(to: snapshot)
+                context.insert(snapshot)
+                new.history.append(snapshot)
             }
-        }
-        dismiss()
-    }
-}
-
-// MARK: - Trade
-
-struct TradeFormView: View {
-    @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
-
-    let investment: Investment
-    let trade: Trade?
-
-    @State private var isSale: Bool
-    @State private var date: Date
-    @State private var quantity: Double?
-    @State private var unitPrice: Double?
-    @State private var fees: Double?
-    @State private var note: String
-
-    init(investment: Investment, trade: Trade? = nil) {
-        self.investment = investment
-        self.trade = trade
-        _isSale = State(initialValue: trade?.isSale ?? false)
-        _date = State(initialValue: trade?.date ?? .now)
-        _quantity = State(initialValue: trade?.quantity)
-        _unitPrice = State(initialValue: trade?.unitPrice ?? investment.price())
-        _fees = State(initialValue: trade.flatMap { $0.fees == 0 ? nil : $0.fees })
-        _note = State(initialValue: trade?.note ?? "")
-    }
-
-    private var total: Double {
-        let gross = (quantity ?? 0) * (unitPrice ?? 0)
-        return isSale ? gross - (fees ?? 0) : gross + (fees ?? 0)
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Picker("Type", selection: $isSale) {
-                        Text("Buy").tag(false)
-                        Text("Sell").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
-                    NumberField(title: "Quantity", value: $quantity)
-                    NumberField(title: "Unit price", value: $unitPrice)
-                    NumberField(title: "Fees", value: $fees)
-                }
-                Section {
-                    LabeledContent(isSale ? "Amount received" : "Amount used", value: total.currency)
-                    TextField("Note", text: $note)
-                }
-            }
-            .themedForm()
-            .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(trade == nil ? "New trade" : "Edit trade")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save)
-                        .disabled((quantity ?? 0) <= 0 || unitPrice == nil)
-                }
-            }
-        }
-    }
-
-    private func save() {
-        let item = trade ?? Trade()
-        item.isSale = isSale
-        item.date = date
-        item.quantity = quantity ?? 0
-        item.unitPrice = unitPrice ?? 0
-        item.fees = fees ?? 0
-        item.note = note
-        if trade == nil {
-            context.insert(item)
-            investment.trades.append(item)
         }
         dismiss()
     }
@@ -189,31 +184,42 @@ struct SnapshotFormView: View {
     @Environment(\.dismiss) private var dismiss
 
     let investment: Investment
-    let snapshot: PriceSnapshot?
+    let snapshot: ValueSnapshot?
 
-    @State private var date: Date
-    @State private var unitPrice: Double?
-    @State private var note: String
+    @State private var draft: SnapshotDraft
 
-    init(investment: Investment, snapshot: PriceSnapshot? = nil) {
+    init(investment: Investment, snapshot: ValueSnapshot? = nil) {
         self.investment = investment
         self.snapshot = snapshot
-        _date = State(initialValue: snapshot?.date ?? .now)
-        _unitPrice = State(initialValue: snapshot?.unitPrice ?? investment.price())
-        _note = State(initialValue: snapshot?.note ?? "")
+        _draft = State(initialValue: snapshot.map { SnapshotDraft(from: $0, keepDate: true) }
+            ?? SnapshotDraft(from: investment.latest))
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
-                    NumberField(title: "Unit price", value: $unitPrice)
-                    TextField("Note", text: $note)
+                    SnapshotFields(draft: $draft)
+                    TextField("Note", text: $draft.note)
+                } footer: {
+                    if snapshot == nil && investment.latest != nil {
+                        Text("Pre-filled with the last snapshot: just change what moved.")
+                    }
                 }
                 Section {
-                    LabeledContent("Quantity held", value: investment.quantity(at: date).quantityText)
-                    LabeledContent("Value", value: (investment.quantity(at: date) * (unitPrice ?? 0)).currency)
+                    let gain = draft.computedValue - (draft.invested ?? 0)
+                    LabeledContent("Gain") {
+                        Text(gain.signedCurrency).foregroundStyle(Theme.gain(gain))
+                    }
+                }
+                if let snapshot {
+                    Section {
+                        Button("Delete this snapshot", role: .destructive) {
+                            investment.history.removeAll { $0 == snapshot }
+                            context.delete(snapshot)
+                            dismiss()
+                        }
+                    }
                 }
             }
             .themedForm()
@@ -223,77 +229,104 @@ struct SnapshotFormView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save).disabled(unitPrice == nil)
+                    Button("Save", action: save).disabled(!draft.isValid)
                 }
             }
         }
     }
 
     private func save() {
-        let item = snapshot ?? PriceSnapshot()
-        item.date = date
-        item.unitPrice = unitPrice ?? 0
-        item.note = note
+        let item = snapshot ?? ValueSnapshot()
+        draft.apply(to: item)
         if snapshot == nil {
             context.insert(item)
-            investment.snapshots.append(item)
+            investment.history.append(item)
         }
         dismiss()
     }
 }
 
-/// Records a price for every investment at once.
+/// Snapshot of everything at once: every investment and loan, pre-filled
+/// with their latest values.
 struct SnapshotAllView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
     let investments: [Investment]
+    let loans: [Loan]
 
     @State private var date = Date.now
-    @State private var prices: [PersistentIdentifier: Double] = [:]
+    @State private var drafts: [PersistentIdentifier: SnapshotDraft] = [:]
+    @State private var loanDrafts: [PersistentIdentifier: LoanDraft] = [:]
 
     var body: some View {
         NavigationStack {
             Form {
-                DatePicker("Date", selection: $date, displayedComponents: .date)
                 Section {
-                    ForEach(investments) { investment in
-                        NumberField(
-                            title: investment.name,
-                            value: Binding(
-                                get: { prices[investment.persistentModelID] },
-                                set: { prices[investment.persistentModelID] = $0 }
-                            )
-                        )
-                    }
-                } header: {
-                    Text("Unit prices")
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
                 } footer: {
-                    Text("Pre-filled with the last known price. Leave empty to skip a position.")
+                    Text("Everything is pre-filled with the last snapshot: just change what moved.")
+                }
+                ForEach(investments) { investment in
+                    Section {
+                        SnapshotFields(draft: draft(for: investment), showsDate: false, showsUnitsToggle: false)
+                    } header: {
+                        Text("\(investment.displayEmoji)  \(investment.name)")
+                    }
+                }
+                ForEach(loans) { loan in
+                    Section {
+                        LoanFields(draft: loanDraft(for: loan))
+                    } header: {
+                        Text("\(loan.emoji)  \(loan.name)")
+                    }
                 }
             }
             .themedForm()
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Snapshot")
+            .navigationTitle("Snapshot of everything")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
             }
-            .onAppear {
-                for investment in investments {
-                    prices[investment.persistentModelID] = investment.price()
-                }
-            }
         }
+    }
+
+    private func draft(for investment: Investment) -> Binding<SnapshotDraft> {
+        Binding(
+            get: { drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest) },
+            set: { drafts[investment.persistentModelID] = $0 }
+        )
+    }
+
+    private func loanDraft(for loan: Loan) -> Binding<LoanDraft> {
+        Binding(
+            get: { loanDrafts[loan.persistentModelID] ?? LoanDraft(from: loan.latest, loan: loan) },
+            set: { loanDrafts[loan.persistentModelID] = $0 }
+        )
     }
 
     private func save() {
         for investment in investments {
-            guard let price = prices[investment.persistentModelID], price > 0 else { continue }
-            let snapshot = PriceSnapshot(date: date, unitPrice: price)
+            var draft = drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest)
+            guard draft.isValid else { continue }
+            draft.date = date
+            draft.note = ""
+            let snapshot = ValueSnapshot()
+            draft.apply(to: snapshot)
             context.insert(snapshot)
-            investment.snapshots.append(snapshot)
+            investment.history.append(snapshot)
+        }
+        for loan in loans {
+            var draft = loanDrafts[loan.persistentModelID] ?? LoanDraft(from: loan.latest, loan: loan)
+            guard draft.isValid else { continue }
+            draft.date = date
+            draft.note = ""
+            let snapshot = LoanSnapshot()
+            draft.apply(to: snapshot)
+            context.insert(snapshot)
+            loan.history.append(snapshot)
         }
         dismiss()
     }

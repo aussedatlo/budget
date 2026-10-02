@@ -5,7 +5,9 @@ import SwiftUI
 struct InvestmentsView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Investment.name) private var investments: [Investment]
+    @Query(sort: \Loan.name) private var loans: [Loan]
     @State private var showingAdd = false
+    @State private var showingAddLoan = false
     @State private var showingSnapshot = false
     @State private var editing: Investment?
     @State private var confetti = 0
@@ -16,16 +18,28 @@ struct InvestmentsView: View {
     private var value: Double { investments.reduce(0) { $0 + $1.currentValue } }
     private var invested: Double { investments.reduce(0) { $0 + $1.investedAmount } }
     private var gain: Double { value - invested }
+    private var homeEquity: Double { loans.reduce(0) { $0 + $1.equity } }
+    /// Investments + the part of the home that is ours.
+    private var netWorth: Double { value + homeEquity }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
-                    if investments.isEmpty {
+                    if investments.isEmpty && loans.isEmpty {
                         emptyState
                     } else {
                         header
-                        SectionTitle(title: "Our treasures")
+                        if !loans.isEmpty {
+                            SectionTitle(title: "Our home")
+                            ForEach(loans) { loan in
+                                NavigationLink(value: loan) { LoanCard(loan: loan) }
+                                    .buttonStyle(SquishyButtonStyle())
+                            }
+                        }
+                        if !investments.isEmpty {
+                            SectionTitle(title: "Our treasures")
+                        }
                         ForEach(investments) { investment in
                             NavigationLink(value: investment) {
                                 InvestmentCard(investment: investment)
@@ -43,11 +57,12 @@ struct InvestmentsView: View {
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 24)
-                .animation(.bouncy, value: investments.count)
+                .animation(.bouncy, value: investments.count + loans.count)
             }
             .background(Theme.background)
-            .navigationTitle("Investments")
+            .navigationTitle("Our treasure")
             .navigationDestination(for: Investment.self) { InvestmentDetailView(investment: $0) }
+            .navigationDestination(for: Loan.self) { LoanDetailView(loan: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -55,19 +70,21 @@ struct InvestmentsView: View {
                     } label: {
                         Label("Snapshot all", systemImage: "camera.fill")
                     }
-                    .disabled(investments.isEmpty)
+                    .disabled(investments.isEmpty && loans.isEmpty)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingAdd = true
+                    Menu {
+                        Button("Add investment", systemImage: "sparkles") { showingAdd = true }
+                        Button("Add home loan", systemImage: "house.fill") { showingAddLoan = true }
                     } label: {
-                        Label("Add investment", systemImage: "plus.circle.fill")
-                            .symbolEffect(.bounce, value: investments.count)
+                        Label("Add", systemImage: "plus.circle.fill")
+                            .symbolEffect(.bounce, value: investments.count + loans.count)
                     }
                 }
             }
             .sheet(isPresented: $showingAdd) { InvestmentFormView() }
-            .sheet(isPresented: $showingSnapshot) { SnapshotAllView(investments: investments) }
+            .sheet(isPresented: $showingAddLoan) { LoanFormView() }
+            .sheet(isPresented: $showingSnapshot) { SnapshotAllView(investments: investments, loans: loans) }
             .sheet(item: $editing) { InvestmentFormView(investment: $0) }
             .overlay { ConfettiView(trigger: confetti).ignoresSafeArea() }
             .sensoryFeedback(.success, trigger: confetti)
@@ -77,9 +94,9 @@ struct InvestmentsView: View {
                     confetti += 1
                 }
             }
-            .onChange(of: gain) { old, new in
+            .onChange(of: netWorth) { old, new in
                 // A new snapshot made us richer 🎉
-                if new > old + 0.01 && new > 0 { confetti += 1 }
+                if new > old + 0.01 && gain > 0 { confetti += 1 }
             }
         }
     }
@@ -88,27 +105,36 @@ struct InvestmentsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Our portfolio 💎")
+                    Text("All that's ours 💎")
                         .font(.subheadline)
                         .foregroundStyle(Theme.softInk)
-                    Text(value.currency)
+                    Text(netWorth.currency)
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Theme.ink)
-                        .contentTransition(.numericText(value: value))
-                        .animation(.snappy, value: value)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText(value: netWorth))
+                        .animation(.snappy, value: netWorth)
                 }
                 Spacer()
                 Text(gain >= 0 ? "🌱" : "🍂").font(.largeTitle)
             }
-            HStack(spacing: 6) {
-                Chip(text: "Invested \(invested.currency)")
-                Chip(
-                    text: invested > 0 ? "\(gain.signedCurrency) · \((gain / invested).signedPercent)" : gain.signedCurrency,
-                    color: Theme.gain(gain)
-                )
+            FlowChips {
+                if !investments.isEmpty {
+                    Chip(text: "✨ Investments \(value.currency)")
+                    Chip(
+                        text: invested > 0 ? "\(gain.signedCurrency) · \((gain / invested).signedPercent)" : gain.signedCurrency,
+                        color: Theme.gain(gain)
+                    )
+                }
+                if !loans.isEmpty {
+                    Chip(text: "🏠 Home \(homeEquity.currency)")
+                }
             }
-            HistoryChart(points: History.points(for: investments))
+            if !investments.isEmpty {
+                HistoryChart(points: History.points(for: investments))
+            }
         }
         .card(LinearGradient(colors: [Theme.lavender, Theme.mint], startPoint: .topLeading, endPoint: .bottomTrailing))
     }
@@ -119,17 +145,33 @@ struct InvestmentsView: View {
             Text("Plant your first seed")
                 .font(.title3.bold())
                 .foregroundStyle(Theme.ink)
-            Text("Add an ETF, some gold coins, crypto or a savings account, then record its price from time to time to watch it grow.")
+            Text("Add an ETF, some gold coins, crypto, a savings account or your home loan, then update it with a snapshot from time to time to watch it grow.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.softInk)
-            Button("Add an investment") { showingAdd = true }
-                .buttonStyle(PillButtonStyle())
-                .padding(.top, 4)
+            HStack {
+                Button("Add an investment") { showingAdd = true }
+                    .buttonStyle(PillButtonStyle())
+                Button("Add home loan") { showingAddLoan = true }
+                    .buttonStyle(PillButtonStyle(color: Theme.positive))
+            }
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
         .card()
         .padding(.top, 40)
+    }
+}
+
+/// Chips that wrap to the next line when they don't fit.
+private struct FlowChips<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { content }
+            VStack(alignment: .leading, spacing: 6) { content }
+        }
     }
 }
 

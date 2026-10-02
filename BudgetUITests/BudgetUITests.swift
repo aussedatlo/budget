@@ -53,26 +53,42 @@ final class BudgetUITests: XCTestCase {
 
     func testInvestments() {
         openTab("Investments")
-        XCTAssertTrue(app.staticTexts["Our portfolio 💎"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["All that's ours 💎"].waitForExistence(timeout: 10))
         snapshot("06-investments")
 
-        app.staticTexts["MSCI World"].tap()
-        XCTAssertTrue(app.staticTexts["Avg. buy price"].waitForExistence(timeout: 5))
+        // An investment and its snapshots
+        let etf = app.staticTexts["MSCI World"]
+        XCTAssertTrue(scrollUntilVisible(etf))
+        etf.tap()
+        XCTAssertTrue(app.staticTexts["Invested so far"].waitForExistence(timeout: 5))
         snapshot("07-investment-detail")
-
         app.swipeUp()
         snapshot("08-investment-history")
 
-        XCTAssertTrue(scrollUntilVisible(app.buttons["Add trade"]))
-        app.buttons["Add trade"].tap()
-        XCTAssertTrue(app.staticTexts["Amount used"].waitForExistence(timeout: 5))
-        snapshot("09-new-trade")
+        // New snapshot starts from the previous one
+        let newSnapshot = app.buttons["New snapshot"]
+        XCTAssertTrue(scrollUntilVisible(newSnapshot))
+        newSnapshot.tap()
+        XCTAssertTrue(app.navigationBars["New snapshot"].waitForExistence(timeout: 5))
+        let quantity = app.textFields["snapshot-quantity"]
+        XCTAssertTrue(quantity.exists)
+        XCTAssertEqual(quantity.value as? String, "24", "Quantity should be pre-filled from the last snapshot")
+        snapshot("09-new-snapshot")
         app.buttons["Cancel"].tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        app.navigationBars.buttons["Investments"].tap()
+        // Home loan
+        let home = app.staticTexts["Our apartment"]
+        XCTAssertTrue(scrollUntilVisible(home))
+        home.tap()
+        XCTAssertTrue(app.staticTexts["Already repaid"].waitForExistence(timeout: 5))
+        snapshot("10-home-loan")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // Snapshot of everything
         app.buttons["Snapshot all"].tap()
-        XCTAssertTrue(app.staticTexts["Unit prices"].waitForExistence(timeout: 5))
-        snapshot("10-snapshot-all")
+        XCTAssertTrue(app.navigationBars["Snapshot of everything"].waitForExistence(timeout: 5))
+        snapshot("11-snapshot-all")
         app.buttons["Cancel"].tap()
     }
 
@@ -80,7 +96,7 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
         app.buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
-        snapshot("11-settings")
+        snapshot("12-settings")
         app.buttons["Done"].tap()
     }
 

@@ -9,15 +9,30 @@ struct BudgetApp: App {
         Theme.configureAppearance()
         let schema = Schema([
             Investment.self,
-            Trade.self,
-            PriceSnapshot.self,
+            ValueSnapshot.self,
+            Loan.self,
+            LoanSnapshot.self,
             FixedCharge.self,
         ])
         if DemoData.isEnabled {
             container = DemoData.makeContainer(for: schema)
         } else {
-            container = try! ModelContainer(for: schema)
+            container = Self.makeContainer(for: schema)
         }
+    }
+
+    /// Opens the store. Data from an early test version that can't be
+    /// migrated is discarded rather than crashing at launch.
+    private static func makeContainer(for schema: Schema) -> ModelContainer {
+        let configuration = ModelConfiguration(schema: schema)
+        if let container = try? ModelContainer(for: schema, configurations: configuration) {
+            return container
+        }
+        let url = configuration.url
+        for suffix in ["", "-shm", "-wal"] {
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + suffix))
+        }
+        return try! ModelContainer(for: schema, configurations: configuration)
     }
 
     var body: some Scene {

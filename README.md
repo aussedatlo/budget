@@ -3,7 +3,7 @@
 A small, cute iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 
 - **Our month**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, as a little jar that fills up and smiles (or worries).
-- **Investments**: stocks, ETFs, funds, crypto, **precious metals**, savings… For each position you record buy/sell trades (quantity, unit price, fees, amount used) and price **snapshots**. The app shows the current value, the net amount invested, the gain and its percentage, the average buy price, and a chart of value against amount invested over time, both per position and for the whole portfolio. The camera button records the price of every position at once.
+- **Our treasure**: investments (ETFs, gold coins, crypto, savings…) followed through **snapshots**. Each snapshot records what a position is worth and how much was put in so far, with quantity × unit price as an option. A new snapshot starts as a copy of the latest one, so you only change what moved, and the camera button updates everything at once. The **home loan** is followed the same way, through what's left to repay and the home's value. The app shows what's already repaid, what part of the home is yours, and all that's yours in total (investments + home).
 
 The design uses pastel cards, a rounded font, an emoji for each charge and investment, numbers that roll when they change, and confetti when the portfolio goes up. All data stays on the device.
 
