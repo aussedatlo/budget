@@ -13,6 +13,9 @@ struct InvestmentsView: View {
     @State private var confetti = 0
     /// Highest net worth seen so far: confetti only when it's beaten.
     @AppStorage("netWorthHigh") private var netWorthHigh: Double = 0
+    @AppStorage("investmentsHigh") private var investmentsHigh: Double = 0
+    /// Off: investments only. On: net worth, including the home and its loan.
+    @AppStorage("includeHome") private var includeHome = false
 
     private var value: Double { investments.reduce(0) { $0 + $1.currentValue } }
     private var invested: Double { investments.reduce(0) { $0 + $1.investedAmount } }
@@ -20,6 +23,7 @@ struct InvestmentsView: View {
     private var homeEquity: Double { loans.reduce(0) { $0 + $1.equity } }
     /// Investments + the part of the home that is ours.
     private var netWorth: Double { value + homeEquity }
+    private var showsHome: Bool { includeHome && !loans.isEmpty }
 
     var body: some View {
         NavigationStack {
@@ -32,7 +36,7 @@ struct InvestmentsView: View {
                         if !investments.isEmpty {
                             SavingsChart(investments: investments)
                         }
-                        if !loans.isEmpty {
+                        if showsHome {
                             SectionTitle(title: "Home")
                             ForEach(loans) { loan in
                                 NavigationLink(value: loan) { LoanCard(loan: loan) }
@@ -91,44 +95,60 @@ struct InvestmentsView: View {
             .sensoryFeedback(.success, trigger: confetti)
             .onAppear {
                 if netWorthHigh == 0 { netWorthHigh = netWorth }
+                if investmentsHigh == 0 { investmentsHigh = value }
             }
+            // A small celebration only for a new all-time high of what's shown
             .onChange(of: netWorth) { old, new in
-                // A small celebration only for a new all-time high
-                guard new > old + 0.01 else { return }
-                if netWorthHigh > 0 && new > netWorthHigh + 0.01 { confetti += 1 }
-                netWorthHigh = max(netWorthHigh, new)
+                netWorthHigh = celebrateIfNewHigh(old: old, new: new, high: netWorthHigh, shown: showsHome)
+            }
+            .onChange(of: value) { old, new in
+                investmentsHigh = celebrateIfNewHigh(old: old, new: new, high: investmentsHigh, shown: !showsHome)
             }
         }
     }
 
+    /// Fires the confetti when `new` beats the high while shown; returns the new high.
+    private func celebrateIfNewHigh(old: Double, new: Double, high: Double, shown: Bool) -> Double {
+        guard new > old + 0.01 else { return high }
+        if shown && high > 0 && new > high + 0.01 { confetti += 1 }
+        return max(high, new)
+    }
+
     private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Net worth")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.softInk)
-                    Text(netWorth.currency)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .contentTransition(.numericText(value: netWorth))
-                        .animation(.snappy, value: netWorth)
+        let total = showsHome ? netWorth : value
+        return VStack(alignment: .leading, spacing: 12) {
+            if !loans.isEmpty {
+                Picker("Show", selection: $includeHome.animation(.snappy)) {
+                    Text("Investments").tag(false)
+                    Text("Net worth").tag(true)
                 }
-                Spacer()
+                .pickerStyle(.segmented)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(showsHome ? "Net worth" : "Investments value")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.softInk)
+                Text(total.currency)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .contentTransition(.numericText(value: total))
+                    .animation(.snappy, value: total)
             }
             FlowChips {
-                if !investments.isEmpty {
+                if showsHome {
                     Chip(text: "Investments \(value.currency)")
+                    Chip(text: "Home equity \(homeEquity.currency)")
+                } else if !investments.isEmpty {
+                    Chip(text: "Invested \(invested.currency)")
+                }
+                if !investments.isEmpty {
                     Chip(
                         text: invested > 0 ? "\(gain.signedCurrency) · \((gain / invested).signedPercent)" : gain.signedCurrency,
                         color: Theme.gain(gain)
                     )
-                }
-                if !loans.isEmpty {
-                    Chip(text: "Home equity \(homeEquity.currency)")
                 }
             }
             if !investments.isEmpty {

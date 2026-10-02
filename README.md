@@ -2,9 +2,9 @@
 
 A small iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 
-- **Month**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, drawn as a jar that fills up.
+- **Month**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, drawn as a jar that fills up. A bar splits the income into charges, savings and what's left, with amounts and percentages.
 - **Savings plan**: set how much goes to each investment every month (for example 200 € to a savings account, 300 € to gold). The Month screen sets it aside, so the jar shows what's really left to spend, and new snapshots add it to "invested so far" automatically. A **Saved per month** chart shows what you actually saved each month, per position, from the changes in "invested so far". Market moves don't count.
-- **Investments**: investments (ETFs, gold coins, crypto, savings…) followed through **snapshots**. Each snapshot records what a position is worth and how much was put in so far, with quantity × unit price as an option. A new snapshot starts as a copy of the latest one, so you only change what moved, and the camera button updates everything at once. The **home loan** is followed the same way, through what's left to repay and the home's value. The app shows what's already repaid, your home equity, and your net worth (investments + home equity).
+- **Investments**: investments (ETFs, gold coins, crypto, savings…) followed through **snapshots**. Each snapshot records what a position is worth and how much was put in so far, with quantity × unit price as an option. A new snapshot starts as a copy of the latest one, so you only change what moved, and the camera button updates everything at once. The **home loan** is followed the same way, through what's left to repay and the home's value. The app shows what's already repaid, your home equity, and your net worth (investments + home equity). A toggle at the top switches between investments only (the default) and net worth.
 
 The design is calm: neutral cards, one dusty-rose accent, an [OpenMoji](https://openmoji.org) icon for each item, numbers that roll when they change, and a small confetti burst when net worth reaches a new high. All data stays on the device.
 
