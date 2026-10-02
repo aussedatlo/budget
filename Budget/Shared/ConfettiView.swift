@@ -15,6 +15,11 @@ struct ConfettiView: View {
     }
 
     private static let duration = 3.2
+    private static let images: [String: Image] = Dictionary(
+        uniqueKeysWithValues: ["🎉", "💖", "✨", "🌸", "🪙", "💎"].compactMap { emoji in
+            OpenMoji.image(for: emoji).map { (emoji, $0) }
+        }
+    )
 
     @State private var particles = (0..<45).map { _ in Particle() }
     @State private var start: Date?
@@ -33,7 +38,12 @@ struct ConfettiView: View {
                     let y = -30 + t * particle.speed * size.height
                     copy.translateBy(x: x, y: y)
                     copy.rotate(by: .degrees(t * particle.spin))
-                    copy.draw(Text(particle.emoji).font(.system(size: particle.size)), at: .zero)
+                    if let image = Self.images[particle.emoji] {
+                        let side = particle.size * 1.2
+                        copy.draw(image, in: CGRect(x: -side / 2, y: -side / 2, width: side, height: side))
+                    } else {
+                        copy.draw(Text(particle.emoji).font(.system(size: particle.size)), at: .zero)
+                    }
                 }
             }
         }

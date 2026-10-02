@@ -1,21 +1,10 @@
 import SwiftUI
 
-/// A little jar with a face. It fills up with what's left of the month
-/// and its mood follows how full it is.
+/// A jar that fills up with what's left of the month, with the
+/// percentage written on it.
 struct JarView: View {
     /// 0...1, how full the jar is.
     var level: Double
-
-    enum Mood { case happy, content, worried, sad }
-
-    var mood: Mood {
-        switch level {
-        case 0.5...: .happy
-        case 0.2..<0.5: .content
-        case 0.0001..<0.2: .worried
-        default: .sad
-        }
-    }
 
     var body: some View {
         // Frozen during UI tests so XCTest can wait for the app to be idle
@@ -26,87 +15,37 @@ struct JarView: View {
                 ZStack(alignment: .top) {
                     // Glass
                     JarShape()
-                        .fill(Theme.card.opacity(0.85))
+                        .fill(Theme.background)
                     // Content
-                    WaveShape(level: level, phase: time * 2.2, amplitude: level > 0 ? 5 : 0)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(light: 0xFFB3CF, dark: 0xD9789E), Color(light: 0xFFCBA4, dark: 0xD99A6E)],
-                                startPoint: .top, endPoint: .bottom
-                            )
-                        )
+                    WaveShape(level: level, phase: time * 1.2, amplitude: level > 0 ? 2.5 : 0)
+                        .fill(Theme.accent.opacity(0.55))
                         .clipShape(JarShape())
-                        .animation(.spring(duration: 1.2, bounce: 0.35), value: level)
+                        .animation(.spring(duration: 1.2, bounce: 0.15), value: level)
                     // Shine
                     Capsule()
-                        .fill(.white.opacity(0.45))
-                        .frame(width: size.width * 0.07, height: size.height * 0.35)
-                        .offset(x: -size.width * 0.3, y: size.height * 0.38)
+                        .fill(.white.opacity(0.35))
+                        .frame(width: size.width * 0.06, height: size.height * 0.3)
+                        .offset(x: -size.width * 0.3, y: size.height * 0.4)
                     JarShape()
-                        .stroke(Theme.ink.opacity(0.18), lineWidth: 3)
+                        .stroke(Theme.ink.opacity(0.15), lineWidth: 2)
                     // Lid
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Theme.accent)
-                        .frame(width: size.width * 0.68, height: size.height * 0.09)
-                        .offset(y: -size.height * 0.05)
-                    face(time: time, size: size)
-                        .offset(y: size.height * 0.48)
-                    if mood == .happy {
-                        sparkles(time: time, size: size)
-                    }
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(Theme.ink.opacity(0.75))
+                        .frame(width: size.width * 0.68, height: size.height * 0.07)
+                        .offset(y: -size.height * 0.04)
+                    Text(level.formatted(.percent.precision(.fractionLength(0))))
+                        .font(.system(size: size.width * 0.2, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.ink)
+                        .contentTransition(.numericText(value: level))
+                        .animation(.snappy, value: level)
+                        .frame(maxWidth: .infinity)
+                        .offset(y: size.height * 0.5)
                 }
             }
         }
         .aspectRatio(0.82, contentMode: .fit)
         .accessibilityHidden(true)
-    }
-
-    private func face(time: Double, size: CGSize) -> some View {
-        // Blink for a moment every few seconds
-        let blinking = time.truncatingRemainder(dividingBy: 4.2) < 0.14
-        let eye = size.width * 0.075
-        return VStack(spacing: size.height * 0.03) {
-            HStack(spacing: size.width * 0.22) {
-                ForEach(0..<2, id: \.self) { _ in
-                    Capsule()
-                        .fill(Theme.ink)
-                        .frame(width: eye, height: blinking ? eye * 0.2 : eye)
-                }
-            }
-            ZStack {
-                HStack(spacing: size.width * 0.38) {
-                    ForEach(0..<2, id: \.self) { _ in
-                        Circle().fill(Theme.accent.opacity(0.35)).frame(width: eye * 1.4)
-                    }
-                }
-                MouthShape(curve: mouthCurve)
-                    .stroke(Theme.ink, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: size.width * 0.2, height: size.height * 0.06)
-                    .animation(.bouncy, value: mouthCurve)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var mouthCurve: Double {
-        switch mood {
-        case .happy: 1
-        case .content: 0.5
-        case .worried: 0
-        case .sad: -0.8
-        }
-    }
-
-    private func sparkles(time: Double, size: CGSize) -> some View {
-        ZStack {
-            ForEach(0..<3, id: \.self) { i in
-                let bob = sin(time * 2 + Double(i) * 2) * 4
-                Text(["✨", "💖", "✨"][i])
-                    .font(.system(size: size.width * (i == 1 ? 0.14 : 0.11)))
-                    .offset(x: CGFloat(i - 1) * size.width * 0.42, y: -size.height * 0.12 + bob)
-            }
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 
@@ -157,26 +96,6 @@ struct WaveShape: Shape {
         path.addLine(to: CGPoint(x: rect.width, y: rect.height))
         path.addLine(to: CGPoint(x: 0, y: rect.height))
         path.closeSubpath()
-        return path
-    }
-}
-
-/// A smile (curve > 0), a flat line (0) or a frown (< 0).
-struct MouthShape: Shape {
-    var curve: Double
-
-    var animatableData: Double {
-        get { curve }
-        set { curve = newValue }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX, y: rect.midY),
-            control: CGPoint(x: rect.midX, y: rect.midY + rect.height * CGFloat(curve))
-        )
         return path
     }
 }

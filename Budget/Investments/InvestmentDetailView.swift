@@ -17,15 +17,11 @@ struct InvestmentDetailView: View {
 
                 LazyVGrid(columns: columns, spacing: 10) {
                     if let latest = investment.latest, latest.tracksUnits {
-                        tile("🧺", "Quantity", (latest.quantity ?? 0).quantityText, Theme.butter)
-                        tile("🏷️", "Unit price", (latest.unitPrice ?? 0).currency, Theme.sky)
+                        tile("Quantity", (latest.quantity ?? 0).quantityText)
+                        tile("Unit price", (latest.unitPrice ?? 0).currency)
                     }
-                    tile("💸", "Invested so far", investment.investedAmount.currency, Theme.peach)
-                    tile(
-                        "📅", "Updated",
-                        investment.latest?.date.formatted(date: .abbreviated, time: .omitted) ?? "–",
-                        Theme.lavender
-                    )
+                    tile("Invested so far", investment.investedAmount.currency)
+                    tile("Updated", investment.latest?.date.formatted(date: .abbreviated, time: .omitted) ?? "–")
                 }
 
                 HistoryChart(points: History.points(for: [investment]))
@@ -33,8 +29,8 @@ struct InvestmentDetailView: View {
 
                 HStack {
                     SectionTitle(title: "Snapshots")
-                    Button("New snapshot", systemImage: "camera.fill") { adding = true }
-                        .buttonStyle(PillButtonStyle(color: Theme.positive))
+                    Button("New snapshot", systemImage: "plus") { adding = true }
+                        .buttonStyle(PillButtonStyle())
                 }
                 let history = investment.sortedHistory
                 ForEach(Array(history.enumerated()), id: \.element.id) { index, snapshot in
@@ -49,7 +45,7 @@ struct InvestmentDetailView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
-            .animation(.bouncy, value: investment.history.count)
+            .animation(.snappy, value: investment.history.count)
         }
         .background(Theme.background)
         .navigationTitle(investment.name)
@@ -65,7 +61,7 @@ struct InvestmentDetailView: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            EmojiBubble(emoji: investment.displayEmoji, color: Theme.card.opacity(0.7), size: 64)
+            EmojiBubble(emoji: investment.displayEmoji, color: investment.kind.color, size: 56)
             VStack(alignment: .leading, spacing: 4) {
                 Text(investment.currentValue.currency)
                     .font(.system(size: 30, weight: .bold, design: .rounded))
@@ -82,16 +78,12 @@ struct InvestmentDetailView: View {
                 )
             }
         }
-        .card(LinearGradient(colors: [investment.kind.color, Theme.pink],
-                             startPoint: .topLeading, endPoint: .bottomTrailing))
+        .card()
     }
 
-    private func tile(_ emoji: String, _ title: String, _ value: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(emoji).font(.title3)
-            StatTile(title: title, value: value)
-        }
-        .card(color, padding: 12)
+    private func tile(_ title: String, _ value: String) -> some View {
+        StatTile(title: title, value: value)
+            .card(padding: 12)
     }
 }
 
@@ -104,7 +96,6 @@ private struct SnapshotRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            EmojiBubble(emoji: "📸", color: Theme.lavender, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(snapshot.date.formatted(date: .abbreviated, time: .omitted))
                     .font(.headline)

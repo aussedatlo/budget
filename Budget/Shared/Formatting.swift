@@ -33,4 +33,12 @@ extension Calendar {
     func monthInterval(for date: Date) -> DateInterval {
         dateInterval(of: .month, for: date) ?? DateInterval(start: date, duration: 0)
     }
+
+    /// Number of calendar months from `start` to `end` (0 within the same month).
+    func monthsBetween(_ start: Date, _ end: Date) -> Int {
+        let from = dateComponents([.year, .month], from: start)
+        let to = dateComponents([.year, .month], from: end)
+        let months = ((to.year ?? 0) - (from.year ?? 0)) * 12 + (to.month ?? 0) - (from.month ?? 0)
+        return max(months, 0)
+    }
 }
