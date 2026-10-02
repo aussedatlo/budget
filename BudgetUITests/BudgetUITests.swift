@@ -20,6 +20,16 @@ final class BudgetUITests: XCTestCase {
         app.launch()
     }
 
+    /// Show the screen at the time of failure in the PR comment too.
+    override func tearDown() {
+        if let run = testRun, run.failureCount > 0 {
+            // name is "-[BudgetUITests testExpenses]"
+            let method = name.split(separator: " ").last.map { String($0.dropLast()) } ?? "test"
+            snapshot("99-failure-\(method)")
+        }
+        super.tearDown()
+    }
+
     func testExpenses() {
         XCTAssertTrue(app.staticTexts["Spent this month"].waitForExistence(timeout: 10))
         snapshot("01-expenses")
@@ -46,8 +56,11 @@ final class BudgetUITests: XCTestCase {
         snapshot("04-fixed-charges")
         app.buttons["Done"].tap()
 
-        // Previous month
+        // Previous month: shown from the top, with its own title
         app.buttons["Previous month"].tap()
+        let previousMonth = Calendar.current.date(byAdding: .month, value: -1, to: .now)!
+        let monthTitle = previousMonth.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "en_US")))
+        XCTAssertTrue(app.staticTexts[monthTitle].waitForExistence(timeout: 5), "Title should be \(monthTitle)")
         XCTAssertTrue(app.staticTexts["Spent this month"].waitForExistence(timeout: 5))
         snapshot("05-previous-month")
     }

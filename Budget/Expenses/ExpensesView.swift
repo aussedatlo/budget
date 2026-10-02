@@ -14,6 +14,8 @@ struct ExpensesView: View {
     var body: some View {
         NavigationStack {
             MonthExpensesView(month: month, budget: budget)
+                // New list per month: switching months starts back at the summary
+                .id(calendar.monthInterval(for: month).start)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
