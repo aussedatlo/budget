@@ -13,11 +13,15 @@ struct SnapshotDraft {
     var value: Double?
     var invested: Double?
     var note = ""
+    /// Savings plan used to pre-fill "invested so far" in a new snapshot.
+    private var plan: (invested: Double, since: Date, monthly: Double)?
 
     init() {}
 
-    /// - Parameter keepDate: true to edit `snapshot`, false to start a new one from it.
-    init(from snapshot: ValueSnapshot?, keepDate: Bool = false) {
+    /// - Parameters:
+    ///   - keepDate: true to edit `snapshot`, false to start a new one from it.
+    ///   - monthlyContribution: savings plan added for each month since `snapshot`.
+    init(from snapshot: ValueSnapshot?, keepDate: Bool = false, monthlyContribution: Double = 0) {
         guard let snapshot else { return }
         date = keepDate ? snapshot.date : .now
         tracksUnits = snapshot.tracksUnits
@@ -26,6 +30,22 @@ struct SnapshotDraft {
         value = snapshot.value
         invested = snapshot.invested
         note = keepDate ? snapshot.note : ""
+        if !keepDate && monthlyContribution > 0 {
+            plan = (snapshot.invested, snapshot.date, monthlyContribution)
+            applyPlan()
+        }
+    }
+
+    /// Money added by the savings plan since the previous snapshot.
+    var plannedAddition: Double {
+        guard let plan else { return 0 }
+        return plan.monthly * Double(Calendar.current.monthsBetween(plan.since, date))
+    }
+
+    /// Recompute "invested so far" from the plan, e.g. after a date change.
+    mutating func applyPlan() {
+        guard let plan else { return }
+        invested = plan.invested + plannedAddition
     }
 
     var computedValue: Double {
@@ -55,6 +75,7 @@ struct SnapshotFields: View {
     var body: some View {
         if showsDate {
             DatePicker("Date", selection: $draft.date, displayedComponents: .date)
+                .onChange(of: draft.date) { draft.applyPlan() }
         }
         if showsUnitsToggle {
             Toggle("Quantity × unit price", isOn: $draft.tracksUnits.animation(.snappy))
@@ -67,6 +88,11 @@ struct SnapshotFields: View {
             NumberField(title: "Value", value: $draft.value, identifier: "snapshot-value")
         }
         NumberField(title: "Invested so far", value: $draft.invested, identifier: "snapshot-invested")
+        if draft.plannedAddition > 0 {
+            Text("Includes \(draft.plannedAddition.signedCurrency) from the savings plan. Change it if this month was different.")
+                .font(.footnote)
+                .foregroundStyle(Theme.softInk)
+        }
     }
 }
 
@@ -82,6 +108,7 @@ struct InvestmentFormView: View {
     @State private var ticker: String
     @State private var kind: InvestmentKind
     @State private var emoji: String
+    @State private var monthlyContribution: Double?
     /// First snapshot, only when creating.
     @State private var draft = SnapshotDraft()
 
@@ -91,6 +118,7 @@ struct InvestmentFormView: View {
         _ticker = State(initialValue: investment?.ticker ?? "")
         _kind = State(initialValue: investment?.kind ?? .etf)
         _emoji = State(initialValue: investment?.displayEmoji ?? InvestmentKind.etf.emoji)
+        _monthlyContribution = State(initialValue: investment.flatMap { $0.monthlyContribution > 0 ? $0.monthlyContribution : nil })
     }
 
     var body: some View {
@@ -113,6 +141,13 @@ struct InvestmentFormView: View {
                             Text(kind.rawValue).tag(kind)
                         }
                     }
+                }
+                Section {
+                    NumberField(title: "Monthly savings", value: $monthlyContribution, identifier: "monthly-contribution")
+                } header: {
+                    Text("Savings plan")
+                } footer: {
+                    Text("How much you usually add every month. New snapshots add it to “invested so far” for you, and it's set aside on the Month screen.")
                 }
                 if investment == nil {
                     Section {
@@ -163,8 +198,10 @@ struct InvestmentFormView: View {
             investment.ticker = ticker
             investment.kind = kind
             investment.emoji = customEmoji
+            investment.monthlyContribution = monthlyContribution ?? 0
         } else {
             let new = Investment(name: trimmed, ticker: ticker, kind: kind, emoji: customEmoji)
+            new.monthlyContribution = monthlyContribution ?? 0
             context.insert(new)
             if draft.isValid {
                 let snapshot = ValueSnapshot()
@@ -192,7 +229,7 @@ struct SnapshotFormView: View {
         self.investment = investment
         self.snapshot = snapshot
         _draft = State(initialValue: snapshot.map { SnapshotDraft(from: $0, keepDate: true) }
-            ?? SnapshotDraft(from: investment.latest))
+            ?? SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution))
     }
 
     var body: some View {
@@ -290,6 +327,14 @@ struct SnapshotAllView: View {
             }
             .themedForm()
             .scrollDismissesKeyboard(.interactively)
+            .onChange(of: date) {
+                for investment in investments {
+                    var updated = draft(for: investment).wrappedValue
+                    updated.date = date
+                    updated.applyPlan()
+                    drafts[investment.persistentModelID] = updated
+                }
+            }
             .navigationTitle("Snapshot of everything")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -301,7 +346,7 @@ struct SnapshotAllView: View {
 
     private func draft(for investment: Investment) -> Binding<SnapshotDraft> {
         Binding(
-            get: { drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest) },
+            get: { drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution) },
             set: { drafts[investment.persistentModelID] = $0 }
         )
     }
@@ -315,7 +360,7 @@ struct SnapshotAllView: View {
 
     private func save() {
         for investment in investments {
-            var draft = drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest)
+            var draft = drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution)
             guard draft.isValid else { continue }
             draft.date = date
             draft.note = ""

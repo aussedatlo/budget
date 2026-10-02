@@ -6,13 +6,18 @@ import SwiftUI
 struct MonthlyView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \FixedCharge.dayOfMonth) private var charges: [FixedCharge]
+    @Query(sort: \Investment.name) private var investments: [Investment]
     @AppStorage(AppSettings.incomeKey) private var income: Double = 0
     @Binding var showingSettings: Bool
     @State private var adding = false
     @State private var editing: FixedCharge?
+    @State private var editingPlan = false
 
     private var total: Double { charges.reduce(0) { $0 + $1.amount } }
-    private var left: Double { income - total }
+    private var savers: [Investment] { investments.filter { $0.monthlyContribution > 0 } }
+    private var savings: Double { savers.reduce(0) { $0 + $1.monthlyContribution } }
+    /// What's really free to spend: income minus charges and planned savings.
+    private var left: Double { income - total - savings }
     private var level: Double { income > 0 ? max(left, 0) / income : 0 }
 
     var body: some View {
@@ -36,6 +41,7 @@ struct MonthlyView: View {
                             }
                             .transition(.opacity)
                     }
+                    savingsSection
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 24)
@@ -58,6 +64,7 @@ struct MonthlyView: View {
             }
             .sheet(isPresented: $adding) { FixedChargeFormView() }
             .sheet(item: $editing) { FixedChargeFormView(charge: $0) }
+            .sheet(isPresented: $editingPlan) { SavingsPlanView() }
             .sensoryFeedback(.success, trigger: charges.count) { old, new in new > old }
             .sensoryFeedback(.impact(weight: .light), trigger: charges.count) { old, new in new < old }
         }
@@ -70,7 +77,7 @@ struct MonthlyView: View {
             JarView(level: level)
                 .frame(width: 100)
             VStack(alignment: .leading, spacing: 6) {
-                Text(left >= 0 ? "Left this month" : "Over budget")
+                Text(left >= 0 ? (savings > 0 ? "Left after savings" : "Left this month") : "Over budget")
                     .font(.subheadline)
                     .foregroundStyle(Theme.softInk)
                 Text(abs(left).currency)
@@ -86,9 +93,9 @@ struct MonthlyView: View {
                         .font(.footnote)
                         .foregroundStyle(Theme.softInk)
                 }
-                HStack(spacing: 6) {
-                    Chip(text: "Income \(income.currency)")
-                    Chip(text: "Charges \(total.currency)")
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { chips }
+                    VStack(alignment: .leading, spacing: 6) { chips }
                 }
                 .padding(.top, 2)
             }
@@ -112,6 +119,58 @@ struct MonthlyView: View {
                 .accessibilityIdentifier("monthly-income")
         }
         .card()
+    }
+
+    @ViewBuilder
+    private var chips: some View {
+        Chip(text: "Income \(income.currency)")
+        Chip(text: "Charges \(total.currency)")
+        if savings > 0 {
+            Chip(text: "Savings \(savings.currency)")
+        }
+    }
+
+    @ViewBuilder
+    private var savingsSection: some View {
+        SectionTitle(title: "Monthly savings", trailing: savings > 0 ? savings.currency : nil)
+        ForEach(savers) { investment in
+            Button { editingPlan = true } label: {
+                HStack(spacing: 12) {
+                    EmojiBubble(emoji: investment.displayEmoji, color: investment.kind.color)
+                    Text(investment.name)
+                        .font(.headline)
+                        .foregroundStyle(Theme.ink)
+                    Spacer()
+                    Text(investment.monthlyContribution.currency)
+                        .font(.headline)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.ink)
+                }
+                .card(padding: 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(SquishyButtonStyle())
+        }
+        if savers.isEmpty {
+            VStack(spacing: 8) {
+                Text("No savings plan yet")
+                    .font(.headline)
+                    .foregroundStyle(Theme.ink)
+                Text("Set how much goes to each investment every month, e.g. 200 € to a savings account and 300 € to gold.")
+                    .font(.subheadline)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(Theme.softInk)
+                Button("Plan monthly savings") { editingPlan = true }
+                    .buttonStyle(PillButtonStyle())
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity)
+            .card()
+        } else {
+            Button("Edit savings plan", systemImage: "slider.horizontal.3") { editingPlan = true }
+                .buttonStyle(PillButtonStyle())
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private var emptyState: some View {

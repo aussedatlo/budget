@@ -29,6 +29,9 @@ struct InvestmentsView: View {
                         emptyState
                     } else {
                         header
+                        if !investments.isEmpty {
+                            SavingsChart(investments: investments)
+                        }
                         if !loans.isEmpty {
                             SectionTitle(title: "Home")
                             ForEach(loans) { loan in

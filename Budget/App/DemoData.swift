@@ -46,11 +46,16 @@ enum DemoData {
         let gold = Investment(name: "Gold coins", ticker: "XAU", kind: .metal)
         for investment in [etf, crypto, savings, gold] { context.insert(investment) }
 
+        // Savings plan: 200 € to the savings account and 300 € to gold every month
+        savings.monthlyContribution = 200
+        gold.monthlyContribution = 300
+
+        var goldCoins = 4.0
         for i in 0..<12 {
             let date = min(monthsAgo(11 - i, day: 20), now)
             let step = Double(i)
 
-            let shares = 2 * (step + 1)
+            let shares = 10 + step
             let etfPrice = 420 + step * 6 + (i.isMultiple(of: 3) ? -9 : 4)
             add(ValueSnapshot(date: date, value: shares * etfPrice, invested: shares * 418,
                               quantity: shares, unitPrice: etfPrice), to: etf, context)
@@ -60,12 +65,15 @@ enum DemoData {
             add(ValueSnapshot(date: date, value: coins * btcPrice, invested: i < 6 ? 2_510 : 4_348,
                               quantity: coins, unitPrice: btcPrice), to: crypto, context)
 
-            add(ValueSnapshot(date: date, value: 5_000 * (1 + 0.0025 * step), invested: 5_000), to: savings, context)
+            let saved = 5_000 + 200 * step
+            add(ValueSnapshot(date: date, value: saved * (1 + 0.0025 * step), invested: saved), to: savings, context)
 
             if i >= 1 {
-                let goldPrice = 395 + step * 11
-                add(ValueSnapshot(date: date, value: 4 * goldPrice, invested: 1_592,
-                                  quantity: 4, unitPrice: goldPrice), to: gold, context)
+                // Gold dips some months: savings still count, only the value moves
+                let goldPrice = 395 + step * 11 + (i.isMultiple(of: 4) ? -30 : 0)
+                if i >= 2 { goldCoins += 300 / goldPrice }
+                add(ValueSnapshot(date: date, value: goldCoins * goldPrice, invested: 1_592 + 300 * Double(i - 1),
+                                  quantity: goldCoins, unitPrice: goldPrice), to: gold, context)
             }
         }
 

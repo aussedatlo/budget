@@ -51,6 +51,8 @@ final class Investment {
     var kindRaw: String = InvestmentKind.etf.rawValue
     var emoji: String = ""
     var createdAt: Date = Date.now
+    /// Savings plan: money added every month (0 = none).
+    var monthlyContribution: Double = 0
 
     @Relationship(deleteRule: .cascade, inverse: \ValueSnapshot.investment)
     var history: [ValueSnapshot] = []
@@ -83,6 +85,14 @@ final class Investment {
     var investedAmount: Double { latest?.invested ?? 0 }
     var gain: Double { currentValue - investedAmount }
     var gainRatio: Double { investedAmount > 0 ? gain / investedAmount : 0 }
+
+    /// "Invested so far" expected at `date` from the latest snapshot plus
+    /// the savings plan for each month since.
+    func plannedInvested(at date: Date) -> Double? {
+        guard let latest else { return nil }
+        let months = Calendar.current.monthsBetween(latest.date, date)
+        return latest.invested + monthlyContribution * Double(months)
+    }
 }
 
 /// What a position is worth at a date, and how much was put in so far.
@@ -134,6 +144,42 @@ enum History {
                 value: snapshots.reduce(0) { $0 + $1.value },
                 invested: snapshots.reduce(0) { $0 + $1.invested }
             )
+        }
+    }
+}
+
+// MARK: - Savings
+
+struct SavingsPoint: Identifiable {
+    let month: Date
+    let investment: String
+    let amount: Double
+    var id: String { "\(month.timeIntervalSince1970)-\(investment)" }
+}
+
+enum Savings {
+    /// Money saved each month, per position: the change in "invested so far"
+    /// between two snapshots, counted in the month of the later one.
+    /// Market moves don't count, only money put in or taken out.
+    static func monthly(for investments: [Investment], months: Int = 12) -> [SavingsPoint] {
+        let calendar = Calendar.current
+        let firstMonth = calendar.date(byAdding: .month, value: -(months - 1),
+                                       to: calendar.monthInterval(for: .now).start)!
+        var totals: [Date: [String: Double]] = [:]
+        for investment in investments {
+            let history = investment.history.sorted { $0.date < $1.date }
+            for (previous, snapshot) in zip(history, history.dropFirst()) {
+                let month = calendar.monthInterval(for: snapshot.date).start
+                guard month >= firstMonth else { continue }
+                let added = snapshot.invested - previous.invested
+                guard added != 0 else { continue }
+                totals[month, default: [:]][investment.name, default: 0] += added
+            }
+        }
+        return totals.keys.sorted().flatMap { month in
+            totals[month]!.sorted { $0.key < $1.key }.map {
+                SavingsPoint(month: month, investment: $0.key, amount: $0.value)
+            }
         }
     }
 }

@@ -18,6 +18,16 @@ enum Theme {
     static let butter = Color(light: 0xF6F2E4, dark: 0x2C2A21)
     static let sky = Color(light: 0xEAF0F6, dark: 0x222830)
 
+    /// Distinct, muted colors for chart series.
+    static let series: [Color] = [
+        accent,
+        Color(light: 0x6B8CB8, dark: 0x8FAEDA),
+        Color(light: 0x7FA588, dark: 0x9CC5A6),
+        Color(light: 0xC4A064, dark: 0xDDBB82),
+        Color(light: 0x9585BF, dark: 0xB3A5DC),
+        Color(light: 0x5E9EA0, dark: 0x82C0C2),
+    ]
+
     static let positive = Color(light: 0x3B8A66, dark: 0x7CC5A1)
     static let negative = Color(light: 0xBF4E63, dark: 0xF08A9C)
 
