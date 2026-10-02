@@ -27,6 +27,10 @@ xcodegen generate
 open Budget.xcodeproj
 ```
 
+## Try it in a browser (appetize.io)
+
+Each build on `main` and each `v*` tag also produces `Budget-simulator.zip`, a Simulator build. Upload it at [appetize.io/upload](https://appetize.io/upload) to run the app on a virtual iPad or iPhone in the browser. Nothing needs to be installed.
+
 ## E2E tests and screenshots (pull requests)
 
 Every pull request runs the UI tests in `BudgetUITests/` on an iPhone simulator and an iPad simulator. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. They walk through the main screens and take a screenshot of each.
