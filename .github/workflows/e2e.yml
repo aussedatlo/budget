@@ -1,15 +1,23 @@
 name: E2E tests
 
+# macOS runners are expensive: the tests only run on pull requests that
+# carry the `test` label (adding the label starts a run).
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
-  group: e2e-${{ github.event.pull_request.number }}
+  # Adding an unrelated label gets its own group, so it never cancels a
+  # running test run.
+  group: e2e-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'test' && github.run_id || 'tests' }}
   cancel-in-progress: true
 
 jobs:
   ui-tests:
     name: UI tests (${{ matrix.device }})
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'test') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'test')
     runs-on: macos-15
     timeout-minutes: 45
     strategy:
@@ -80,7 +88,9 @@ jobs:
   # in a single PR comment that is updated on every run.
   comment:
     needs: ui-tests
-    if: always() && github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      always() && needs.ui-tests.result != 'skipped' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write

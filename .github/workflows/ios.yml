@@ -1,8 +1,8 @@
 name: iOS build
 
+# macOS runners are expensive: build only for release tags (or on demand).
 on:
   push:
-    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
