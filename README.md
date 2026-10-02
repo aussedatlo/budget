@@ -15,6 +15,7 @@ Budget/App                  App entry, tabs, settings
 Budget/Models               SwiftData models + calculations
 Budget/Expenses             Monthly expenses UI
 Budget/Investments          Investments UI
+BudgetUITests               E2E tests (screenshots on PRs)
 .github/workflows/ios.yml   CI: build, sign, export .ipa
 ```
 
@@ -25,6 +26,14 @@ brew install xcodegen
 xcodegen generate
 open Budget.xcodeproj
 ```
+
+## E2E tests and screenshots (pull requests)
+
+Every pull request runs the UI tests in `BudgetUITests/` on an iPhone simulator and an iPad simulator. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. They walk through the main screens and take a screenshot of each.
+
+CI pushes the screenshots to the `ci-screenshots` branch and posts them in a PR comment, which is updated on every run. They are also available as workflow artifacts. Pushes to `main` and tags don't run these tests.
+
+To add a screen, call `snapshot("NN-name")` in a test. The number sets the order.
 
 ## Installing with a free Apple ID (SideStore)
 

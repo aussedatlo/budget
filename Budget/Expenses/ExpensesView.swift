@@ -14,16 +14,20 @@ struct ExpensesView: View {
     var body: some View {
         NavigationStack {
             MonthExpensesView(month: month, budget: budget)
+                // New list per month: switching months starts back at the summary
+                .id(calendar.monthInterval(for: month).start)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         HStack(spacing: 16) {
                             Button { shiftMonth(-1) } label: { Image(systemName: "chevron.left") }
+                                .accessibilityLabel("Previous month")
                             Text(month.formatted(.dateTime.month(.wide).year()))
                                 .font(.headline)
                                 .frame(minWidth: 140)
                                 .onTapGesture { month = .now }
                             Button { shiftMonth(1) } label: { Image(systemName: "chevron.right") }
+                                .accessibilityLabel("Next month")
                         }
                     }
                     ToolbarItem(placement: .topBarLeading) {

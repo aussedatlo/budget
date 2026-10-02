@@ -1,0 +1,147 @@
+name: E2E tests
+
+on:
+  pull_request:
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ui-tests:
+    name: UI tests (${{ matrix.device }})
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Boot ${{ matrix.device }} simulator
+        run: |
+          set -euo pipefail
+          UDID="$(xcrun simctl list devices available -j | python3 .github/scripts/pick_simulator.py "${{ matrix.device }}")"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          # Clean, consistent status bar for screenshots
+          xcrun simctl status_bar "$UDID" override --time 9:41 \
+            --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Run UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test -project Budget.xcodeproj -scheme Budget \
+            -destination "id=$UDID" \
+            -resultBundlePath "$RUNNER_TEMP/UITests.xcresult" \
+            -parallel-testing-enabled NO \
+            -quiet
+
+      - name: Collect screenshots
+        if: always()
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/screenshots/${{ matrix.device }}"
+          mkdir -p "$OUT"
+          if [ -d "$RUNNER_TEMP/UITests.xcresult" ]; then
+            xcrun xcresulttool export attachments \
+              --path "$RUNNER_TEMP/UITests.xcresult" \
+              --output-path "$RUNNER_TEMP/attachments"
+            python3 .github/scripts/collect_screenshots.py "$RUNNER_TEMP/attachments" "$OUT"
+          fi
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.device }}
+          path: ${{ runner.temp }}/screenshots
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ matrix.device }}
+          path: ${{ runner.temp }}/UITests.xcresult
+
+  # Publishes the screenshots to the `ci-screenshots` branch and shows them
+  # in a single PR comment that is updated on every run.
+  comment:
+    needs: ui-tests
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      BRANCH: ci-screenshots
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: screenshots-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/screenshots
+
+      - name: Push screenshots to the ${{ env.BRANCH }} branch
+        run: |
+          set -euo pipefail
+          DEST="pr-$PR/run-${{ github.run_number }}-${{ github.run_attempt }}"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+          SHOTS="$RUNNER_TEMP/shots-branch"
+          mkdir -p "$RUNNER_TEMP/screenshots"
+
+          if git ls-remote --exit-code --heads "$REMOTE" "$BRANCH" > /dev/null; then
+            git clone --quiet --depth 1 --branch "$BRANCH" "$REMOTE" "$SHOTS"
+          else
+            git init --quiet -b "$BRANCH" "$SHOTS"
+            git -C "$SHOTS" remote add origin "$REMOTE"
+          fi
+
+          # Keep only the latest run of this PR
+          rm -rf "$SHOTS/pr-$PR"
+          mkdir -p "$SHOTS/$DEST"
+          cp -R "$RUNNER_TEMP/screenshots/." "$SHOTS/$DEST/"
+
+          cd "$SHOTS"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit --quiet -m "Screenshots for PR #$PR (run ${{ github.run_number }})" || true
+          git push --quiet origin "$BRANCH"
+
+          echo "BASE_URL=https://github.com/$GH_REPO/blob/$BRANCH/$DEST" >> "$GITHUB_ENV"
+
+      - name: Comment on the pull request
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/screenshot_comment.py \
+            "$RUNNER_TEMP/screenshots" "$BASE_URL" "${{ needs.ui-tests.result }}" \
+            "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            > "$RUNNER_TEMP/comment.md"
+
+          COMMENT_ID="$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- e2e-screenshots -->")) | .id' | head -n 1)"
+          if [ -n "$COMMENT_ID" ]; then
+            gh api -X PATCH "repos/$GH_REPO/issues/comments/$COMMENT_ID" -F body=@"$RUNNER_TEMP/comment.md" > /dev/null
+          else
+            gh pr comment "$PR" --body-file "$RUNNER_TEMP/comment.md"
+          fi

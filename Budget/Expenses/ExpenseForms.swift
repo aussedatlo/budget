@@ -31,7 +31,9 @@ struct ExpenseFormView: View {
                         .keyboardType(.decimalPad)
                         .font(.title2.bold())
                         .focused($amountFocused)
+                        .accessibilityIdentifier("expense-amount")
                     TextField("Title (e.g. Groceries)", text: $title)
+                        .accessibilityIdentifier("expense-title")
                 }
                 Section {
                     CategoryPicker(selection: $category)
