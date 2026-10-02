@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 enum InvestmentKind: String, CaseIterable, Identifiable {
     case stock = "Stock"
@@ -12,6 +13,32 @@ enum InvestmentKind: String, CaseIterable, Identifiable {
     case other = "Other"
 
     var id: String { rawValue }
+
+    var emoji: String {
+        switch self {
+        case .stock: "📈"
+        case .etf: "🌍"
+        case .fund: "💼"
+        case .crypto: "₿"
+        case .metal: "🪙"
+        case .savings: "🐷"
+        case .realEstate: "🏠"
+        case .other: "💎"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .stock: Theme.sky
+        case .etf: Theme.mint
+        case .fund: Theme.lavender
+        case .crypto: Theme.peach
+        case .metal: Theme.butter
+        case .savings: Theme.pink
+        case .realEstate: Theme.peach
+        case .other: Theme.lavender
+        }
+    }
 
     var icon: String {
         switch self {
@@ -35,6 +62,7 @@ final class Investment {
     var ticker: String = ""
     var kindRaw: String = InvestmentKind.etf.rawValue
     var createdAt: Date = Date.now
+    var emoji: String = ""
 
     @Relationship(deleteRule: .cascade, inverse: \Trade.investment)
     var trades: [Trade] = []
@@ -42,12 +70,15 @@ final class Investment {
     @Relationship(deleteRule: .cascade, inverse: \PriceSnapshot.investment)
     var snapshots: [PriceSnapshot] = []
 
-    init(name: String, ticker: String = "", kind: InvestmentKind = .etf) {
+    init(name: String, ticker: String = "", kind: InvestmentKind = .etf, emoji: String = "") {
         self.name = name
         self.ticker = ticker
         self.kindRaw = kind.rawValue
         self.createdAt = .now
+        self.emoji = emoji
     }
+
+    var displayEmoji: String { emoji.isEmpty ? kind.emoji : emoji }
 
     var kind: InvestmentKind {
         get { InvestmentKind(rawValue: kindRaw) ?? .other }

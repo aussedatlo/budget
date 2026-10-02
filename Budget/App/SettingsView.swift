@@ -18,11 +18,18 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Text("🫙 💖 🌸")
+                        .font(.largeTitle)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                }
                 Picker("Currency", selection: $currency) {
                     ForEach(currencies, id: \.self) { Text($0).tag($0) }
                 }
                 LabeledContent("Version", value: version)
             }
+            .themedForm()
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

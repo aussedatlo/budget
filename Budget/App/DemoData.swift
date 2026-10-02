@@ -27,16 +27,16 @@ enum DemoData {
             return calendar.date(byAdding: .day, value: day - 1, to: month)!
         }
         // Recurring charges
-        let charges: [(String, Double, ChargeCategory, Int)] = [
-            ("Rent", 850, .housing, 5),
-            ("Electricity", 64, .utilities, 8),
-            ("Internet", 29.99, .utilities, 10),
-            ("Car insurance", 48.50, .insurance, 12),
-            ("Netflix", 13.49, .subscriptions, 15),
-            ("Gym", 35, .health, 1),
+        let charges: [(String, Double, ChargeCategory, Int, String)] = [
+            ("Rent", 850, .housing, 5, ""),
+            ("Electricity", 64, .utilities, 8, "⚡️"),
+            ("Internet", 29.99, .utilities, 10, "📶"),
+            ("Car insurance", 48.50, .insurance, 12, ""),
+            ("Netflix", 13.49, .subscriptions, 15, ""),
+            ("Yoga", 35, .health, 1, "🧘‍♀️"),
         ]
-        for (title, amount, category, day) in charges {
-            context.insert(FixedCharge(title: title, amount: amount, category: category, dayOfMonth: day))
+        for (title, amount, category, day, emoji) in charges {
+            context.insert(FixedCharge(title: title, amount: amount, category: category, dayOfMonth: day, emoji: emoji))
         }
 
         // Investments: monthly buys and snapshots over a year

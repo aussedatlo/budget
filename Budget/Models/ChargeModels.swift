@@ -35,17 +35,32 @@ enum ChargeCategory: String, CaseIterable, Identifiable {
         }
     }
 
+    var emoji: String {
+        switch self {
+        case .housing: "🏠"
+        case .utilities: "💡"
+        case .insurance: "🛡️"
+        case .subscriptions: "📺"
+        case .transport: "🚗"
+        case .health: "💊"
+        case .loans: "🏦"
+        case .leisure: "🎮"
+        case .other: "🌸"
+        }
+    }
+
+    /// Pastel background for the emoji bubble.
     var color: Color {
         switch self {
-        case .housing: .indigo
-        case .utilities: .yellow
-        case .insurance: .teal
-        case .subscriptions: .orange
-        case .transport: .blue
-        case .health: .red
-        case .loans: .brown
-        case .leisure: .purple
-        case .other: .gray
+        case .housing: Theme.peach
+        case .utilities: Theme.butter
+        case .insurance: Theme.sky
+        case .subscriptions: Theme.lavender
+        case .transport: Theme.sky
+        case .health: Theme.pink
+        case .loans: Theme.butter
+        case .leisure: Theme.mint
+        case .other: Theme.pink
         }
     }
 }
@@ -57,13 +72,18 @@ final class FixedCharge {
     var amount: Double = 0
     var categoryRaw: String = ChargeCategory.other.rawValue
     var dayOfMonth: Int = 1
+    var emoji: String = ""
 
-    init(title: String, amount: Double, category: ChargeCategory = .other, dayOfMonth: Int = 1) {
+    init(title: String, amount: Double, category: ChargeCategory = .other,
+         dayOfMonth: Int = 1, emoji: String = "") {
         self.title = title
         self.amount = amount
         self.categoryRaw = category.rawValue
         self.dayOfMonth = dayOfMonth
+        self.emoji = emoji
     }
+
+    var displayEmoji: String { emoji.isEmpty ? category.emoji : emoji }
 
     var category: ChargeCategory {
         get { ChargeCategory(rawValue: categoryRaw) ?? .other }

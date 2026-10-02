@@ -1,11 +1,11 @@
 # Budget
 
-A small iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
+A small, cute iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 
-- **Monthly**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month.
+- **Our month**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, as a little jar that fills up and smiles (or worries).
 - **Investments**: stocks, ETFs, funds, crypto, **precious metals**, savings… For each position you record buy/sell trades (quantity, unit price, fees, amount used) and price **snapshots**. The app shows the current value, the net amount invested, the gain and its percentage, the average buy price, and a chart of value against amount invested over time, both per position and for the whole portfolio. The camera button records the price of every position at once.
 
-All data stays on the device.
+The design uses pastel cards, a rounded font, an emoji for each charge and investment, numbers that roll when they change, and confetti when the portfolio goes up. All data stays on the device.
 
 ## Project layout
 

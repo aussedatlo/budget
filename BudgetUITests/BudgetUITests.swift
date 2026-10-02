@@ -31,7 +31,7 @@ final class BudgetUITests: XCTestCase {
     }
 
     func testMonthly() {
-        XCTAssertTrue(app.staticTexts["Left each month"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["You have"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Rent"].exists)
         snapshot("01-monthly")
 
@@ -53,7 +53,7 @@ final class BudgetUITests: XCTestCase {
 
     func testInvestments() {
         openTab("Investments")
-        XCTAssertTrue(app.staticTexts["Portfolio value"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Our portfolio 💎"].waitForExistence(timeout: 10))
         snapshot("06-investments")
 
         app.staticTexts["MSCI World"].tap()

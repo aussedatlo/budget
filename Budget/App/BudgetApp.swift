@@ -6,6 +6,7 @@ struct BudgetApp: App {
     let container: ModelContainer
 
     init() {
+        Theme.configureAppearance()
         let schema = Schema([
             Investment.self,
             Trade.self,
@@ -38,13 +39,15 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selection) {
             MonthlyView(showingSettings: $showingSettings)
-                .tabItem { Label("Monthly", systemImage: "calendar") }
+                .tabItem { Label("Our month", systemImage: "heart.fill") }
                 .tag(Tab.monthly)
             InvestmentsView()
-                .tabItem { Label("Investments", systemImage: "chart.line.uptrend.xyaxis") }
+                .tabItem { Label("Investments", systemImage: "sparkles") }
                 .tag(Tab.investments)
         }
         .id(currency)
+        .fontDesign(.rounded)
+        .tint(Theme.accent)
         // Outside the .id() so changing the currency doesn't close it
         .sheet(isPresented: $showingSettings) { SettingsView() }
     }

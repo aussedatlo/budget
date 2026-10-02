@@ -12,6 +12,7 @@ struct InvestmentFormView: View {
     @State private var name: String
     @State private var ticker: String
     @State private var kind: InvestmentKind
+    @State private var emoji: String
     // Optional first purchase, only when creating.
     @State private var quantity: Double?
     @State private var unitPrice: Double?
@@ -22,20 +23,32 @@ struct InvestmentFormView: View {
         _name = State(initialValue: investment?.name ?? "")
         _ticker = State(initialValue: investment?.ticker ?? "")
         _kind = State(initialValue: investment?.kind ?? .etf)
+        _emoji = State(initialValue: investment?.displayEmoji ?? InvestmentKind.etf.emoji)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
+                    HStack {
+                        Spacer()
+                        EmojiBubble(emoji: emoji.isEmpty ? kind.emoji : emoji, color: kind.color, size: 72)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                }
+                Section {
                     TextField("Name (e.g. MSCI World)", text: $name)
                     TextField("Ticker (optional)", text: $ticker)
                         .textInputAutocapitalization(.characters)
                     Picker("Type", selection: $kind) {
                         ForEach(InvestmentKind.allCases) { kind in
-                            Label(kind.rawValue, systemImage: kind.icon).tag(kind)
+                            Text("\(kind.emoji)  \(kind.rawValue)").tag(kind)
                         }
                     }
+                }
+                Section("Emoji") {
+                    EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.investments)
                 }
                 if investment == nil {
                     Section {
@@ -47,6 +60,7 @@ struct InvestmentFormView: View {
                     }
                 }
             }
+            .themedForm()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(investment == nil ? "New investment" : "Edit investment")
             .navigationBarTitleDisplayMode(.inline)
@@ -57,8 +71,15 @@ struct InvestmentFormView: View {
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
+            .onChange(of: kind) { old, new in
+                // Follow the type until a custom emoji is picked
+                if emoji == old.emoji { emoji = new.emoji }
+            }
         }
     }
+
+    /// Empty when it's just the type's default, so it follows type changes.
+    private var customEmoji: String { emoji == kind.emoji ? "" : emoji }
 
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
@@ -66,8 +87,9 @@ struct InvestmentFormView: View {
             investment.name = trimmed
             investment.ticker = ticker
             investment.kind = kind
+            investment.emoji = customEmoji
         } else {
-            let new = Investment(name: trimmed, ticker: ticker, kind: kind)
+            let new = Investment(name: trimmed, ticker: ticker, kind: kind, emoji: customEmoji)
             context.insert(new)
             if let quantity, let unitPrice, quantity > 0 {
                 let trade = Trade(date: date, quantity: quantity, unitPrice: unitPrice)
@@ -130,6 +152,7 @@ struct TradeFormView: View {
                     TextField("Note", text: $note)
                 }
             }
+            .themedForm()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(trade == nil ? "New trade" : "Edit trade")
             .navigationBarTitleDisplayMode(.inline)
@@ -193,6 +216,7 @@ struct SnapshotFormView: View {
                     LabeledContent("Value", value: (investment.quantity(at: date) * (unitPrice ?? 0)).currency)
                 }
             }
+            .themedForm()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(snapshot == nil ? "New snapshot" : "Edit snapshot")
             .navigationBarTitleDisplayMode(.inline)
@@ -248,6 +272,7 @@ struct SnapshotAllView: View {
                     Text("Pre-filled with the last known price. Leave empty to skip a position.")
                 }
             }
+            .themedForm()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Snapshot")
             .navigationBarTitleDisplayMode(.inline)
