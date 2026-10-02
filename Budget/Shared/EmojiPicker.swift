@@ -21,6 +21,17 @@ struct EmojiPicker: View {
         "🌳", "🔋", "🍎", "🌈", "⭐", "✨",
     ]
 
+    static let income = [
+        "💼", "💰", "💸", "🪙", "🏦", "💳", "🧾", "📈",
+        "🏠", "🏢", "🎓", "🎨", "📸", "🎵", "🚗", "🎁",
+        "⭐", "✨", "🌸", "🌻",
+    ]
+
+    static let lending = [
+        "💸", "💰", "🪙", "💖", "🎁", "🏠", "🚗", "🎓",
+        "👶", "🐶", "🐱", "🌸", "🌻", "⭐", "✨", "🧾",
+    ]
+
     static let homes = ["🏠", "🏡", "🏢", "🏘️", "🏚️", "🏰", "🛖", "🏖️", "🔑", "🛋️"]
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 8)

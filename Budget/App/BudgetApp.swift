@@ -12,6 +12,9 @@ struct BudgetApp: App {
             Loan.self,
             LoanSnapshot.self,
             FixedCharge.self,
+            IncomeSource.self,
+            Lending.self,
+            LendingSnapshot.self,
         ])
         if DemoData.isEnabled {
             container = DemoData.makeContainer(for: schema)
@@ -43,7 +46,7 @@ struct BudgetApp: App {
 }
 
 struct ContentView: View {
-    enum Tab: Hashable { case monthly, investments }
+    enum Tab: Hashable { case monthly, income, investments }
 
     @State private var selection: Tab = .monthly
     @State private var showingSettings = false
@@ -55,6 +58,9 @@ struct ContentView: View {
             MonthlyView(showingSettings: $showingSettings)
                 .tabItem { Label("Month", systemImage: "calendar") }
                 .tag(Tab.monthly)
+            IncomeView()
+                .tabItem { Label("Income", systemImage: "banknote") }
+                .tag(Tab.income)
             InvestmentsView()
                 .tabItem { Label("Investments", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(Tab.investments)

@@ -60,6 +60,58 @@ final class BudgetUITests: XCTestCase {
         app.buttons["Done"].tap()
     }
 
+    func testIncome() {
+        openTab("Income")
+        XCTAssertTrue(app.staticTexts["Monthly income"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Freelance"].exists)
+        snapshot("05a-income")
+
+        // Income that only comes in some months: switch it on
+        let tutoring = app.switches["income-toggle-Tutoring"]
+        XCTAssertTrue(scrollUntilVisible(tutoring))
+        XCTAssertEqual(tutoring.value as? String, "0", "Tutoring starts switched off")
+        tutoring.tap()
+        XCTAssertEqual(tutoring.value as? String, "1", "Tutoring should now count")
+
+        // Add other income
+        app.buttons["Add"].tap()
+        app.buttons["Add income"].tap()
+        let title = app.textFields["income-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        title.typeText("Bonus")
+        let amount = app.textFields["income-amount"]
+        amount.tap()
+        amount.typeText("300")
+        title.tap() // commit the amount field
+        snapshot("05b-new-income")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Bonus"]), "New income should be listed")
+
+        // Money lent, followed through snapshots
+        let lucas = app.staticTexts["Lucas"]
+        XCTAssertTrue(scrollUntilVisible(lucas))
+        snapshot("05c-money-lent")
+        lucas.tap()
+        XCTAssertTrue(app.staticTexts["Already repaid"].waitForExistence(timeout: 5))
+        snapshot("05d-money-lent-detail")
+
+        // A new snapshot starts from what was left last time
+        let newSnapshot = app.buttons["New snapshot"]
+        XCTAssertTrue(scrollUntilVisible(newSnapshot))
+        newSnapshot.tap()
+        XCTAssertTrue(app.navigationBars["New snapshot"].waitForExistence(timeout: 5))
+        let remaining = app.textFields["lending-remaining"]
+        XCTAssertEqual(remaining.value as? String, "1500", "Should be pre-filled with the last snapshot")
+        remaining.tap()
+        remaining.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "1250")
+        snapshot("05e-new-lending-snapshot")
+        app.buttons["Save"].tap()
+        let left = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '1,250'")).firstMatch
+        XCTAssertTrue(left.waitForExistence(timeout: 5), "Left to repay should go down")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+    }
+
     func testInvestments() {
         openTab("Investments")
         XCTAssertTrue(app.staticTexts["Investments value"].waitForExistence(timeout: 10))
@@ -70,6 +122,8 @@ final class BudgetUITests: XCTestCase {
         app.buttons["Net worth"].tap()
         let homeEquity = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Home equity'")).firstMatch
         XCTAssertTrue(homeEquity.waitForExistence(timeout: 5), "Net worth shows the home equity")
+        let moneyLent = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Money lent'")).firstMatch
+        XCTAssertTrue(moneyLent.exists, "Net worth counts money lent")
         snapshot("06-net-worth")
         XCTAssertTrue(scrollUntilVisible(app.staticTexts["Saved per month"]))
         snapshot("06-saved-per-month")

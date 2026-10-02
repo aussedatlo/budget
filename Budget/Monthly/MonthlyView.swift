@@ -1,18 +1,24 @@
 import SwiftData
 import SwiftUI
 
-/// Monthly income minus recurring charges: what's left each month,
+/// Monthly income (from the Income tab) minus recurring charges: what's left each month,
 /// shown as a jar that fills up.
 struct MonthlyView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \FixedCharge.dayOfMonth) private var charges: [FixedCharge]
     @Query(sort: \Investment.name) private var investments: [Investment]
-    @AppStorage(AppSettings.incomeKey) private var income: Double = 0
+    @Query private var incomeSources: [IncomeSource]
+    @Query private var lendings: [Lending]
+    @AppStorage(AppSettings.incomeKey) private var mainIncome: Double = 0
     @Binding var showingSettings: Bool
     @State private var adding = false
     @State private var editing: FixedCharge?
     @State private var editingPlan = false
 
+    /// Main income, other income switched on and monthly repayments (Income tab).
+    private var income: Double {
+        IncomeTotals(main: mainIncome, sources: incomeSources, lendings: lendings).total
+    }
     private var total: Double { charges.reduce(0) { $0 + $1.amount } }
     private var savers: [Investment] { investments.filter { $0.monthlyContribution > 0 } }
     private var savings: Double { savers.reduce(0) { $0 + $1.monthlyContribution } }
@@ -25,7 +31,6 @@ struct MonthlyView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     header
-                    incomeCard
                     SectionTitle(title: "Recurring charges", trailing: total.currency)
                     if charges.isEmpty {
                         emptyState
@@ -89,7 +94,7 @@ struct MonthlyView: View {
                         .minimumScaleFactor(0.6)
                         .contentTransition(.numericText(value: left))
                         .animation(.snappy, value: left)
-                    Text(income > 0 ? "of \(income.currency) income" : "Enter your monthly income below.")
+                    Text(income > 0 ? "of \(income.currency) income" : "Add your income in the Income tab.")
                         .font(.footnote)
                         .foregroundStyle(Theme.softInk)
                 }
@@ -97,26 +102,6 @@ struct MonthlyView: View {
             if income > 0 || total > 0 {
                 IncomeBar(income: income, charges: total, savings: savings)
             }
-        }
-        .card()
-    }
-
-    private var incomeCard: some View {
-        HStack {
-            Text("Monthly income")
-                .font(.headline)
-                .foregroundStyle(Theme.ink)
-            Spacer()
-            DecimalField(value: Binding(
-                get: { income > 0 ? income : nil },
-                set: { income = max($0 ?? 0, 0) }
-            ))
-                .multilineTextAlignment(.trailing)
-                .font(.headline)
-                .monospacedDigit()
-                .foregroundStyle(Theme.ink)
-                .frame(maxWidth: 140)
-                .accessibilityIdentifier("monthly-income")
         }
         .card()
     }

@@ -22,7 +22,7 @@ for test in manifest:
             continue
         # Xcode suggests "<name>_<index>_<UUID>.png"
         suggested = attachment.get("suggestedHumanReadableName", exported.name)
-        match = re.match(r"(\d{2}-[\w-]+?)_\d+_", suggested)
+        match = re.match(r"(\d{2}[a-z]?-[\w-]+?)_\d+_", suggested)
         if match:
             name = match.group(1)
         else:

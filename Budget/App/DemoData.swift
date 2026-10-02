@@ -44,6 +44,25 @@ enum DemoData {
             context.insert(FixedCharge(title: title, amount: amount, category: category, dayOfMonth: day, emoji: emoji))
         }
 
+        // Other income: freelance work this month, no tutoring
+        context.insert(IncomeSource(title: "Freelance", amount: 400, emoji: "💼"))
+        context.insert(IncomeSource(title: "Tutoring", amount: 150, emoji: "🎓", isActive: false))
+
+        // Money lent: Lucas pays back 250 € a month, Emma when she can
+        let lucas = Lending(name: "Lucas", emoji: "🚗", lent: 3_000, date: monthsAgo(7, day: 3), monthlyRepayment: 250)
+        let emma = Lending(name: "Emma", emoji: "🎓", lent: 600, date: monthsAgo(2, day: 12))
+        context.insert(lucas)
+        context.insert(emma)
+        // A snapshot of what's left from time to time
+        for (months, remaining) in [(5, 2_500.0), (3, 2_000.0), (1, 1_500.0)] {
+            let snapshot = LendingSnapshot(date: monthsAgo(months, day: 5), remaining: remaining)
+            context.insert(snapshot)
+            lucas.history.append(snapshot)
+        }
+        let fromEmma = LendingSnapshot(date: monthsAgo(1, day: 20), remaining: 400, note: "Paid back 200 in cash")
+        context.insert(fromEmma)
+        emma.history.append(fromEmma)
+
         // Investments: a snapshot every month over a year
         let etf = Investment(name: "MSCI World", ticker: "CW8", kind: .etf)
         let crypto = Investment(name: "Bitcoin", ticker: "BTC", kind: .crypto)
