@@ -19,11 +19,13 @@ struct ExpensesView: View {
                     ToolbarItem(placement: .principal) {
                         HStack(spacing: 16) {
                             Button { shiftMonth(-1) } label: { Image(systemName: "chevron.left") }
+                                .accessibilityLabel("Previous month")
                             Text(month.formatted(.dateTime.month(.wide).year()))
                                 .font(.headline)
                                 .frame(minWidth: 140)
                                 .onTapGesture { month = .now }
                             Button { shiftMonth(1) } label: { Image(systemName: "chevron.right") }
+                                .accessibilityLabel("Next month")
                         }
                     }
                     ToolbarItem(placement: .topBarLeading) {

@@ -3,17 +3,28 @@ import SwiftUI
 
 @main
 struct BudgetApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-        .modelContainer(for: [
+    let container: ModelContainer
+
+    init() {
+        let schema = Schema([
             Investment.self,
             Trade.self,
             PriceSnapshot.self,
             Expense.self,
             FixedCharge.self,
         ])
+        if DemoData.isEnabled {
+            container = DemoData.makeContainer(for: schema)
+        } else {
+            container = try! ModelContainer(for: schema)
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+        .modelContainer(container)
     }
 }
 
