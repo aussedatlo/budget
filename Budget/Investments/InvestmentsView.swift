@@ -15,7 +15,8 @@ struct InvestmentsView: View {
     /// Highest net worth seen so far: confetti only when it's beaten.
     @AppStorage("netWorthHigh") private var netWorthHigh: Double = 0
     @AppStorage("investmentsHigh") private var investmentsHigh: Double = 0
-    /// Off: investments only. On: net worth, including the home, its loan and money lent.
+    /// Off: the total is investments only. On: net worth, including the home,
+    /// its loan and money lent. The Home section is shown either way.
     @AppStorage("includeHome") private var includeHome = false
 
     private var value: Double { investments.reduce(0) { $0 + $1.currentValue } }
@@ -28,7 +29,6 @@ struct InvestmentsView: View {
     private var netWorth: Double { value + homeEquity + owed }
     private var hasNetWorthExtras: Bool { !loans.isEmpty || owed > 0 }
     private var showsNetWorth: Bool { includeHome && hasNetWorthExtras }
-    private var showsHome: Bool { showsNetWorth && !loans.isEmpty }
 
     var body: some View {
         NavigationStack {
@@ -41,7 +41,7 @@ struct InvestmentsView: View {
                         if !investments.isEmpty {
                             SavingsChart(investments: investments)
                         }
-                        if showsHome {
+                        if !loans.isEmpty {
                             SectionTitle(title: "Home")
                             ForEach(loans) { loan in
                                 NavigationLink(value: loan) { LoanCard(loan: loan) }

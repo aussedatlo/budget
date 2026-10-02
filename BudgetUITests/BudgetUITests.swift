@@ -115,7 +115,6 @@ final class BudgetUITests: XCTestCase {
     func testInvestments() {
         openTab("Investments")
         XCTAssertTrue(app.staticTexts["Investments value"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["Apartment"].exists, "Home is hidden in investments mode")
         snapshot("06-investments")
 
         // Net worth includes the home and its loan
