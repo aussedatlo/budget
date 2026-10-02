@@ -32,15 +32,15 @@ open Budget.xcodeproj
 
 ## E2E tests and screenshots (pull requests)
 
-Every pull request runs the UI tests in `BudgetUITests/` on an iPad simulator. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. They walk through the main screens and take a screenshot of each.
+Pull requests with the `test` label run the UI tests in `BudgetUITests/` on an iPad simulator. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. They walk through the main screens and take a screenshot of each.
 
-CI pushes the screenshots to the `ci-screenshots` branch and posts them in a PR comment, which is updated on every run. They are also available as workflow artifacts. Pushes to `main` and tags don't run these tests.
+CI pushes the screenshots to the `ci-screenshots` branch and posts them in a PR comment, which is updated on every run. They are also available as workflow artifacts. Adding the label starts a run, and every new push to a labeled PR runs them again. PRs without the label, pushes to `main` and tags don't run these tests (macOS runners are expensive).
 
 To add a screen, call `snapshot("NN-name")` in a test. The number sets the order.
 
 ## Installing with a free Apple ID (SideStore)
 
-Every CI run builds an **unsigned** `Budget-unsigned.ipa`, which needs no secrets. You can download it from the workflow run's artifacts. Pushing a `v*` tag also attaches it to the GitHub release, which gives a stable link you can open from the phone.
+The iOS build runs only when a `v*` tag is pushed (or when started by hand from the Actions tab). It builds an **unsigned** `Budget-unsigned.ipa`, which needs no secrets. You can download it from the workflow run's artifacts, and it is also attached to the tag's GitHub release, which gives a stable link you can open from the phone.
 
 1. Set up [SideStore](https://sidestore.io) once, following its guide (this part needs a computer).
 2. On the iPhone, turn on Settings → Privacy & Security → **Developer Mode**.
@@ -70,7 +70,7 @@ You need a paid Apple Developer account. The workflow reads the team ID, bundle 
    - Repository **variable** `BUNDLE_ID`: only needed with a wildcard profile.
    - `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY` (contents of the `.p8`): an App Store Connect API key. With it, `v*` tags on an App Store profile upload to TestFlight automatically.
 
-4. Push. Each run on `main` produces a signed `Budget-<n>.ipa` workflow artifact, and pushing a tag such as `v1.0.0` also attaches the `.ipa` to a GitHub release. The build number is the workflow run number.
+4. Push a tag such as `v1.0.0`. The run produces a signed `Budget-<n>.ipa` workflow artifact and attaches the `.ipa` to the GitHub release. The build number is the workflow run number.
 
 If the secrets are missing, the signing steps are skipped and you only get the unsigned IPA.
 
