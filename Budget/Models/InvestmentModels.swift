@@ -53,6 +53,8 @@ final class Investment {
     var createdAt: Date = Date.now
     /// Savings plan: money added every month (0 = none).
     var monthlyContribution: Double = 0
+    /// Left out of the totals and charts on the Investments screen.
+    var isHidden: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \ValueSnapshot.investment)
     var history: [ValueSnapshot] = []

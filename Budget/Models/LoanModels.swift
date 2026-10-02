@@ -10,6 +10,8 @@ final class Loan {
     /// Amount borrowed at the start.
     var borrowed: Double = 0
     var createdAt: Date = Date.now
+    /// Left out of net worth on the Investments screen.
+    var isHidden: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \LoanSnapshot.loan)
     var history: [LoanSnapshot] = []

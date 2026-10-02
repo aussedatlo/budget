@@ -124,8 +124,19 @@ final class BudgetUITests: XCTestCase {
         let moneyLent = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Money lent'")).firstMatch
         XCTAssertTrue(moneyLent.exists, "Net worth counts money lent")
         snapshot("06-net-worth")
+
         XCTAssertTrue(scrollUntilVisible(app.staticTexts["Saved per month"]))
         snapshot("06-saved-per-month")
+
+        // The eye button leaves a line out of the total
+        let hideBitcoin = app.buttons["Hide Bitcoin from total"]
+        XCTAssertTrue(scrollUntilVisible(hideBitcoin))
+        hideBitcoin.tap()
+        let hiddenNote = app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'hidden from the total'")).firstMatch
+        XCTAssertTrue(hiddenNote.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Show Bitcoin in total"].exists)
+        snapshot("06-hidden-line")
+        app.buttons["Show Bitcoin in total"].tap()
 
         // An investment and its snapshots
         let etf = app.staticTexts["MSCI World"]

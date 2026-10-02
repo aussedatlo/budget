@@ -18,11 +18,19 @@ struct InvestmentsView: View {
     /// Off: the total is investments only. On: net worth, including the home,
     /// its loan and money lent. The Home section is shown either way.
     @AppStorage("includeHome") private var includeHome = false
+    /// Set while a line is being hidden or shown, so the totals moving
+    /// because of it don't count as a new high.
+    @State private var changingVisibility = false
 
-    private var value: Double { investments.reduce(0) { $0 + $1.currentValue } }
-    private var invested: Double { investments.reduce(0) { $0 + $1.investedAmount } }
+    /// Lines counted in the totals (the eye button hides the others).
+    private var counted: [Investment] { investments.filter { !$0.isHidden } }
+    private var countedLoans: [Loan] { loans.filter { !$0.isHidden } }
+    private var hiddenCount: Int { investments.count - counted.count + loans.count - countedLoans.count }
+
+    private var value: Double { counted.reduce(0) { $0 + $1.currentValue } }
+    private var invested: Double { counted.reduce(0) { $0 + $1.investedAmount } }
     private var gain: Double { value - invested }
-    private var homeEquity: Double { loans.reduce(0) { $0 + $1.equity } }
+    private var homeEquity: Double { countedLoans.reduce(0) { $0 + $1.equity } }
     /// Money lent that hasn't come back yet (detail on the Income tab).
     private var owed: Double { lendings.reduce(0) { $0 + $1.remaining } }
     /// Investments + the part of the home that is ours + money owed to us.
@@ -38,28 +46,44 @@ struct InvestmentsView: View {
                         emptyState
                     } else {
                         header
-                        if !investments.isEmpty {
-                            SavingsChart(investments: investments)
+                        if !counted.isEmpty {
+                            SavingsChart(investments: counted)
                         }
                         if !loans.isEmpty {
                             SectionTitle(title: "Home")
                             ForEach(loans) { loan in
-                                NavigationLink(value: loan) { LoanCard(loan: loan) }
-                                    .buttonStyle(SquishyButtonStyle())
+                                HStack(spacing: 6) {
+                                    NavigationLink(value: loan) { LoanCard(loan: loan) }
+                                        .buttonStyle(SquishyButtonStyle())
+                                        .opacity(loan.isHidden ? 0.45 : 1)
+                                    VisibilityButton(name: loan.name, isHidden: loan.isHidden) {
+                                        toggleVisibility { loan.isHidden.toggle() }
+                                    }
+                                }
                             }
                         }
                         if !investments.isEmpty {
                             SectionTitle(title: "Investments")
                         }
                         ForEach(investments) { investment in
-                            NavigationLink(value: investment) {
-                                InvestmentCard(investment: investment)
-                            }
-                            .buttonStyle(SquishyButtonStyle())
-                            .contextMenu {
-                                Button("Edit", systemImage: "pencil") { editing = investment }
-                                Button("Delete", systemImage: "trash", role: .destructive) {
-                                    withAnimation(.snappy) { context.delete(investment) }
+                            HStack(spacing: 6) {
+                                NavigationLink(value: investment) {
+                                    InvestmentCard(investment: investment)
+                                }
+                                .buttonStyle(SquishyButtonStyle())
+                                .opacity(investment.isHidden ? 0.45 : 1)
+                                .contextMenu {
+                                    Button("Edit", systemImage: "pencil") { editing = investment }
+                                    Button(investment.isHidden ? "Show in total" : "Hide from total",
+                                           systemImage: investment.isHidden ? "eye" : "eye.slash") {
+                                        toggleVisibility { investment.isHidden.toggle() }
+                                    }
+                                    Button("Delete", systemImage: "trash", role: .destructive) {
+                                        withAnimation(.snappy) { context.delete(investment) }
+                                    }
+                                }
+                                VisibilityButton(name: investment.name, isHidden: investment.isHidden) {
+                                    toggleVisibility { investment.isHidden.toggle() }
                                 }
                             }
                             .transition(.opacity)
@@ -116,8 +140,16 @@ struct InvestmentsView: View {
     /// Fires the confetti when `new` beats the high while shown; returns the new high.
     private func celebrateIfNewHigh(old: Double, new: Double, high: Double, shown: Bool) -> Double {
         guard new > old + 0.01 else { return high }
+        if changingVisibility { return max(high, new) }
         if shown && high > 0 && new > high + 0.01 { confetti += 1 }
         return max(high, new)
+    }
+
+    /// Hides or shows a line without it counting as a new high.
+    private func toggleVisibility(_ change: () -> Void) {
+        changingVisibility = true
+        withAnimation(.snappy) { change() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { changingVisibility = false }
     }
 
     private var header: some View {
@@ -158,8 +190,13 @@ struct InvestmentsView: View {
                     )
                 }
             }
-            if !investments.isEmpty {
-                HistoryChart(points: History.points(for: investments))
+            if hiddenCount > 0 {
+                Label("\(hiddenCount) hidden from the total", systemImage: "eye.slash")
+                    .font(.caption)
+                    .foregroundStyle(Theme.softInk)
+            }
+            if !counted.isEmpty {
+                HistoryChart(points: History.points(for: counted))
             }
         }
         .card()
@@ -292,5 +329,25 @@ struct HistoryChart: View {
             .chartLegend(position: .bottom, alignment: .leading)
             .frame(height: 170)
         }
+    }
+}
+
+/// Eye button next to a card: leaves the line out of the totals, or puts it back.
+private struct VisibilityButton: View {
+    let name: String
+    let isHidden: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isHidden ? "eye.slash" : "eye")
+                .font(.body)
+                .foregroundStyle(isHidden ? Theme.softInk : Theme.ink.opacity(0.6))
+                .frame(width: 32, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isHidden ? "Show \(name) in total" : "Hide \(name) from total")
+        .sensoryFeedback(.selection, trigger: isHidden)
     }
 }
