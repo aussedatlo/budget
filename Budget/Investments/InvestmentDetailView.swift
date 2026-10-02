@@ -88,7 +88,7 @@ struct InvestmentDetailView: View {
 
     private func tile(_ emoji: String, _ title: String, _ value: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(emoji).font(.title3)
+            Moji(emoji, size: 26)
             StatTile(title: title, value: value)
         }
         .card(color, padding: 12)

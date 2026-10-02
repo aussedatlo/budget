@@ -82,13 +82,13 @@ struct MonthlyView: View {
                     .minimumScaleFactor(0.6)
                     .contentTransition(.numericText(value: left))
                     .animation(.snappy, value: left)
-                Text(message)
+                TextWithMoji(text: message.text, emoji: message.emoji, size: 18)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.ink)
-                    .animation(.default, value: message)
+                    .animation(.default, value: message.text)
                 HStack(spacing: 6) {
-                    Chip(text: "💰 \(income.currency)")
-                    Chip(text: "🧾 \(total.currency)")
+                    Chip(text: income.currency, emoji: "💰")
+                    Chip(text: total.currency, emoji: "🧾")
                 }
                 .padding(.top, 2)
             }
@@ -96,13 +96,13 @@ struct MonthlyView: View {
         .card(LinearGradient(colors: [Theme.pink, Theme.peach], startPoint: .topLeading, endPoint: .bottomTrailing))
     }
 
-    private var message: String {
-        if income <= 0 { return "Add your income to fill the jar ✨" }
+    private var message: (text: String, emoji: String) {
+        if income <= 0 { return ("Add your income to fill the jar", "✨") }
         switch level {
-        case 0.5...: return "left this month, lovely! 🌸"
-        case 0.2..<0.5: return "left this month 💖"
-        case 0.0001..<0.2: return "left, a bit tight 🍃"
-        default: return left < 0 ? "this month 🙈" : "left, the jar is empty 🥺"
+        case 0.5...: return ("left this month, lovely!", "🌸")
+        case 0.2..<0.5: return ("left this month", "💖")
+        case 0.0001..<0.2: return ("left, a bit tight", "🍃")
+        default: return left < 0 ? ("this month", "🙈") : ("left, the jar is empty", "🥺")
         }
     }
 
@@ -127,7 +127,11 @@ struct MonthlyView: View {
 
     private var emptyState: some View {
         VStack(spacing: 8) {
-            Text("🏠 📺 🚗").font(.largeTitle)
+            HStack(spacing: 10) {
+                Moji("🏠", size: 40)
+                Moji("📺", size: 40)
+                Moji("🚗", size: 40)
+            }
             Text("Add rent, subscriptions, insurance…\nanything paid every month.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
@@ -204,7 +208,7 @@ struct FixedChargeFormView: View {
                     NumberField(title: "Amount", value: $amount, identifier: "charge-amount")
                     Picker("Category", selection: $category) {
                         ForEach(ChargeCategory.allCases) { category in
-                            Text("\(category.emoji)  \(category.label)").tag(category)
+                            Text(category.label).tag(category)
                         }
                     }
                     Stepper("Day of month: \(dayOfMonth)", value: $dayOfMonth, in: 1...31)

@@ -103,8 +103,7 @@ struct EmojiBubble: View {
     var size: CGFloat = 44
 
     var body: some View {
-        Text(emoji)
-            .font(.system(size: size * 0.55))
+        Moji(emoji, size: size * 0.66)
             .frame(width: size, height: size)
             .background(color, in: Circle())
     }
@@ -180,11 +179,15 @@ struct StatTile: View {
 /// A rounded "chip" for small values like a gain percentage.
 struct Chip: View {
     let text: String
+    var emoji: String?
     var color: Color = Theme.ink
     var background: Color = Theme.card.opacity(0.7)
 
     var body: some View {
-        Text(text)
+        HStack(spacing: 4) {
+            if let emoji { Moji(emoji, size: 15) }
+            Text(text)
+        }
             .font(.caption.bold())
             .monospacedDigit()
             .foregroundStyle(color)

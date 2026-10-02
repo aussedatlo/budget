@@ -19,15 +19,25 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("🫙 💖 🌸")
-                        .font(.largeTitle)
-                        .frame(maxWidth: .infinity)
-                        .listRowBackground(Color.clear)
+                    HStack(spacing: 12) {
+                        Moji("🫙", size: 44)
+                        Moji("💖", size: 44)
+                        Moji("🌸", size: 44)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
                 }
                 Picker("Currency", selection: $currency) {
                     ForEach(currencies, id: \.self) { Text($0).tag($0) }
                 }
                 LabeledContent("Version", value: version)
+                Section {
+                    Link(destination: OpenMoji.url) {
+                        Text(OpenMoji.credit)
+                            .font(.footnote)
+                            .foregroundStyle(Theme.softInk)
+                    }
+                }
             }
             .themedForm()
             .navigationTitle("Settings")

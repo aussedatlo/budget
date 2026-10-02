@@ -5,7 +5,7 @@ A small, cute iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 - **Our month**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, as a little jar that fills up and smiles (or worries).
 - **Our treasure**: investments (ETFs, gold coins, crypto, savings…) followed through **snapshots**. Each snapshot records what a position is worth and how much was put in so far, with quantity × unit price as an option. A new snapshot starts as a copy of the latest one, so you only change what moved, and the camera button updates everything at once. The **home loan** is followed the same way, through what's left to repay and the home's value. The app shows what's already repaid, what part of the home is yours, and all that's yours in total (investments + home).
 
-The design uses pastel cards, a rounded font, an emoji for each charge and investment, numbers that roll when they change, and confetti when the portfolio goes up. All data stays on the device.
+The design uses pastel cards, a rounded font, an [OpenMoji](https://openmoji.org) icon for each charge and investment, numbers that roll when they change, and confetti when the portfolio goes up. All data stays on the device.
 
 ## Project layout
 
@@ -75,3 +75,7 @@ If the secrets are missing, the signing steps are skipped and you only get the u
 
 - **Ad Hoc / Development profile**: install the `.ipa` on a registered device with Apple Configurator, Xcode (Devices window), or a tool like `ideviceinstaller`.
 - **App Store profile**: distribute via TestFlight (see the optional ASC secrets above).
+
+## Credits
+
+Icons are [OpenMoji](https://openmoji.org), the open-source emoji and icon project, licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). They're stored as SVGs in `Budget/Assets.xcassets/OpenMoji`, named by code point (for example `1F3E0` for 🏠). To add one, download it from `https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/svg/<CODE>.svg` into a new imageset with the same structure.

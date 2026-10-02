@@ -110,7 +110,7 @@ struct InvestmentFormView: View {
                         .textInputAutocapitalization(.characters)
                     Picker("Type", selection: $kind) {
                         ForEach(InvestmentKind.allCases) { kind in
-                            Text("\(kind.emoji)  \(kind.rawValue)").tag(kind)
+                            Text(kind.rawValue).tag(kind)
                         }
                     }
                 }
@@ -271,14 +271,20 @@ struct SnapshotAllView: View {
                     Section {
                         SnapshotFields(draft: draft(for: investment), showsDate: false, showsUnitsToggle: false)
                     } header: {
-                        Text("\(investment.displayEmoji)  \(investment.name)")
+                        HStack(spacing: 6) {
+                            Moji(investment.displayEmoji, size: 18)
+                            Text(investment.name)
+                        }
                     }
                 }
                 ForEach(loans) { loan in
                     Section {
                         LoanFields(draft: loanDraft(for: loan))
                     } header: {
-                        Text("\(loan.emoji)  \(loan.name)")
+                        HStack(spacing: 6) {
+                            Moji(loan.emoji, size: 18)
+                            Text(loan.name)
+                        }
                     }
                 }
             }

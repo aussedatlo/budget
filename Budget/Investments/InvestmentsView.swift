@@ -105,7 +105,7 @@ struct InvestmentsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("All that's ours 💎")
+                    TextWithMoji(text: "All that's ours", emoji: "💎", size: 16)
                         .font(.subheadline)
                         .foregroundStyle(Theme.softInk)
                     Text(netWorth.currency)
@@ -118,18 +118,18 @@ struct InvestmentsView: View {
                         .animation(.snappy, value: netWorth)
                 }
                 Spacer()
-                Text(gain >= 0 ? "🌱" : "🍂").font(.largeTitle)
+                Moji(gain >= 0 ? "🌱" : "🍂", size: 44)
             }
             FlowChips {
                 if !investments.isEmpty {
-                    Chip(text: "✨ Investments \(value.currency)")
+                    Chip(text: "Investments \(value.currency)", emoji: "✨")
                     Chip(
                         text: invested > 0 ? "\(gain.signedCurrency) · \((gain / invested).signedPercent)" : gain.signedCurrency,
                         color: Theme.gain(gain)
                     )
                 }
                 if !loans.isEmpty {
-                    Chip(text: "🏠 Home \(homeEquity.currency)")
+                    Chip(text: "Home \(homeEquity.currency)", emoji: "🏠")
                 }
             }
             if !investments.isEmpty {
@@ -141,7 +141,7 @@ struct InvestmentsView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Text("🌱").font(.system(size: 60))
+            Moji("🌱", size: 72)
             Text("Plant your first seed")
                 .font(.title3.bold())
                 .foregroundStyle(Theme.ink)
@@ -213,7 +213,7 @@ struct HistoryChart: View {
 
     var body: some View {
         if points.count < 2 {
-            Text("Record a few price snapshots to see it grow 📈")
+            TextWithMoji(text: "Record a few snapshots to see it grow", emoji: "📈", size: 16)
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
         } else {

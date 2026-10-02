@@ -101,8 +101,7 @@ struct JarView: View {
         ZStack {
             ForEach(0..<3, id: \.self) { i in
                 let bob = sin(time * 2 + Double(i) * 2) * 4
-                Text(["✨", "💖", "✨"][i])
-                    .font(.system(size: size.width * (i == 1 ? 0.14 : 0.11)))
+                Moji(["✨", "💖", "✨"][i], size: size.width * (i == 1 ? 0.17 : 0.13))
                     .offset(x: CGFloat(i - 1) * size.width * 0.42, y: -size.height * 0.12 + bob)
             }
         }

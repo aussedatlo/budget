@@ -53,7 +53,7 @@ final class BudgetUITests: XCTestCase {
 
     func testInvestments() {
         openTab("Investments")
-        XCTAssertTrue(app.staticTexts["All that's ours 💎"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["All that's ours"].waitForExistence(timeout: 10))
         snapshot("06-investments")
 
         // An investment and its snapshots

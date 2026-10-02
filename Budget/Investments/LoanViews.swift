@@ -58,7 +58,10 @@ struct LoanCard: View {
                         .font(.headline)
                         .foregroundStyle(Theme.ink)
                     if loan.homeValue > 0 {
-                        Text("\(loan.equityRatio.formatted(.percent.precision(.fractionLength(0)))) of the home is ours 💖")
+                        TextWithMoji(
+                            text: "\(loan.equityRatio.formatted(.percent.precision(.fractionLength(0)))) of the home is ours",
+                            emoji: "💖", size: 14
+                        )
                             .font(.caption)
                             .foregroundStyle(Theme.softInk)
                     }
@@ -98,8 +101,7 @@ struct LoanProgressBar: View {
                     .fill(LinearGradient(colors: [Theme.accent.opacity(0.7), Theme.accent],
                                          startPoint: .leading, endPoint: .trailing))
                     .frame(width: max(width * ratio, 14))
-                Text("🏡")
-                    .font(.system(size: 16))
+                Moji("🏡", size: 20)
                     .offset(x: min(max(width * ratio - 12, 0), width - 22))
             }
             .animation(.spring(duration: 1, bounce: 0.3), value: ratio)
@@ -159,7 +161,7 @@ struct LoanDetailView: View {
 
     private func tile(_ emoji: String, _ title: String, _ value: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(emoji).font(.title3)
+            Moji(emoji, size: 26)
             StatTile(title: title, value: value)
         }
         .card(color, padding: 12)
@@ -173,7 +175,7 @@ private struct LoanChart: View {
     var body: some View {
         let points = loan.history.sorted { $0.date < $1.date }
         if points.count < 2 {
-            Text("Add a snapshot from time to time to watch the loan melt 🍦")
+            TextWithMoji(text: "Add a snapshot from time to time to watch the loan melt", emoji: "🍦", size: 16)
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
         } else {
@@ -290,7 +292,7 @@ struct LoanFormView: View {
                     }
                 }
                 Section("Emoji") {
-                    EmojiPicker(emoji: $emoji, suggestions: ["🏠", "🏡", "🏢", "🏘️", "🏰", "🛖", "🏖️", "🔑"])
+                    EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.homes)
                 }
                 if let loan {
                     Section {
