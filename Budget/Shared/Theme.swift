@@ -28,6 +28,9 @@ enum Theme {
         Color(light: 0x5E9EA0, dark: 0x82C0C2),
     ]
 
+    /// Money lent to others: a calm blue, apart from the home loan's rose.
+    static let lent = Color(light: 0x6B8CB8, dark: 0x8FAEDA)
+
     static let positive = Color(light: 0x3B8A66, dark: 0x7CC5A1)
     static let negative = Color(light: 0xBF4E63, dark: 0xF08A9C)
 

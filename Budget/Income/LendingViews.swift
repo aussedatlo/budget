@@ -31,7 +31,7 @@ struct LendingCard: View {
                         .foregroundStyle(Theme.softInk)
                 }
             }
-            LoanProgressBar(ratio: lending.repaidRatio)
+            LoanProgressBar(ratio: lending.repaidRatio, color: Theme.lent)
             HStack {
                 StatTile(title: "Already repaid", value: lending.repaid.currency, color: Theme.positive)
                 StatTile(title: "Lent", value: lending.lent.currency)
@@ -75,7 +75,7 @@ struct LendingDetailView: View {
                         .buttonStyle(SquishyButtonStyle())
                 }
                 Button("Add repayment", systemImage: "plus") { adding = true }
-                    .buttonStyle(PillButtonStyle())
+                    .buttonStyle(PillButtonStyle(color: Theme.lent))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal)
@@ -133,13 +133,13 @@ private struct LendingChart: View {
                     AreaMark(x: .value("Date", point.date), y: .value("Left to repay", point.remaining))
                         .interpolationMethod(.stepEnd)
                         .foregroundStyle(
-                            LinearGradient(colors: [Theme.accent.opacity(0.18), Theme.accent.opacity(0.0)],
+                            LinearGradient(colors: [Theme.lent.opacity(0.18), Theme.lent.opacity(0.0)],
                                            startPoint: .top, endPoint: .bottom)
                         )
                     LineMark(x: .value("Date", point.date), y: .value("Left to repay", point.remaining))
                         .interpolationMethod(.stepEnd)
                         .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(Theme.lent)
                 }
             }
             .chartXAxis {

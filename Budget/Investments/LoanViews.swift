@@ -88,6 +88,7 @@ struct LoanCard: View {
 /// A thin rounded progress bar.
 struct LoanProgressBar: View {
     let ratio: Double
+    var color: Color = Theme.accent
 
     var body: some View {
         GeometryReader { geometry in
@@ -95,7 +96,7 @@ struct LoanProgressBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Theme.background)
                 Capsule()
-                    .fill(Theme.accent)
+                    .fill(color)
                     .frame(width: max(width * ratio, 8))
             }
             .animation(.snappy, value: ratio)
