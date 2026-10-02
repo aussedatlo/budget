@@ -73,31 +73,29 @@ struct MonthlyView: View {
     // MARK: - Header with the jar
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 18) {
-            JarView(level: level)
-                .frame(width: 100)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(left >= 0 ? (savings > 0 ? "Left after savings" : "Left this month") : "Over budget")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.softInk)
-                Text(abs(left).currency)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(left >= 0 ? Theme.ink : Theme.negative)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .contentTransition(.numericText(value: left))
-                    .animation(.snappy, value: left)
-                if income <= 0 {
-                    Text("Enter your monthly income below.")
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 18) {
+                JarView(level: level)
+                    .frame(width: 100)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(left >= 0 ? (savings > 0 ? "Left after savings" : "Left this month") : "Over budget")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.softInk)
+                    Text(abs(left).currency)
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(left >= 0 ? Theme.ink : Theme.negative)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText(value: left))
+                        .animation(.snappy, value: left)
+                    Text(income > 0 ? "of \(income.currency) income" : "Enter your monthly income below.")
                         .font(.footnote)
                         .foregroundStyle(Theme.softInk)
                 }
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 6) { chips }
-                    VStack(alignment: .leading, spacing: 6) { chips }
-                }
-                .padding(.top, 2)
+            }
+            if income > 0 || total > 0 {
+                IncomeBar(income: income, charges: total, savings: savings)
             }
         }
         .card()
@@ -119,15 +117,6 @@ struct MonthlyView: View {
                 .accessibilityIdentifier("monthly-income")
         }
         .card()
-    }
-
-    @ViewBuilder
-    private var chips: some View {
-        Chip(text: "Income \(income.currency)")
-        Chip(text: "Charges \(total.currency)")
-        if savings > 0 {
-            Chip(text: "Savings \(savings.currency)")
-        }
     }
 
     @ViewBuilder
