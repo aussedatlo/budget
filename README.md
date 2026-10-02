@@ -1,19 +1,19 @@
 # Budget
 
-A small iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
+A small, cute iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 
-- **Expenses**: a view per month with a budget progress bar, a breakdown by category, fixed monthly charges (rent, subscriptions…) and one-off expenses.
-- **Investments**: positions with buy/sell trades (quantity, unit price, fees, amount used) and price **snapshots**. You get the current value, net invested amount, gain/performance, average buy price and a chart of value vs. invested over time, both per position and for the whole portfolio. Use the camera button to snapshot the prices of every position at once.
+- **Our month**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, as a little jar that fills up and smiles (or worries).
+- **Our treasure**: investments (ETFs, gold coins, crypto, savings…) followed through **snapshots**. Each snapshot records what a position is worth and how much was put in so far, with quantity × unit price as an option. A new snapshot starts as a copy of the latest one, so you only change what moved, and the camera button updates everything at once. The **home loan** is followed the same way, through what's left to repay and the home's value. The app shows what's already repaid, what part of the home is yours, and all that's yours in total (investments + home).
 
-All data stays on the device.
+The design uses pastel cards, a rounded font, an emoji for each charge and investment, numbers that roll when they change, and confetti when the portfolio goes up. All data stays on the device.
 
 ## Project layout
 
 ```
 project.yml                 XcodeGen spec (the .xcodeproj is generated, not committed)
-Budget/App                  App entry, tabs, settings
+Budget/App                  App entry, tabs, settings, demo data
 Budget/Models               SwiftData models + calculations
-Budget/Expenses             Monthly expenses UI
+Budget/Monthly              Income vs. recurring charges
 Budget/Investments          Investments UI
 BudgetUITests               E2E tests (screenshots on PRs)
 .github/workflows/ios.yml   CI: build, sign, export .ipa

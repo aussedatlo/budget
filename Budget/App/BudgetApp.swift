@@ -6,18 +6,33 @@ struct BudgetApp: App {
     let container: ModelContainer
 
     init() {
+        Theme.configureAppearance()
         let schema = Schema([
             Investment.self,
-            Trade.self,
-            PriceSnapshot.self,
-            Expense.self,
+            ValueSnapshot.self,
+            Loan.self,
+            LoanSnapshot.self,
             FixedCharge.self,
         ])
         if DemoData.isEnabled {
             container = DemoData.makeContainer(for: schema)
         } else {
-            container = try! ModelContainer(for: schema)
+            container = Self.makeContainer(for: schema)
         }
+    }
+
+    /// Opens the store. Data from an early test version that can't be
+    /// migrated is discarded rather than crashing at launch.
+    private static func makeContainer(for schema: Schema) -> ModelContainer {
+        let configuration = ModelConfiguration(schema: schema)
+        if let container = try? ModelContainer(for: schema, configurations: configuration) {
+            return container
+        }
+        let url = configuration.url
+        for suffix in ["", "-shm", "-wal"] {
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + suffix))
+        }
+        return try! ModelContainer(for: schema, configurations: configuration)
     }
 
     var body: some Scene {
@@ -29,24 +44,26 @@ struct BudgetApp: App {
 }
 
 struct ContentView: View {
-    enum Tab: Hashable { case expenses, investments, settings }
+    enum Tab: Hashable { case monthly, investments }
 
-    @State private var selection: Tab = .expenses
+    @State private var selection: Tab = .monthly
+    @State private var showingSettings = false
     // Re-render everything when the display currency changes.
     @AppStorage(AppSettings.currencyKey) private var currency = AppSettings.defaultCurrency
 
     var body: some View {
         TabView(selection: $selection) {
-            ExpensesView()
-                .tabItem { Label("Expenses", systemImage: "creditcard") }
-                .tag(Tab.expenses)
+            MonthlyView(showingSettings: $showingSettings)
+                .tabItem { Label("Our month", systemImage: "heart.fill") }
+                .tag(Tab.monthly)
             InvestmentsView()
-                .tabItem { Label("Investments", systemImage: "chart.line.uptrend.xyaxis") }
+                .tabItem { Label("Investments", systemImage: "sparkles") }
                 .tag(Tab.investments)
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(Tab.settings)
         }
         .id(currency)
+        .fontDesign(.rounded)
+        .tint(Theme.accent)
+        // Outside the .id() so changing the currency doesn't close it
+        .sheet(isPresented: $showingSettings) { SettingsView() }
     }
 }
