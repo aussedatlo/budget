@@ -53,14 +53,15 @@ enum DemoData {
         let emma = Lending(name: "Emma", emoji: "🎓", lent: 600, date: monthsAgo(2, day: 12))
         context.insert(lucas)
         context.insert(emma)
-        for month in 1...6 {
-            let repayment = Repayment(date: min(monthsAgo(month, day: 5), now), amount: 250)
-            context.insert(repayment)
-            lucas.repayments.append(repayment)
+        // A snapshot of what's left from time to time
+        for (months, remaining) in [(5, 2_500.0), (3, 2_000.0), (1, 1_500.0)] {
+            let snapshot = LendingSnapshot(date: monthsAgo(months, day: 5), remaining: remaining)
+            context.insert(snapshot)
+            lucas.history.append(snapshot)
         }
-        let fromEmma = Repayment(date: monthsAgo(1, day: 20), amount: 200, note: "Cash")
+        let fromEmma = LendingSnapshot(date: monthsAgo(1, day: 20), remaining: 400, note: "Paid back 200 in cash")
         context.insert(fromEmma)
-        emma.repayments.append(fromEmma)
+        emma.history.append(fromEmma)
 
         // Investments: a snapshot every month over a year
         let etf = Investment(name: "MSCI World", ticker: "CW8", kind: .etf)

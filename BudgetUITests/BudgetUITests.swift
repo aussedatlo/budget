@@ -88,7 +88,7 @@ final class BudgetUITests: XCTestCase {
         app.buttons["Save"].tap()
         XCTAssertTrue(scrollUntilVisible(app.staticTexts["Bonus"]), "New income should be listed")
 
-        // Money lent and its repayments
+        // Money lent, followed through snapshots
         let lucas = app.staticTexts["Lucas"]
         XCTAssertTrue(scrollUntilVisible(lucas))
         snapshot("05c-money-lent")
@@ -96,14 +96,16 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Already repaid"].waitForExistence(timeout: 5))
         snapshot("05d-money-lent-detail")
 
-        // A new repayment starts from the monthly amount
-        let addRepayment = app.buttons["Add repayment"]
-        XCTAssertTrue(scrollUntilVisible(addRepayment))
-        addRepayment.tap()
-        XCTAssertTrue(app.navigationBars["New repayment"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.textFields["repayment-amount"].value as? String, "250",
-                       "Amount should be pre-filled with the monthly repayment")
-        snapshot("05e-new-repayment")
+        // A new snapshot starts from what was left last time
+        let newSnapshot = app.buttons["New snapshot"]
+        XCTAssertTrue(scrollUntilVisible(newSnapshot))
+        newSnapshot.tap()
+        XCTAssertTrue(app.navigationBars["New snapshot"].waitForExistence(timeout: 5))
+        let remaining = app.textFields["lending-remaining"]
+        XCTAssertEqual(remaining.value as? String, "1500", "Should be pre-filled with the last snapshot")
+        remaining.tap()
+        remaining.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "1250")
+        snapshot("05e-new-lending-snapshot")
         app.buttons["Save"].tap()
         let left = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '1,250'")).firstMatch
         XCTAssertTrue(left.waitForExistence(timeout: 5), "Left to repay should go down")

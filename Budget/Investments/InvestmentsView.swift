@@ -94,7 +94,8 @@ struct InvestmentsView: View {
             }
             .sheet(isPresented: $showingAdd) { InvestmentFormView() }
             .sheet(isPresented: $showingAddLoan) { LoanFormView() }
-            .sheet(isPresented: $showingSnapshot) { SnapshotAllView(investments: investments, loans: loans) }
+            .sheet(isPresented: $showingSnapshot) { SnapshotAllView(investments: investments, loans: loans,
+                                lendings: lendings.filter { !$0.isSettled }) }
             .sheet(item: $editing) { InvestmentFormView(investment: $0) }
             .overlay { ConfettiView(trigger: confetti).ignoresSafeArea() }
             .sensoryFeedback(.success, trigger: confetti)

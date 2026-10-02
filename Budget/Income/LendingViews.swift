@@ -55,7 +55,7 @@ struct LendingDetailView: View {
 
     @State private var showingEdit = false
     @State private var adding = false
-    @State private var editing: Repayment?
+    @State private var editing: LendingSnapshot?
 
     var body: some View {
         ScrollView {
@@ -69,27 +69,27 @@ struct LendingDetailView: View {
 
                 LendingChart(lending: lending).card()
 
-                SectionTitle(title: "Repayments")
-                ForEach(lending.sortedRepayments) { repayment in
-                    Button { editing = repayment } label: { RepaymentRow(repayment: repayment) }
+                SectionTitle(title: "Snapshots")
+                ForEach(lending.sortedHistory) { snapshot in
+                    Button { editing = snapshot } label: { LendingSnapshotRow(snapshot: snapshot) }
                         .buttonStyle(SquishyButtonStyle())
                 }
-                Button("Add repayment", systemImage: "plus") { adding = true }
+                Button("New snapshot", systemImage: "plus") { adding = true }
                     .buttonStyle(PillButtonStyle(color: Theme.lent))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
-            .animation(.snappy, value: lending.repayments.count)
+            .animation(.snappy, value: lending.history.count)
         }
         .background(Theme.background)
         .navigationTitle(lending.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { Button("Edit") { showingEdit = true } }
         .sheet(isPresented: $showingEdit) { LendingFormView(lending: lending) }
-        .sheet(isPresented: $adding) { RepaymentFormView(lending: lending) }
-        .sheet(item: $editing) { RepaymentFormView(lending: lending, repayment: $0) }
-        .sensoryFeedback(.success, trigger: lending.repayments.count) { old, new in new > old }
+        .sheet(isPresented: $adding) { LendingSnapshotFormView(lending: lending) }
+        .sheet(item: $editing) { LendingSnapshotFormView(lending: lending, snapshot: $0) }
+        .sensoryFeedback(.success, trigger: lending.history.count) { old, new in new > old }
     }
 
     private func tile(_ title: String, _ value: String) -> some View {
@@ -98,7 +98,7 @@ struct LendingDetailView: View {
     }
 }
 
-/// What's left to repay going down with each repayment.
+/// What's left to repay going down, from the amount lent through each snapshot.
 private struct LendingChart: View {
     let lending: Lending
 
@@ -108,15 +108,9 @@ private struct LendingChart: View {
     }
 
     private var chartPoints: [Point] {
-        var left = lending.lent
-        var points = [Point(date: lending.date, remaining: left)]
-        for repayment in lending.repayments.sorted(by: { $0.date < $1.date }) {
-            left = max(left - repayment.amount, 0)
-            points.append(Point(date: max(repayment.date, lending.date), remaining: left))
-        }
-        // Carry what's left up to today, so the last repayment shows as a step
-        if points.count > 1, let last = points.last, last.date < .now {
-            points.append(Point(date: .now, remaining: last.remaining))
+        var points = [Point(date: lending.date, remaining: lending.lent)]
+        for snapshot in lending.history.sorted(by: { $0.date < $1.date }) where snapshot.date >= lending.date {
+            points.append(Point(date: snapshot.date, remaining: snapshot.remaining))
         }
         return points
     }
@@ -124,21 +118,24 @@ private struct LendingChart: View {
     var body: some View {
         let points = chartPoints
         if points.count < 2 {
-            Text("Add repayments as they come in to see what's left go down.")
+            Text("Add a snapshot from time to time to see what's left go down.")
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
         } else {
             Chart {
                 ForEach(Array(points.enumerated()), id: \.offset) { _, point in
                     AreaMark(x: .value("Date", point.date), y: .value("Left to repay", point.remaining))
-                        .interpolationMethod(.stepEnd)
+                        .interpolationMethod(.monotone)
                         .foregroundStyle(
                             LinearGradient(colors: [Theme.lent.opacity(0.18), Theme.lent.opacity(0.0)],
                                            startPoint: .top, endPoint: .bottom)
                         )
                     LineMark(x: .value("Date", point.date), y: .value("Left to repay", point.remaining))
-                        .interpolationMethod(.stepEnd)
+                        .interpolationMethod(.monotone)
                         .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .foregroundStyle(Theme.lent)
+                    PointMark(x: .value("Date", point.date), y: .value("Left to repay", point.remaining))
+                        .symbolSize(24)
                         .foregroundStyle(Theme.lent)
                 }
             }
@@ -152,24 +149,24 @@ private struct LendingChart: View {
     }
 }
 
-private struct RepaymentRow: View {
-    let repayment: Repayment
+private struct LendingSnapshotRow: View {
+    let snapshot: LendingSnapshot
 
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(repayment.date.formatted(date: .abbreviated, time: .omitted))
+                Text(snapshot.date.formatted(date: .abbreviated, time: .omitted))
                     .font(.headline)
                     .foregroundStyle(Theme.ink)
-                if !repayment.note.isEmpty {
-                    Text(repayment.note).font(.caption).foregroundStyle(Theme.softInk)
+                if !snapshot.note.isEmpty {
+                    Text(snapshot.note).font(.caption).foregroundStyle(Theme.softInk)
                 }
             }
             Spacer()
-            Text(repayment.amount.signedCurrency)
+            Text(snapshot.remaining.currency)
                 .font(.headline)
                 .monospacedDigit()
-                .foregroundStyle(Theme.positive)
+                .foregroundStyle(Theme.ink)
         }
         .card(padding: 12)
         .contentShape(Rectangle())
@@ -189,6 +186,8 @@ struct LendingFormView: View {
     @State private var lent: Double?
     @State private var date: Date
     @State private var monthlyRepayment: Double?
+    /// Corrects the latest snapshot when editing.
+    @State private var remaining: Double?
 
     init(lending: Lending? = nil) {
         self.lending = lending
@@ -197,6 +196,7 @@ struct LendingFormView: View {
         _lent = State(initialValue: lending?.lent)
         _date = State(initialValue: lending?.date ?? .now)
         _monthlyRepayment = State(initialValue: lending.flatMap { $0.monthlyRepayment > 0 ? $0.monthlyRepayment : nil })
+        _remaining = State(initialValue: lending?.latest?.remaining)
     }
 
     var body: some View {
@@ -216,10 +216,19 @@ struct LendingFormView: View {
                     NumberField(title: "Amount lent", value: $lent, identifier: "lending-amount")
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                 }
+                if let latest = lending?.latest {
+                    Section {
+                        NumberField(title: "Left to repay", value: $remaining, identifier: "lending-remaining")
+                    } header: {
+                        Text("Latest snapshot · \(latest.date.formatted(date: .abbreviated, time: .omitted))")
+                    } footer: {
+                        Text("Corrects the latest snapshot. To keep the history, add a new snapshot from the loan page instead.")
+                    }
+                }
                 Section {
                     NumberField(title: "Monthly repayment", value: $monthlyRepayment, identifier: "lending-monthly")
                 } footer: {
-                    Text("Optional. Counted as income each month until it's all repaid. Log each repayment from the loan page when it comes in.")
+                    Text("Optional. Counted as income each month until it's all repaid. Update what's left with a snapshot from time to time.")
                 }
                 Section("Icon") {
                     EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.lending)
@@ -254,35 +263,32 @@ struct LendingFormView: View {
         item.lent = lent ?? 0
         item.date = date
         item.monthlyRepayment = max(monthlyRepayment ?? 0, 0)
+        if let latest = item.latest, let remaining {
+            latest.remaining = max(remaining, 0)
+        }
         if lending == nil { context.insert(item) }
         dismiss()
     }
 }
 
-struct RepaymentFormView: View {
+struct LendingSnapshotFormView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
     let lending: Lending
-    let repayment: Repayment?
+    let snapshot: LendingSnapshot?
 
     @State private var date: Date
-    @State private var amount: Double?
+    @State private var remaining: Double?
     @State private var note: String
 
-    init(lending: Lending, repayment: Repayment? = nil) {
+    init(lending: Lending, snapshot: LendingSnapshot? = nil) {
         self.lending = lending
-        self.repayment = repayment
-        _date = State(initialValue: repayment?.date ?? .now)
-        // A new repayment starts from the usual monthly amount
-        let suggested = lending.monthlyRepayment > 0 ? min(lending.monthlyRepayment, lending.remaining) : nil
-        _amount = State(initialValue: repayment?.amount ?? suggested)
-        _note = State(initialValue: repayment?.note ?? "")
-    }
-
-    /// What would be left after this repayment.
-    private var leftAfter: Double {
-        max(lending.remaining + (repayment?.amount ?? 0) - (amount ?? 0), 0)
+        self.snapshot = snapshot
+        _date = State(initialValue: snapshot?.date ?? .now)
+        // A new snapshot starts from what was left last time
+        _remaining = State(initialValue: snapshot?.remaining ?? lending.remaining)
+        _note = State(initialValue: snapshot?.note ?? "")
     }
 
     var body: some View {
@@ -290,17 +296,21 @@ struct RepaymentFormView: View {
             Form {
                 Section {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
-                    NumberField(title: "Amount", value: $amount, identifier: "repayment-amount")
+                    NumberField(title: "Left to repay", value: $remaining, identifier: "lending-remaining")
                     TextField("Note", text: $note)
+                } footer: {
+                    if snapshot == nil {
+                        Text("Pre-filled with what was left last time: just change it.")
+                    }
                 }
                 Section {
-                    LabeledContent("Left to repay after", value: leftAfter.currency)
+                    LabeledContent("Already repaid", value: max(lending.lent - (remaining ?? 0), 0).currency)
                 }
-                if let repayment {
+                if let snapshot {
                     Section {
-                        Button("Delete this repayment", role: .destructive) {
-                            lending.repayments.removeAll { $0 == repayment }
-                            context.delete(repayment)
+                        Button("Delete this snapshot", role: .destructive) {
+                            lending.history.removeAll { $0 == snapshot }
+                            context.delete(snapshot)
                             dismiss()
                         }
                     }
@@ -308,25 +318,25 @@ struct RepaymentFormView: View {
             }
             .themedForm()
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(repayment == nil ? "New repayment" : "Edit repayment")
+            .navigationTitle(snapshot == nil ? "New snapshot" : "Edit snapshot")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save).disabled((amount ?? 0) <= 0)
+                    Button("Save", action: save).disabled(remaining == nil)
                 }
             }
         }
     }
 
     private func save() {
-        let item = repayment ?? Repayment()
+        let item = snapshot ?? LendingSnapshot()
         item.date = date
-        item.amount = amount ?? 0
+        item.remaining = max(remaining ?? 0, 0)
         item.note = note
-        if repayment == nil {
+        if snapshot == nil {
             context.insert(item)
-            lending.repayments.append(item)
+            lending.history.append(item)
         }
         dismiss()
     }

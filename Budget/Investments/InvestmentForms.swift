@@ -291,10 +291,13 @@ struct SnapshotAllView: View {
 
     let investments: [Investment]
     let loans: [Loan]
+    /// Money lent that isn't fully repaid yet.
+    var lendings: [Lending] = []
 
     @State private var date = Date.now
     @State private var drafts: [PersistentIdentifier: SnapshotDraft] = [:]
     @State private var loanDrafts: [PersistentIdentifier: LoanDraft] = [:]
+    @State private var lendingDrafts: [PersistentIdentifier: Double?] = [:]
 
     var body: some View {
         NavigationStack {
@@ -321,6 +324,16 @@ struct SnapshotAllView: View {
                         HStack(spacing: 6) {
                             Moji(loan.emoji, size: 18)
                             Text(loan.name)
+                        }
+                    }
+                }
+                ForEach(lendings) { lending in
+                    Section {
+                        NumberField(title: "Left to repay", value: lendingDraft(for: lending))
+                    } header: {
+                        HStack(spacing: 6) {
+                            Moji(lending.emoji, size: 18)
+                            Text("Lent to \(lending.name)")
                         }
                     }
                 }
@@ -358,7 +371,21 @@ struct SnapshotAllView: View {
         )
     }
 
+    private func lendingDraft(for lending: Lending) -> Binding<Double?> {
+        Binding(
+            get: { lendingDrafts[lending.persistentModelID] ?? Optional(lending.remaining) },
+            set: { lendingDrafts[lending.persistentModelID] = .some($0) }
+        )
+    }
+
     private func save() {
+        for lending in lendings {
+            let draft = lendingDrafts[lending.persistentModelID] ?? Optional(lending.remaining)
+            guard let remaining = draft else { continue }
+            let snapshot = LendingSnapshot(date: date, remaining: max(remaining, 0))
+            context.insert(snapshot)
+            lending.history.append(snapshot)
+        }
         for investment in investments {
             var draft = drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution)
             guard draft.isValid else { continue }

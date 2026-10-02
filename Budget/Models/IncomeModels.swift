@@ -20,7 +20,8 @@ final class IncomeSource {
     }
 }
 
-/// Money lent to someone, followed through the repayments they make.
+/// Money lent to someone, followed like the home loan: a snapshot
+/// of what's left to repay from time to time.
 @Model
 final class Lending {
     /// Who the money was lent to.
@@ -34,8 +35,8 @@ final class Lending {
     var monthlyRepayment: Double = 0
     var note: String = ""
 
-    @Relationship(deleteRule: .cascade, inverse: \Repayment.lending)
-    var repayments: [Repayment] = []
+    @Relationship(deleteRule: .cascade, inverse: \LendingSnapshot.lending)
+    var history: [LendingSnapshot] = []
 
     init(name: String, emoji: String = "💸", lent: Double, date: Date = .now, monthlyRepayment: Double = 0) {
         self.name = name
@@ -46,10 +47,11 @@ final class Lending {
     }
 
     /// Newest first.
-    var sortedRepayments: [Repayment] { repayments.sorted { $0.date > $1.date } }
+    var sortedHistory: [LendingSnapshot] { history.sorted { $0.date > $1.date } }
 
-    var repaid: Double { repayments.reduce(0) { $0 + $1.amount } }
-    var remaining: Double { max(lent - repaid, 0) }
+    var latest: LendingSnapshot? { history.max { $0.date < $1.date } }
+    var remaining: Double { max(latest?.remaining ?? lent, 0) }
+    var repaid: Double { max(lent - remaining, 0) }
     var repaidRatio: Double { lent > 0 ? min(repaid / lent, 1) : 0 }
     var isSettled: Bool { lent > 0 && remaining <= 0.005 }
     /// What comes in this month: the monthly repayment, never more than what's left.
@@ -57,15 +59,16 @@ final class Lending {
 }
 
 @Model
-final class Repayment {
+final class LendingSnapshot {
     var date: Date = Date.now
-    var amount: Double = 0
+    /// What's still owed on that date.
+    var remaining: Double = 0
     var note: String = ""
     var lending: Lending?
 
-    init(date: Date = .now, amount: Double = 0, note: String = "") {
+    init(date: Date = .now, remaining: Double = 0, note: String = "") {
         self.date = date
-        self.amount = amount
+        self.remaining = remaining
         self.note = note
     }
 }

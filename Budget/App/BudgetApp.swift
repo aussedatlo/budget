@@ -14,7 +14,7 @@ struct BudgetApp: App {
             FixedCharge.self,
             IncomeSource.self,
             Lending.self,
-            Repayment.self,
+            LendingSnapshot.self,
         ])
         if DemoData.isEnabled {
             container = DemoData.makeContainer(for: schema)
