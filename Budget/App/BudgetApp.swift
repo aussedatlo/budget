@@ -10,7 +10,6 @@ struct BudgetApp: App {
             Investment.self,
             Trade.self,
             PriceSnapshot.self,
-            Expense.self,
             FixedCharge.self,
         ])
         if DemoData.isEnabled {
@@ -29,24 +28,24 @@ struct BudgetApp: App {
 }
 
 struct ContentView: View {
-    enum Tab: Hashable { case expenses, investments, settings }
+    enum Tab: Hashable { case monthly, investments }
 
-    @State private var selection: Tab = .expenses
+    @State private var selection: Tab = .monthly
+    @State private var showingSettings = false
     // Re-render everything when the display currency changes.
     @AppStorage(AppSettings.currencyKey) private var currency = AppSettings.defaultCurrency
 
     var body: some View {
         TabView(selection: $selection) {
-            ExpensesView()
-                .tabItem { Label("Expenses", systemImage: "creditcard") }
-                .tag(Tab.expenses)
+            MonthlyView(showingSettings: $showingSettings)
+                .tabItem { Label("Monthly", systemImage: "calendar") }
+                .tag(Tab.monthly)
             InvestmentsView()
                 .tabItem { Label("Investments", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(Tab.investments)
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(Tab.settings)
         }
         .id(currency)
+        // Outside the .id() so changing the currency doesn't close it
+        .sheet(isPresented: $showingSettings) { SettingsView() }
     }
 }

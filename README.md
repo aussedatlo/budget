@@ -2,8 +2,8 @@
 
 A small iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 
-- **Expenses**: a view per month with a budget progress bar, a breakdown by category, fixed monthly charges (rent, subscriptions…) and one-off expenses.
-- **Investments**: positions with buy/sell trades (quantity, unit price, fees, amount used) and price **snapshots**. You get the current value, net invested amount, gain/performance, average buy price and a chart of value vs. invested over time, both per position and for the whole portfolio. Use the camera button to snapshot the prices of every position at once.
+- **Monthly**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month.
+- **Investments**: stocks, ETFs, funds, crypto, **precious metals**, savings… For each position you record buy/sell trades (quantity, unit price, fees, amount used) and price **snapshots**. The app shows the current value, the net amount invested, the gain and its percentage, the average buy price, and a chart of value against amount invested over time, both per position and for the whole portfolio. The camera button records the price of every position at once.
 
 All data stays on the device.
 
@@ -11,9 +11,9 @@ All data stays on the device.
 
 ```
 project.yml                 XcodeGen spec (the .xcodeproj is generated, not committed)
-Budget/App                  App entry, tabs, settings
+Budget/App                  App entry, tabs, settings, demo data
 Budget/Models               SwiftData models + calculations
-Budget/Expenses             Monthly expenses UI
+Budget/Monthly              Income vs. recurring charges
 Budget/Investments          Investments UI
 BudgetUITests               E2E tests (screenshots on PRs)
 .github/workflows/ios.yml   CI: build, sign, export .ipa

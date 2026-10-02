@@ -280,6 +280,7 @@ struct SnapshotAllView: View {
 struct NumberField: View {
     let title: String
     @Binding var value: Double?
+    var identifier: String?
 
     var body: some View {
         LabeledContent(title) {
@@ -287,6 +288,7 @@ struct NumberField: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
+                .accessibilityIdentifier(identifier ?? title)
         }
     }
 }

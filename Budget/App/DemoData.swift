@@ -26,41 +26,25 @@ enum DemoData {
             let month = calendar.date(byAdding: .month, value: -months, to: monthStart)!
             return calendar.date(byAdding: .day, value: day - 1, to: month)!
         }
-        /// A day of the current month, never in the future.
-        func thisMonth(day: Int) -> Date { min(monthsAgo(0, day: day), now) }
-
-        // Fixed charges
-        let charges: [(String, Double, ExpenseCategory, Int)] = [
+        // Recurring charges
+        let charges: [(String, Double, ChargeCategory, Int)] = [
             ("Rent", 850, .housing, 5),
+            ("Electricity", 64, .utilities, 8),
             ("Internet", 29.99, .utilities, 10),
+            ("Car insurance", 48.50, .insurance, 12),
             ("Netflix", 13.49, .subscriptions, 15),
             ("Gym", 35, .health, 1),
         ]
         for (title, amount, category, day) in charges {
-            context.insert(FixedCharge(title: title, amount: amount, category: category,
-                                       dayOfMonth: day, startDate: monthsAgo(6)))
-        }
-
-        // Expenses: this month and last month
-        let expenses: [(String, Double, ExpenseCategory, Int)] = [
-            ("Groceries", 84.50, .food, 2),
-            ("Fuel", 61.20, .transport, 3),
-            ("Restaurant", 42.00, .leisure, 6),
-            ("Pharmacy", 12.90, .health, 8),
-            ("Groceries", 67.35, .food, 9),
-            ("Cinema", 24.00, .leisure, 12),
-            ("Jacket", 79.99, .shopping, 14),
-        ]
-        for (title, amount, category, day) in expenses {
-            context.insert(Expense(title: title, amount: amount, date: thisMonth(day: day), category: category))
-            context.insert(Expense(title: title, amount: amount * 1.1, date: monthsAgo(1, day: day + 7), category: category))
+            context.insert(FixedCharge(title: title, amount: amount, category: category, dayOfMonth: day))
         }
 
         // Investments: monthly buys and snapshots over a year
         let etf = Investment(name: "MSCI World", ticker: "CW8", kind: .etf)
         let crypto = Investment(name: "Bitcoin", ticker: "BTC", kind: .crypto)
         let savings = Investment(name: "Savings account", kind: .savings)
-        for investment in [etf, crypto, savings] { context.insert(investment) }
+        let gold = Investment(name: "Gold coins", ticker: "XAU", kind: .metal)
+        for investment in [etf, crypto, savings, gold] { context.insert(investment) }
 
         for i in 0..<12 {
             let monthsBack = 11 - i
@@ -75,6 +59,11 @@ enum DemoData {
         add(Trade(date: monthsAgo(5, day: 5), quantity: 0.03, unitPrice: 61_000, fees: 8), to: crypto, context)
 
         add(Trade(date: monthsAgo(11, day: 1), quantity: 5_000, unitPrice: 1), to: savings, context)
+
+        add(Trade(date: monthsAgo(10, day: 12), quantity: 4, unitPrice: 395, fees: 12), to: gold, context)
+        for (monthsBack, price) in [(8, 410.0), (5, 446.0), (2, 492.0), (0, 515.0)] {
+            add(PriceSnapshot(date: monthsAgo(monthsBack, day: 1), unitPrice: price), to: gold, context)
+        }
         add(PriceSnapshot(date: monthsAgo(5, day: 30), unitPrice: 1.015), to: savings, context)
         add(PriceSnapshot(date: monthsAgo(0, day: 1), unitPrice: 1.03), to: savings, context)
     }

@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @AppStorage(AppSettings.currencyKey) private var currency = AppSettings.defaultCurrency
-    @AppStorage(AppSettings.budgetKey) private var budget: Double = 0
 
     private var currencies: [String] {
         Array(Set(["EUR", "USD", "GBP", "CHF", "CAD", "JPY", "AUD", currency])).sorted()
@@ -18,28 +18,16 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    LabeledContent("Monthly budget") {
-                        TextField("0", value: $budget, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                    }
-                } header: {
-                    Text("Expenses")
-                } footer: {
-                    Text("Fixed charges and expenses are compared to this amount every month. 0 disables it.")
+                Picker("Currency", selection: $currency) {
+                    ForEach(currencies, id: \.self) { Text($0).tag($0) }
                 }
-                Section("Display") {
-                    Picker("Currency", selection: $currency) {
-                        ForEach(currencies, id: \.self) { Text($0).tag($0) }
-                    }
-                }
-                Section {
-                    LabeledContent("Version", value: version)
-                }
+                LabeledContent("Version", value: version)
             }
-            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
         }
     }
 }

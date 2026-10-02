@@ -12,7 +12,7 @@ final class BudgetUITests: XCTestCase {
         app.launchArguments = [
             "-demo-data",
             // UserDefaults read by @AppStorage
-            "-monthlyBudget", "2000",
+            "-monthlyIncome", "2500",
             "-currencyCode", "EUR",
             "-AppleLanguages", "(en)",
             "-AppleLocale", "en_US",
@@ -23,46 +23,32 @@ final class BudgetUITests: XCTestCase {
     /// Show the screen at the time of failure in the PR comment too.
     override func tearDown() {
         if let run = testRun, run.failureCount > 0 {
-            // name is "-[BudgetUITests testExpenses]"
+            // name is "-[BudgetUITests testMonthly]"
             let method = name.split(separator: " ").last.map { String($0.dropLast()) } ?? "test"
             snapshot("99-failure-\(method)")
         }
         super.tearDown()
     }
 
-    func testExpenses() {
-        XCTAssertTrue(app.staticTexts["Spent this month"].waitForExistence(timeout: 10))
-        snapshot("01-expenses")
+    func testMonthly() {
+        XCTAssertTrue(app.staticTexts["Left each month"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Rent"].exists)
+        snapshot("01-monthly")
 
-        scrollUntilVisible(app.staticTexts["Expenses"])
-        snapshot("02-expenses-list")
-
-        // Add an expense
-        app.buttons["Add expense"].tap()
-        let amount = app.textFields["expense-amount"]
-        XCTAssertTrue(amount.waitForExistence(timeout: 5))
-        amount.tap()
-        amount.typeText("42")
-        let title = app.textFields["expense-title"]
+        // Add a recurring charge
+        app.buttons["Add charge"].tap()
+        let title = app.textFields["charge-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
-        title.typeText("Book")
-        snapshot("03-new-expense")
+        title.typeText("Phone")
+        let amount = app.textFields["charge-amount"]
+        amount.tap()
+        amount.typeText("15")
+        title.tap() // commit the amount field
+        snapshot("02-new-charge")
         app.buttons["Save"].tap()
-        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Book"]), "New expense should be listed")
-
-        // Fixed charges
-        app.buttons["Fixed charges"].tap()
-        XCTAssertTrue(app.staticTexts["Rent"].waitForExistence(timeout: 5))
-        snapshot("04-fixed-charges")
-        app.buttons["Done"].tap()
-
-        // Previous month: shown from the top, with its own title
-        app.buttons["Previous month"].tap()
-        let previousMonth = Calendar.current.date(byAdding: .month, value: -1, to: .now)!
-        let monthTitle = previousMonth.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "en_US")))
-        XCTAssertTrue(app.staticTexts[monthTitle].waitForExistence(timeout: 5), "Title should be \(monthTitle)")
-        XCTAssertTrue(app.staticTexts["Spent this month"].waitForExistence(timeout: 5))
-        snapshot("05-previous-month")
+        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Phone"]), "New charge should be listed")
+        snapshot("03-monthly-with-new-charge")
     }
 
     func testInvestments() {
@@ -91,9 +77,11 @@ final class BudgetUITests: XCTestCase {
     }
 
     func testSettings() {
-        openTab("Settings")
-        XCTAssertTrue(app.staticTexts["Monthly budget"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         snapshot("11-settings")
+        app.buttons["Done"].tap()
     }
 
     // MARK: - Helpers
