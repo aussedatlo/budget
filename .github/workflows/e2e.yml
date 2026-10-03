@@ -56,6 +56,19 @@ jobs:
             -parallel-testing-enabled NO \
             -quiet
 
+      - name: List failures
+        if: failure()
+        run: |
+          [ -d "$RUNNER_TEMP/UITests.xcresult" ] || exit 0
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/UITests.xcresult" --format json |
+            python3 -c '
+          import json, sys
+          for f in json.load(sys.stdin).get("testFailures", []):
+              name = f.get("testName", "test")
+              text = f.get("failureText", "").replace("\n", " ")
+              print(f"::error title={name}::{text}")
+          '
+
       - name: Collect screenshots
         if: always()
         run: |

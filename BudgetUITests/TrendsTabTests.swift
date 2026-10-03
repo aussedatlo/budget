@@ -137,8 +137,8 @@ final class SnapshotListTests: BudgetUITestCase {
             expect(text("Home equity"))
         }
         and("the income lines as they were") {
-            XCTAssertTrue(dragUntilVisible(text("Salary")))
-            XCTAssertTrue(dragUntilVisible(text("Repaid by Lucas")))
+            XCTAssertTrue(scrollUntilVisible(text("Salary")))
+            XCTAssertTrue(scrollUntilVisible(text("Repaid by Lucas")))
         }
         when("I tap Done") {
             button("Done").tap()

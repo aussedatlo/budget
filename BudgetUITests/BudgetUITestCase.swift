@@ -72,6 +72,11 @@ class BudgetUITestCase: XCTestCase {
         app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", part)).firstMatch
     }
 
+    /// Any element whose label contains `part`: a text, a link, a row read as one…
+    func anything(containing part: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", part)).firstMatch
+    }
+
     /// Section headers can be shown in capitals.
     func header(_ label: String) -> XCUIElement {
         app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", label)).firstMatch
@@ -133,38 +138,50 @@ class BudgetUITestCase: XCTestCase {
     }
 
     func tap(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5), "Not found: \(element)", file: file, line: line)
-        XCTAssertTrue(scrollUntilVisible(element), "Not visible: \(element)", file: file, line: line)
+        XCTAssertTrue(scrollUntilVisible(element), "Not found on screen: \(element)", file: file, line: line)
         element.tap()
     }
 
     func type(_ text: String, into field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
-        tap(field, file: file, line: line)
+        tapAtTheEnd(of: field, file: file, line: line)
         field.typeText(text)
     }
 
     /// Replaces what's in a field with `text`.
     func replace(_ field: XCUIElement, with text: String, file: StaticString = #filePath, line: UInt = #line) {
-        tap(field, file: file, line: line)
+        tapAtTheEnd(of: field, file: file, line: line)
         let current = field.value as? String ?? ""
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count) + text)
+        let placeholder = field.placeholderValue ?? ""
+        let length = current == placeholder ? 0 : current.count
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: length) + text)
     }
 
     func clear(_ field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         replace(field, with: "", file: file, line: line)
     }
 
-    /// Flips a switch in a form. Tapping the middle of the row would only tap its title.
+    /// Tapping the middle of a short, right-aligned value puts the cursor
+    /// before it, so tap the far end of the field.
+    private func tapAtTheEnd(of field: XCUIElement, file: StaticString, line: UInt) {
+        XCTAssertTrue(scrollUntilVisible(field), "Not found on screen: \(field)", file: file, line: line)
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+    }
+
+    /// Flips a switch. In a form the switch element is the whole row,
+    /// with the control itself inside it.
     func flip(_ toggle: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Not found: \(toggle)", file: file, line: line)
-        XCTAssertTrue(scrollUntilVisible(toggle), file: file, line: line)
-        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        XCTAssertTrue(scrollUntilVisible(toggle), "Not found on screen: \(toggle)", file: file, line: line)
+        let control = toggle.switches.firstMatch
+        if control.exists {
+            control.tap()
+        } else {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        }
     }
 
     /// Long-presses `element` and picks `option` in its menu.
     func choose(_ option: String, inMenuOf element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5), "Not found: \(element)", file: file, line: line)
-        XCTAssertTrue(scrollUntilVisible(element), file: file, line: line)
+        XCTAssertTrue(scrollUntilVisible(element), "Not found on screen: \(element)", file: file, line: line)
         element.press(forDuration: 1.2)
         pick(option, file: file, line: line)
     }
@@ -220,26 +237,76 @@ class BudgetUITestCase: XCTestCase {
 
     // MARK: - Scrolling
 
+    /// Scrolls the list or form in front, with short drags, until `element` is
+    /// wholly in view: below the title bar and above the keyboard.
+    /// Works from the frames on screen because `isHittable` can't be trusted
+    /// in a sheet: true for a row cut off at the bottom, false for a row of
+    /// texts read as one.
     @discardableResult
-    func scrollUntilVisible(_ element: XCUIElement, maxSwipes: Int = 8) -> Bool {
-        for _ in 0..<maxSwipes {
-            if element.exists && element.isHittable { return true }
-            app.swipeUp()
+    func scrollUntilVisible(_ element: XCUIElement, maxSwipes: Int = 25) -> Bool {
+        _ = element.waitForExistence(timeout: 2)
+        for _ in 0...maxSwipes {
+            let area = visibleArea()
+            guard element.exists, !element.frame.isEmpty else {
+                drag(in: area, up: true)
+                continue
+            }
+            let frame = element.frame
+            if isInABar(frame) { return element.isHittable }
+            if frame.minY < area.minY - 1 && frame.maxY < area.maxY {
+                drag(in: area, up: false)
+            } else if frame.maxY > area.maxY + 1 && frame.minY > area.minY {
+                drag(in: area, up: true)
+            } else {
+                return true
+            }
         }
-        return element.exists && element.isHittable
+        return false
     }
 
-    /// Short drags without momentum, for a row in a long form that a
-    /// full swipe would scroll past.
-    @discardableResult
-    func dragUntilVisible(_ element: XCUIElement, maxDrags: Int = 20) -> Bool {
-        for _ in 0..<maxDrags {
-            if element.exists && element.isHittable { return true }
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.42))
-            start.press(forDuration: 0.05, thenDragTo: end)
+    /// Bar buttons don't scroll.
+    private func isInABar(_ frame: CGRect) -> Bool {
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        let bars = app.navigationBars.allElementsBoundByIndex + app.tabBars.allElementsBoundByIndex
+            + app.toolbars.allElementsBoundByIndex
+        return bars.contains { $0.exists && $0.frame.contains(center) }
+    }
+
+    /// The part of the frontmost list or form that isn't covered.
+    private func visibleArea() -> CGRect {
+        let screen = app.frame
+        // The frontmost list is the smallest tall one: a sheet's form is
+        // narrower than the tab behind it.
+        let lists = (app.collectionViews.allElementsBoundByIndex
+                     + app.scrollViews.allElementsBoundByIndex
+                     + app.tables.allElementsBoundByIndex)
+            .map(\.frame)
+            .filter { $0.width >= screen.width * 0.4 && $0.height >= screen.height * 0.3 }
+        var area = (lists.min { $0.width * $0.height < $1.width * $1.height } ?? screen).intersection(screen)
+        var top = area.minY
+        for bar in app.navigationBars.allElementsBoundByIndex where bar.exists {
+            let frame = bar.frame
+            if frame.minX < area.maxX, frame.maxX > area.minX, frame.minY < area.midY, frame.maxY > top {
+                top = frame.maxY
+            }
         }
-        return element.exists && element.isHittable
+        var bottom = area.maxY
+        let keyboard = app.keyboards.firstMatch
+        if keyboard.exists { bottom = min(bottom, keyboard.frame.minY) }
+        area = CGRect(x: area.minX, y: top, width: area.width, height: max(bottom - top, 1))
+        return area
+    }
+
+    /// A short drag without momentum in the middle of `area`.
+    private func drag(in area: CGRect, up: Bool) {
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        let low = origin.withOffset(CGVector(dx: area.midX, dy: area.minY + area.height * 0.75))
+        let high = origin.withOffset(CGVector(dx: area.midX, dy: area.minY + area.height * 0.3))
+        if up {
+            low.press(forDuration: 0.05, thenDragTo: high)
+        } else {
+            high.press(forDuration: 0.05, thenDragTo: low)
+        }
     }
 
     func scrollToTop() {

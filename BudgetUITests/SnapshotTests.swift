@@ -54,15 +54,15 @@ final class SnapshotFormTests: BudgetUITestCase {
         screenshot("07-snapshot")
         and("each charge shows its amount, largest first") {
             let rent = field("snapshot-charge-Rent")
-            XCTAssertTrue(dragUntilVisible(rent))
+            XCTAssertTrue(scrollUntilVisible(rent))
             XCTAssertEqual(rent.value as? String, "850")
-            XCTAssertTrue(dragUntilVisible(field("snapshot-charge-Electricity")))
+            XCTAssertTrue(scrollUntilVisible(field("snapshot-charge-Electricity")))
             XCTAssertTrue(isAbove(rent, field("snapshot-charge-Electricity")))
         }
         and("each investment, the home loan and each money lent has its own section") {
-            XCTAssertTrue(dragUntilVisible(header("MSCI World")))
-            XCTAssertTrue(dragUntilVisible(header("Apartment")))
-            XCTAssertTrue(dragUntilVisible(header("Lent to Lucas")))
+            XCTAssertTrue(scrollUntilVisible(header("MSCI World")))
+            XCTAssertTrue(scrollUntilVisible(header("Apartment")))
+            XCTAssertTrue(scrollUntilVisible(header("Lent to Lucas")))
         }
         and("each of those sections says when it was last recorded") {
             expect(text(containing: "Last recorded: "))
@@ -75,7 +75,7 @@ final class SnapshotFormTests: BudgetUITestCase {
         }
         when("I change Rent to 900") {
             let rent = field("snapshot-charge-Rent")
-            XCTAssertTrue(dragUntilVisible(rent))
+            XCTAssertTrue(scrollUntilVisible(rent))
             replace(rent, with: "900")
         }
         then("what is left each month goes down by 50 €") {
@@ -87,7 +87,7 @@ final class SnapshotFormTests: BudgetUITestCase {
     func testEditedValuesAreMarked() {
         let quantity = field("snapshot-quantity") // Bitcoin's, the first investment
         when("I change an investment's quantity") {
-            XCTAssertTrue(dragUntilVisible(quantity))
+            XCTAssertTrue(scrollUntilVisible(quantity))
             replace(quantity, with: "1")
         }
         then("its section shows Edited") {
@@ -133,7 +133,7 @@ final class SnapshotMoneyLentTests: BudgetUITestCase {
             openSnapshot()
         }
         then("it has a section for Lucas but none for Emma") {
-            XCTAssertTrue(dragUntilVisible(header("Lent to Lucas")))
+            XCTAssertTrue(scrollUntilVisible(header("Lent to Lucas")))
             XCTAssertFalse(header("Lent to Emma").exists)
         }
     }
@@ -146,7 +146,7 @@ final class SavingASnapshotTests: BudgetUITestCase {
             openSnapshot()
             toggle("snapshot-income-toggle-Tutoring").tap()
             let rent = field("snapshot-charge-Rent")
-            XCTAssertTrue(dragUntilVisible(rent))
+            XCTAssertTrue(scrollUntilVisible(rent))
             replace(rent, with: "900")
         }
         when("I save") {
@@ -341,7 +341,7 @@ final class MissedMonthsTests: BudgetUITestCase {
         }
         when("I change Rent to 800 and save") {
             let rent = field("snapshot-charge-Rent")
-            XCTAssertTrue(dragUntilVisible(rent))
+            XCTAssertTrue(scrollUntilVisible(rent))
             replace(rent, with: "800")
             save()
             expectNo(screen("Snapshot"))
@@ -354,7 +354,7 @@ final class MissedMonthsTests: BudgetUITestCase {
         and("the \(missed) snapshot has Rent at 800 €") {
             openTab("Trends")
             tap(text(missed))
-            XCTAssertTrue(dragUntilVisible(text("€800.00")))
+            XCTAssertTrue(scrollUntilVisible(text("€800.00")))
         }
     }
 }

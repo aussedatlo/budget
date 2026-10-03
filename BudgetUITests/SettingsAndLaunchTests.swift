@@ -8,9 +8,9 @@ final class SettingsTests: BudgetUITestCase {
         }
         then("Settings shows the currency, the version and the icon credit") {
             expect(screen("Settings"))
-            expect(text("Currency"))
-            expect(text("Version"))
-            expect(text(containing: "OpenMoji"))
+            expect(anything(containing: "Currency"))
+            expect(anything(containing: "Version"))
+            expect(anything(containing: "Icons by OpenMoji"))
         }
         when("I tap Done") {
             button("Done").tap()
