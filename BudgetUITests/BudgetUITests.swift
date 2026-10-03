@@ -188,7 +188,7 @@ final class BudgetUITests: XCTestCase {
 
         // Forgot the rent went up: fix it here, it becomes the current charge
         let rent = app.textFields["snapshot-charge-Rent"]
-        XCTAssertTrue(scrollUntilVisible(rent))
+        XCTAssertTrue(dragUntilVisible(rent))
         XCTAssertEqual(rent.value as? String, "850", "Charges should be pre-filled")
         rent.tap()
         rent.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "900")
@@ -261,6 +261,18 @@ final class BudgetUITests: XCTestCase {
         } else {
             app.buttons[name].firstMatch.tap()
         }
+    }
+
+    /// Short drags without momentum, for a row in a long form that a
+    /// full swipe would scroll past.
+    private func dragUntilVisible(_ element: XCUIElement, maxDrags: Int = 15) -> Bool {
+        for _ in 0..<maxDrags {
+            if element.exists && element.isHittable { return true }
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.42))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        return element.exists && element.isHittable
     }
 
     @discardableResult
