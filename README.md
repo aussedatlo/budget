@@ -10,9 +10,9 @@ A small iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 
 ### Snapshots
 
-The first three tabs hold your **current state**: update them whenever you have time. Then tap the camera (on every tab) to take a **snapshot**, which saves the whole picture for that day: income, recurring charges, savings plan, investments, home loan and money lent.
+The first three tabs hold your **current state**: update them whenever you have time. Then, about once a month, tap the camera (on every tab) to take the month's **snapshot**, which saves the whole picture: income, recurring charges, savings plan, investments, home loan and money lent.
 
-The snapshot screen is pre-filled with the current values, so it's also the place to check everything and fix what you forgot (a new price, a charge that went up): what you change there becomes the current state. One snapshot per day: taking another one the same day replaces it. Each snapshot adds a point to the charts of the Stats tab.
+The snapshot screen is pre-filled with the current values, so it's also the place to check everything and fix what you forgot (a new price, a charge that went up): what you change there becomes the current state. There is one snapshot per month: taking it again replaces it. If you skipped a month, the app asks whether to catch up on the missing month or go for the current one. Each snapshot adds a point to the charts of the Stats tab.
 
 The design is calm: neutral cards, one dusty-rose accent, an [OpenMoji](https://openmoji.org) icon for each item, numbers that roll when they change, and a small confetti burst when net worth reaches a new high. All data stays on the device.
 

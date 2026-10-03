@@ -18,12 +18,12 @@ struct StatsView: View {
         Wealth.point(investments: investments, loans: loans, lendings: lendings)
     }
 
-    /// Newest first, each with the net worth of its day.
+    /// Newest first, each with the net worth at the end of its month.
     private var summaries: [SnapshotSummary] {
         var previous: Double?
         var result: [SnapshotSummary] = []
         for snapshot in snapshots {
-            let wealth = Wealth.point(at: Calendar.current.endOfDay(for: snapshot.date),
+            let wealth = Wealth.point(at: snapshot.endOfMonth,
                                       investments: investments, loans: loans, lendings: lendings)
             result.append(SnapshotSummary(snapshot: snapshot, wealth: wealth,
                                           change: previous.map { wealth.netWorth - $0 }))
@@ -100,10 +100,10 @@ struct StatsView: View {
                     )
                 }
                 if let last = snapshots.last {
-                    Chip(text: "Last snapshot \(last.date.formatted(date: .abbreviated, time: .omitted))")
+                    Chip(text: "Last snapshot \(last.date.monthName)")
                 }
             }
-            Text("Update your charges, income and investments when you have time, then take a snapshot: it saves the whole picture and adds a point to these charts.")
+            Text("Once a month or so, update your charges, income and investments, then take the month's snapshot: it saves the whole picture and adds a point to these charts.")
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
             Button("Take a snapshot", systemImage: "camera") { showingSnapshot = true }
@@ -130,24 +130,24 @@ struct StatsView: View {
     }
 
     /// Deletes the snapshot picked in the detail sheet, once the sheet is closed,
-    /// along with the values recorded that day.
+    /// along with the values recorded that month.
     private func deletePending() {
         guard let snapshot = deleting else { return }
         deleting = nil
         let calendar = Calendar.current
         let day = snapshot.date
         for investment in investments {
-            let entries = investment.history.filter { calendar.isDate($0.date, inSameDayAs: day) }
+            let entries = investment.history.filter { calendar.isDate($0.date, inSameMonthAs: day) }
             investment.history.removeAll { entries.contains($0) }
             entries.forEach { context.delete($0) }
         }
         for loan in loans {
-            let entries = loan.history.filter { calendar.isDate($0.date, inSameDayAs: day) }
+            let entries = loan.history.filter { calendar.isDate($0.date, inSameMonthAs: day) }
             loan.history.removeAll { entries.contains($0) }
             entries.forEach { context.delete($0) }
         }
         for lending in lendings {
-            let entries = lending.history.filter { calendar.isDate($0.date, inSameDayAs: day) }
+            let entries = lending.history.filter { calendar.isDate($0.date, inSameMonthAs: day) }
             lending.history.removeAll { entries.contains($0) }
             entries.forEach { context.delete($0) }
         }
@@ -155,7 +155,7 @@ struct StatsView: View {
     }
 }
 
-/// A snapshot with the net worth of its day.
+/// A snapshot with the net worth at the end of its month.
 struct SnapshotSummary: Identifiable {
     let snapshot: Snapshot
     let wealth: WealthPoint
@@ -407,7 +407,7 @@ private struct SnapshotSummaryRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(summary.snapshot.date.formatted(date: .abbreviated, time: .omitted))
+                Text(summary.snapshot.date.monthName)
                     .font(.headline)
                     .foregroundStyle(Theme.ink)
                 Text(subtitle)
@@ -438,7 +438,7 @@ private struct SnapshotSummaryRow: View {
     }
 }
 
-/// Everything a snapshot saved, as it was that day.
+/// Everything a snapshot saved, as it was that month.
 struct SnapshotDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -496,11 +496,11 @@ struct SnapshotDetailView: View {
                         dismiss()
                     }
                 } footer: {
-                    Text("Also removes what investments, the home loan and money lent were worth that day.")
+                    Text("Also removes what investments, the home loan and money lent were worth that month.")
                 }
             }
             .themedForm()
-            .navigationTitle(snapshot.date.formatted(date: .abbreviated, time: .omitted))
+            .navigationTitle(snapshot.date.monthName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }

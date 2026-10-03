@@ -8,6 +8,12 @@ enum DemoData {
         ProcessInfo.processInfo.arguments.contains("-demo-data")
     }
 
+    /// Leaves out the snapshots of the last two months (`-demo-missed-month`),
+    /// to test catching up on a missed month.
+    static var missesMonths: Bool {
+        ProcessInfo.processInfo.arguments.contains("-demo-missed-month")
+    }
+
     /// Settings that tests expect at their default value. Not passed as
     /// launch arguments: those would override what the app saves during the test.
     static let resetKeys = ["includeHome", "netWorthHigh", "investmentsHigh"]
@@ -100,7 +106,8 @@ enum DemoData {
                                   quantity: goldCoins, unitPrice: goldPrice), to: gold, context)
             }
 
-            // The monthly budget on that day: a raise, a rent increase, new subscriptions
+            if missesMonths && i >= 10 { continue }
+            // The monthly budget that month: a raise, a rent increase, new subscriptions
             let snapshot = Snapshot(date: date)
             snapshot.mainIncome = i < 5 ? 2_350 : 2_500
             snapshot.otherIncome = i.isMultiple(of: 3) ? 400 : 0

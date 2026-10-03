@@ -12,9 +12,10 @@ struct SnapshotButton: View {
     }
 }
 
-/// Snapshot of everything at once: income, recurring charges, investments,
-/// the home loan and money lent. Everything is pre-filled with the current
-/// values, to check them and fix what moved before saving.
+/// The month's snapshot of everything at once: income, recurring charges,
+/// investments, the home loan and money lent. Everything is pre-filled with
+/// the current values, to check them and fix what moved before saving.
+/// When months were skipped since the last snapshot, it asks which one to do.
 struct SnapshotView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -31,7 +32,10 @@ struct SnapshotView: View {
         var isActive: Bool
     }
 
-    @State private var date = Date.now
+    private let currentMonth = Calendar.current.monthInterval(for: .now).start
+    /// First day of the month this snapshot is for.
+    @State private var month = Calendar.current.monthInterval(for: .now).start
+    @State private var askingMonth = false
     @State private var note = ""
     @State private var mainIncome: Double?
     @State private var sourceDrafts: [PersistentIdentifier: SourceDraft] = [:]
@@ -48,6 +52,28 @@ struct SnapshotView: View {
     /// Money lent that isn't fully repaid yet.
     private var lendings: [Lending] { allLendings.filter { !$0.isSettled } }
 
+    private var isCurrentMonth: Bool { month == currentMonth }
+    /// The current month is dated now; a month caught up later, on its last day.
+    private var date: Date { isCurrentMonth ? .now : Calendar.current.endOfMonth(for: month) }
+
+    /// Months without a snapshot between the last one and the current month.
+    private var missing: [Date] {
+        guard let last = snapshots.last else { return [] }
+        let calendar = Calendar.current
+        var months: [Date] = []
+        var next = calendar.date(byAdding: .month, value: 1, to: last.month)!
+        while next < currentMonth {
+            months.append(next)
+            next = calendar.date(byAdding: .month, value: 1, to: next)!
+        }
+        return Array(months.suffix(12))
+    }
+
+    /// The snapshot already taken for this month, replaced on save.
+    private var taken: Snapshot? {
+        snapshots.first { Calendar.current.isDate($0.date, inSameMonthAs: month) }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -57,7 +83,15 @@ struct SnapshotView: View {
                                  value: abs(left).currency, color: left >= 0 ? Theme.ink : Theme.negative)
                         StatTile(title: "Net worth", value: netWorth.currency)
                     }
-                    DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
+                    if missing.isEmpty {
+                        LabeledContent("Month", value: month.monthName)
+                    } else {
+                        Picker("Month", selection: $month) {
+                            ForEach(missing + [currentMonth], id: \.self) { month in
+                                Text(month.monthName).tag(month)
+                            }
+                        }
+                    }
                     TextField("Note", text: $note)
                 } footer: {
                     Text(summaryFooter)
@@ -88,7 +122,19 @@ struct SnapshotView: View {
             }
             .themedForm()
             .scrollDismissesKeyboard(.interactively)
-            .onChange(of: date) {
+            .onAppear {
+                if !missing.isEmpty { askingMonth = true }
+            }
+            .alert(missedTitle, isPresented: $askingMonth) {
+                ForEach(missing.suffix(3), id: \.self) { missed in
+                    Button(missed.monthName) { month = missed }
+                }
+                Button(currentMonth.monthName) { month = currentMonth }
+            } message: {
+                Text("Catch up on a missing month, or go for \(currentMonth.monthName)? You can change it at the top of the snapshot.")
+            }
+            .onChange(of: month) {
+                let date = self.date
                 for investment in investments {
                     var updated = investmentDraft(of: investment)
                     updated.date = date
@@ -169,24 +215,32 @@ struct SnapshotView: View {
         }
     }
 
+    private var missedTitle: String {
+        let missing = self.missing
+        if missing.count == 1, let missed = missing.first { return "No snapshot for \(missed.monthName)" }
+        return "No snapshot for \(missing.count) months"
+    }
+
     private var summaryFooter: String {
         var text = "Everything is pre-filled with your current values. Check them, fix what moved, then save."
-        if snapshots.contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) }) {
-            text += " This replaces the snapshot already taken that day."
+        if !isCurrentMonth {
+            text += " Income and charges changed here are saved in this past month only: the tabs keep your current state."
+        }
+        if taken != nil {
+            text += " This replaces the snapshot already taken for \(month.monthName)."
         }
         if let previous {
-            let before = Wealth.point(at: Calendar.current.endOfDay(for: previous.date),
+            let before = Wealth.point(at: previous.endOfMonth,
                                       investments: investments, loans: loans, lendings: allLendings)
-            let day = previous.date.formatted(date: .abbreviated, time: .omitted)
+            let day = previous.date.monthName
             text += "\n\nSince \(day): net worth \((netWorth - before.netWorth).signedCurrency), left each month \((left - previous.left).signedCurrency)."
         }
         return text
     }
 
-    /// The latest snapshot taken before the day of this one.
+    /// The latest snapshot of an earlier month.
     private var previous: Snapshot? {
-        let day = Calendar.current.startOfDay(for: date)
-        return snapshots.last { $0.date < day }
+        snapshots.last { $0.date < month }
     }
 
     // MARK: - Drafts
@@ -253,7 +307,7 @@ struct SnapshotView: View {
         var total = 0.0
         for source in sources {
             let draft = sourceDraft(of: source)
-            if draft.isActive { total += max(draft.amount ?? 0, 0) }
+            if draft.isActive { total += max(draft.amount ?? source.amount, 0) }
         }
         return total
     }
@@ -271,7 +325,7 @@ struct SnapshotView: View {
 
     private var chargesTotal: Double {
         var total = 0.0
-        for charge in charges { total += chargeAmount(of: charge) ?? 0 }
+        for charge in charges { total += max(chargeAmount(of: charge) ?? charge.amount, 0) }
         return total
     }
 
@@ -292,21 +346,45 @@ struct SnapshotView: View {
     // MARK: - Save
 
     private func save() {
-        // The budget: what was corrected here becomes the current state
-        storedIncome = max(mainIncome ?? 0, 0)
+        let date = self.date
+
+        // The budget of the month. Fixed for the current month, it becomes
+        // the current state; a past month keeps it to itself.
+        let main = max(mainIncome ?? 0, 0)
+        var incomeLines = [SnapshotLine(title: "Main income", amount: main)]
+        var other = 0.0
         for source in sources {
             let draft = sourceDraft(of: source)
-            if let amount = draft.amount { source.amount = max(amount, 0) }
-            source.isActive = draft.isActive
+            let amount = max(draft.amount ?? source.amount, 0)
+            if draft.isActive {
+                other += amount
+                incomeLines.append(SnapshotLine(title: source.title, amount: amount))
+            }
+            if isCurrentMonth {
+                source.amount = amount
+                source.isActive = draft.isActive
+            }
         }
+        var repaid = 0.0
+        for lending in lendings {
+            let owed = max(lendingRemaining(of: lending) ?? lending.remaining, 0)
+            let amount = min(lending.monthlyRepayment, owed)
+            guard amount > 0 else { continue }
+            repaid += amount
+            incomeLines.append(SnapshotLine(title: "Repaid by \(lending.name)", amount: amount))
+        }
+        var chargeLines: [SnapshotLine] = []
         for charge in charges {
-            if let amount = chargeAmount(of: charge) { charge.amount = max(amount, 0) }
+            let amount = max(chargeAmount(of: charge) ?? charge.amount, 0)
+            chargeLines.append(SnapshotLine(title: charge.title, amount: amount, category: charge.categoryRaw))
+            if isCurrentMonth { charge.amount = amount }
         }
+        if isCurrentMonth { storedIncome = main }
 
-        // Values of the day, replacing the ones already recorded that day
+        // Values of the month, replacing the ones already recorded that month
         for lending in lendings {
             guard let owed = lendingRemaining(of: lending) else { continue }
-            let existing = lending.entry(on: date)
+            let existing = lending.entry(inMonthOf: date)
             let entry = existing ?? LendingSnapshot()
             entry.date = date
             entry.remaining = max(owed, 0)
@@ -318,7 +396,7 @@ struct SnapshotView: View {
         for investment in investments {
             var draft = investmentDraft(of: investment)
             guard draft.isValid else { continue }
-            let existing = investment.entry(on: date)
+            let existing = investment.entry(inMonthOf: date)
             draft.date = date
             draft.note = existing?.note ?? ""
             let entry = existing ?? ValueSnapshot()
@@ -331,7 +409,7 @@ struct SnapshotView: View {
         for loan in loans {
             var draft = loanDraft(of: loan)
             guard draft.isValid else { continue }
-            let existing = loan.entry(on: date)
+            let existing = loan.entry(inMonthOf: date)
             draft.date = date
             draft.note = existing?.note ?? ""
             let entry = existing ?? LoanSnapshot()
@@ -342,13 +420,18 @@ struct SnapshotView: View {
             }
         }
 
-        let taken = snapshots.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
-        let snapshot = taken ?? Snapshot()
+        let existing = taken
+        let snapshot = existing ?? Snapshot()
         snapshot.date = date
         snapshot.note = note
-        snapshot.capture(mainIncome: max(mainIncome ?? 0, 0), sources: sources, lendings: allLendings,
-                         charges: charges, investments: investments)
-        if taken == nil { context.insert(snapshot) }
+        snapshot.mainIncome = main
+        snapshot.otherIncome = other
+        snapshot.repayments = repaid
+        snapshot.charges = chargeLines.reduce(0) { $0 + $1.amount }
+        snapshot.savings = savings
+        snapshot.incomeLines = incomeLines
+        snapshot.chargeLines = chargeLines
+        if existing == nil { context.insert(snapshot) }
         dismiss()
     }
 }

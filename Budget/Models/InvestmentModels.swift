@@ -85,6 +85,11 @@ final class Investment {
         history.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
     }
 
+    /// The latest values recorded in the same month as `date`, if any.
+    func entry(inMonthOf date: Date) -> ValueSnapshot? {
+        history.filter { Calendar.current.isDate($0.date, inSameMonthAs: date) }.max { $0.date < $1.date }
+    }
+
     var latest: ValueSnapshot? { snapshot() }
     var currentValue: Double { latest?.value ?? 0 }
     var investedAmount: Double { latest?.invested ?? 0 }

@@ -9,11 +9,14 @@ struct SnapshotLine: Codable, Hashable {
     var category: String = ""
 }
 
-/// The whole picture on a given day. The monthly budget (income, recurring
-/// charges, planned savings) is stored here; investments, the home loan and
-/// money lent record their values of that day in their own history.
+/// The whole picture for a month: one snapshot per month. The monthly budget
+/// (income, recurring charges, planned savings) is stored here; investments,
+/// the home loan and money lent record their values of that month in their
+/// own history.
 @Model
 final class Snapshot {
+    /// When in the month it stands for: the day it was taken, or the last
+    /// day of the month when it was caught up later.
     var date: Date = Date.now
     var note: String = ""
     var mainIncome: Double = 0
@@ -31,6 +34,11 @@ final class Snapshot {
         self.date = date
     }
 
+    /// First day of the month it stands for.
+    var month: Date { Calendar.current.monthInterval(for: date).start }
+    /// Everything recorded up to the end of its month counts.
+    var endOfMonth: Date { Calendar.current.endOfMonth(for: date) }
+
     var income: Double { mainIncome + otherIncome + repayments }
     /// What was free to spend each month.
     var left: Double { income - charges - savings }
@@ -44,27 +52,6 @@ final class Snapshot {
     var incomeLines: [SnapshotLine] {
         get { Self.decode(incomeLinesData) }
         set { incomeLinesData = Self.encode(newValue) }
-    }
-
-    /// Copies the monthly budget as it is now.
-    func capture(mainIncome: Double, sources: [IncomeSource], lendings: [Lending],
-                 charges: [FixedCharge], investments: [Investment]) {
-        let totals = IncomeTotals(main: mainIncome, sources: sources, lendings: lendings)
-        self.mainIncome = totals.main
-        self.otherIncome = totals.other
-        self.repayments = totals.repayments
-        self.charges = charges.reduce(0) { $0 + $1.amount }
-        self.savings = investments.reduce(0) { $0 + $1.monthlyContribution }
-
-        chargeLines = charges.map { SnapshotLine(title: $0.title, amount: $0.amount, category: $0.categoryRaw) }
-        var lines = [SnapshotLine(title: "Main income", amount: totals.main)]
-        for source in sources where source.isActive {
-            lines.append(SnapshotLine(title: source.title, amount: source.amount))
-        }
-        for lending in lendings where lending.expectedThisMonth > 0 {
-            lines.append(SnapshotLine(title: "Repaid by \(lending.name)", amount: lending.expectedThisMonth))
-        }
-        incomeLines = lines
     }
 
     private static func decode(_ data: Data) -> [SnapshotLine] {

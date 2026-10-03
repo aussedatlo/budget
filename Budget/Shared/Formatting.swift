@@ -34,6 +34,13 @@ extension Double {
     }
 }
 
+extension Date {
+    /// "October 2026"
+    var monthName: String {
+        formatted(.dateTime.month(.wide).year())
+    }
+}
+
 extension Calendar {
     func monthInterval(for date: Date) -> DateInterval {
         dateInterval(of: .month, for: date) ?? DateInterval(start: date, duration: 0)
@@ -42,6 +49,15 @@ extension Calendar {
     /// The last second of the day `date` is in.
     func endOfDay(for date: Date) -> Date {
         self.date(byAdding: .day, value: 1, to: startOfDay(for: date))!.addingTimeInterval(-1)
+    }
+
+    /// The last second of the month `date` is in.
+    func endOfMonth(for date: Date) -> Date {
+        monthInterval(for: date).end.addingTimeInterval(-1)
+    }
+
+    func isDate(_ date: Date, inSameMonthAs other: Date) -> Bool {
+        isDate(date, equalTo: other, toGranularity: .month)
     }
 
     /// Number of calendar months from `start` to `end` (0 within the same month).

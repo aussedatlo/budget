@@ -212,6 +212,30 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(newRent.waitForExistence(timeout: 5), "Rent should be updated")
     }
 
+    /// A month was skipped: the snapshot asks which month to do.
+    func testMissedMonth() {
+        app.terminate()
+        app.launchArguments.append("-demo-missed-month")
+        app.launch()
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.dateFormat = "MMMM yyyy"
+        let missed = formatter.string(from: Calendar.current.date(byAdding: .month, value: -1, to: Date())!)
+
+        openTab("Stats")
+        XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
+        app.buttons["Take a snapshot"].tap()
+        let alert = app.alerts["No snapshot for \(missed)"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "Should ask about the missed month")
+        snapshot("11e-missed-month")
+        alert.buttons[missed].tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
+        snapshot("11f-missed-month-snapshot")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts[missed].waitForExistence(timeout: 5), "The missed month should be listed")
+    }
+
     func testSettings() {
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
         app.buttons["Settings"].tap()

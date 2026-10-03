@@ -54,6 +54,11 @@ final class Lending {
         history.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
     }
 
+    /// The latest value recorded in the same month as `date`, if any.
+    func entry(inMonthOf date: Date) -> LendingSnapshot? {
+        history.filter { Calendar.current.isDate($0.date, inSameMonthAs: date) }.max { $0.date < $1.date }
+    }
+
     /// What was still owed at `date`: nothing before the money was lent.
     func remaining(at date: Date) -> Double {
         guard self.date <= date else { return 0 }

@@ -33,6 +33,11 @@ final class Loan {
         history.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
     }
 
+    /// The latest values recorded in the same month as `date`, if any.
+    func entry(inMonthOf date: Date) -> LoanSnapshot? {
+        history.filter { Calendar.current.isDate($0.date, inSameMonthAs: date) }.max { $0.date < $1.date }
+    }
+
     var latest: LoanSnapshot? { snapshot() }
     var remaining: Double { latest?.remaining ?? borrowed }
     var repaid: Double { max(borrowed - remaining, 0) }
