@@ -163,13 +163,11 @@ class BudgetUITestCase: XCTestCase {
     }
 
     /// Tapping the middle of a short, right-aligned value puts the cursor
-    /// before it, so tap the far end of the field. A field being edited
-    /// keeps the cursor where it was, so select its value instead.
+    /// before it, so tap the far end of the field. A field still being
+    /// edited is left alone: its cursor is already after what was typed.
     private func tapAtTheEnd(of field: XCUIElement, file: StaticString, line: UInt) {
         XCTAssertTrue(scrollUntilVisible(field), "Not found on screen: \(field)", file: file, line: line)
-        if field.value(forKey: "hasKeyboardFocus") as? Bool == true {
-            field.doubleTap()
-        } else {
+        if field.value(forKey: "hasKeyboardFocus") as? Bool != true {
             field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
         }
     }
