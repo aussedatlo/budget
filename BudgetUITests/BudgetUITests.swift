@@ -197,13 +197,14 @@ final class BudgetUITests: XCTestCase {
 
         // Evolution, snapshot after snapshot
         XCTAssertTrue(app.staticTexts["Net worth over time"].waitForExistence(timeout: 5))
-        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Saved per month"]))
-        snapshot("11c-stats-savings")
-        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Monthly budget"]))
-        snapshot("11d-stats-budget")
-        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Snapshots"]))
+        XCTAssertTrue(app.staticTexts["Saved per month"].exists)
+        XCTAssertTrue(app.staticTexts["Monthly budget"].exists)
+        XCTAssertTrue(app.staticTexts["Snapshots"].exists)
+        // The page isn't lazy: everything exists at once, so scroll by hand
         app.swipeUp()
-        snapshot("11e-stats-snapshots")
+        snapshot("11c-stats-budget")
+        app.swipeUp()
+        snapshot("11d-stats-snapshots")
 
         // The correction made in the snapshot is the new current state
         openTab("Month")
