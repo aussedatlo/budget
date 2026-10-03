@@ -148,7 +148,7 @@ struct InvestmentFormView: View {
                 } header: {
                     Text("Savings plan")
                 } footer: {
-                    Text("How much you usually add every month. It's added to “invested so far” for you when you update the values, and it's set aside on the Month screen.")
+                    Text("How much you usually add every month. It's added to “invested so far” for you when you update the values, and it's set aside on the Budget screen.")
                 }
                 if investment == nil {
                     Section {

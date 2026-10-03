@@ -63,7 +63,7 @@ struct StatsView: View {
                 .animation(.snappy, value: snapshots.count)
             }
             .background(Theme.background)
-            .navigationTitle("Stats")
+            .navigationTitle("Trends")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     SnapshotButton(isPresented: $showingSnapshot)

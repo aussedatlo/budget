@@ -103,7 +103,7 @@ struct SavingsPlanView: View {
         NavigationStack {
             Form {
                 if investments.isEmpty {
-                    Text("Add an investment first (Investments tab), then come back to plan your monthly savings.")
+                    Text("Add an investment first (Wealth tab), then come back to plan your monthly savings.")
                         .foregroundStyle(Theme.softInk)
                 } else {
                     Section {
@@ -120,7 +120,7 @@ struct SavingsPlanView: View {
                             }
                         }
                     } footer: {
-                        Text("Set aside on the Month screen, and added to “invested so far” in your next snapshot. You can always correct a month that was different.")
+                        Text("Set aside on the Budget screen, and added to “invested so far” in your next snapshot. You can always correct a month that was different.")
                     }
                     Section {
                         LabeledContent("Every month", value: total.currency)

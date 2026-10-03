@@ -12,7 +12,6 @@ final class BudgetUITests: XCTestCase {
         app.launchArguments = [
             "-demo-data",
             // UserDefaults read by @AppStorage
-            "-monthlyIncome", "2500",
             "-currencyCode", "EUR",
             "-AppleLanguages", "(en)",
             "-AppleLocale", "en_US",
@@ -70,6 +69,7 @@ final class BudgetUITests: XCTestCase {
     func testIncome() {
         openTab("Income")
         XCTAssertTrue(app.staticTexts["Monthly income"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Salary"].exists, "The salary is an income line")
         XCTAssertTrue(app.staticTexts["Freelance"].exists)
         snapshot("05a-income")
 
@@ -120,7 +120,7 @@ final class BudgetUITests: XCTestCase {
     }
 
     func testInvestments() {
-        openTab("Investments")
+        openTab("Wealth")
         XCTAssertTrue(app.staticTexts["Investments value"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["Apartment"].exists, "Home is hidden in investments mode")
         snapshot("06-investments")
@@ -181,7 +181,7 @@ final class BudgetUITests: XCTestCase {
     }
 
     func testStats() {
-        openTab("Stats")
+        openTab("Trends")
         XCTAssertTrue(app.staticTexts["Net worth over time"].waitForExistence(timeout: 10))
         // This month's snapshot is already taken in the demo data
         XCTAssertFalse(app.buttons["Take a snapshot"].exists, "Nothing to take this month")
@@ -190,9 +190,9 @@ final class BudgetUITests: XCTestCase {
         // Snapshot of everything: pre-filled with the current state, to check and fix
         app.buttons["Snapshot"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
-        let income = app.textFields["snapshot-main-income"]
+        let income = app.textFields["snapshot-income-Salary"]
         XCTAssertTrue(income.waitForExistence(timeout: 5))
-        XCTAssertEqual(income.value as? String, "2500", "Main income should be pre-filled")
+        XCTAssertEqual(income.value as? String, "2500", "The salary should be pre-filled")
         snapshot("11a-snapshot")
 
         // Forgot the rent went up: fix it here, it becomes the current charge
@@ -216,7 +216,7 @@ final class BudgetUITests: XCTestCase {
         snapshot("11d-stats-snapshots")
 
         // The correction made in the snapshot is the new current state
-        openTab("Month")
+        openTab("Budget")
         let newRent = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '900'")).firstMatch
         XCTAssertTrue(newRent.waitForExistence(timeout: 5), "Rent should be updated")
     }
@@ -226,7 +226,7 @@ final class BudgetUITests: XCTestCase {
         relaunch(missedMonths: 1)
         let missed = monthName(monthsAgo: 1)
 
-        openTab("Stats")
+        openTab("Trends")
         XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
         app.buttons["Take a snapshot"].tap()
         let alert = app.alerts["No snapshot for \(missed)"]
@@ -246,7 +246,7 @@ final class BudgetUITests: XCTestCase {
         let newer = monthName(monthsAgo: 1)
         let current = monthName(monthsAgo: 0)
 
-        openTab("Stats")
+        openTab("Trends")
         XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
         app.buttons["Take a snapshot"].tap()
         var alert = app.alerts["No snapshot for 2 months"]
@@ -277,7 +277,7 @@ final class BudgetUITests: XCTestCase {
     func testDiscardSnapshotChanges() {
         XCTAssertTrue(app.buttons["Snapshot"].firstMatch.waitForExistence(timeout: 10))
         app.buttons["Snapshot"].firstMatch.tap()
-        let income = app.textFields["snapshot-main-income"]
+        let income = app.textFields["snapshot-income-Salary"]
         XCTAssertTrue(income.waitForExistence(timeout: 5))
         income.tap()
         income.typeText("0")
@@ -286,13 +286,16 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(discard.waitForExistence(timeout: 5), "Should ask before losing the changes")
         snapshot("11h-discard-snapshot")
         discard.tap()
-        XCTAssertTrue(app.staticTexts["Left after savings"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.navigationBars["Snapshot"].exists, "The snapshot should be closed")
+        // The sheet slides away: wait until it's gone rather than checking right away
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                               object: app.navigationBars["Snapshot"])
+        XCTAssertEqual(XCTWaiter().wait(for: [closed], timeout: 5), .completed, "The snapshot should be closed")
+        XCTAssertTrue(app.staticTexts["Left after savings"].exists)
     }
 
     /// Deleting a snapshot asks first, and can keep that month's values.
     func testDeleteSnapshot() {
-        openTab("Stats")
+        openTab("Trends")
         let current = monthName(monthsAgo: 0)
         let row = app.staticTexts[current]
         XCTAssertTrue(scrollUntilVisible(row, maxSwipes: 10), "This month's snapshot should be listed")

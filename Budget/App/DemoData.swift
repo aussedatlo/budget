@@ -50,7 +50,10 @@ enum DemoData {
             context.insert(FixedCharge(title: title, amount: amount, category: category, dayOfMonth: day, emoji: emoji))
         }
 
-        // Other income: freelance work this month, no tutoring
+        // Income: a salary, freelance work this month, no tutoring
+        let salary = IncomeSource(title: "Salary", amount: 2_500, emoji: "🏢")
+        salary.createdAt = .distantPast
+        context.insert(salary)
         context.insert(IncomeSource(title: "Freelance", amount: 400, emoji: "💼"))
         context.insert(IncomeSource(title: "Tutoring", amount: 150, emoji: "🎓", isActive: false))
 
@@ -109,8 +112,9 @@ enum DemoData {
             if missedMonths > 0 && i >= 11 - missedMonths { continue }
             // The monthly budget that month: a raise, a rent increase, new subscriptions
             let snapshot = Snapshot(date: date)
-            snapshot.mainIncome = i < 5 ? 2_350 : 2_500
-            snapshot.otherIncome = i.isMultiple(of: 3) ? 400 : 0
+            let salary = i < 5 ? 2_350.0 : 2_500
+            let freelance = i.isMultiple(of: 3) ? 400.0 : 0
+            snapshot.otherIncome = salary + freelance
             snapshot.repayments = i >= 5 ? 250 : 0
             snapshot.savings = i >= 1 ? 500 : 200
             let past = charges.filter { charge in
@@ -121,9 +125,9 @@ enum DemoData {
                              category: charge.2.rawValue)
             }
             snapshot.charges = snapshot.chargeLines.reduce(0) { $0 + $1.amount }
-            var incomeLines = [SnapshotLine(title: "Main income", amount: snapshot.mainIncome)]
-            if snapshot.otherIncome > 0 {
-                incomeLines.append(SnapshotLine(title: "Freelance", amount: snapshot.otherIncome))
+            var incomeLines = [SnapshotLine(title: "Salary", amount: salary)]
+            if freelance > 0 {
+                incomeLines.append(SnapshotLine(title: "Freelance", amount: freelance))
             }
             if snapshot.repayments > 0 {
                 incomeLines.append(SnapshotLine(title: "Repaid by Lucas", amount: snapshot.repayments))

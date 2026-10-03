@@ -1,14 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// Everything that comes in each month: the main income, other income
-/// that can be switched on and off, and money lent being paid back.
+/// Everything that comes in each month: income lines that can be switched
+/// on and off, and money lent being paid back.
 struct IncomeView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \IncomeSource.createdAt) private var sources: [IncomeSource]
     @Query(sort: \Lending.date) private var lendings: [Lending]
     @Query(sort: \Snapshot.date, order: .reverse) private var snapshots: [Snapshot]
-    @AppStorage(AppSettings.incomeKey) private var income: Double = 0
     @Binding var showingSnapshot: Bool
     @State private var addingSource = false
     @State private var addingLending = false
@@ -16,7 +15,7 @@ struct IncomeView: View {
     @State private var deleting: IncomeSource?
     @State private var showingRepaid = false
 
-    private var totals: IncomeTotals { IncomeTotals(main: income, sources: sources, lendings: lendings) }
+    private var totals: IncomeTotals { IncomeTotals(sources: sources, lendings: lendings) }
     private var owed: Double { lendings.reduce(0) { $0 + $1.remaining } }
 
     var body: some View {
@@ -24,8 +23,7 @@ struct IncomeView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     header
-                    mainIncomeCard
-                    otherIncomeSection
+                    incomeSection
                     lendingSection
                 }
                 .padding(.horizontal)
@@ -72,11 +70,10 @@ struct IncomeView: View {
                     .contentTransition(.numericText(value: totals.total))
                     .animation(.snappy, value: totals.total)
             }
-            if totals.other > 0 || totals.repayments > 0 {
+            if totals.repayments > 0 {
                 FlowChips {
-                    Chip(text: "Main \(totals.main.currency)")
-                    if totals.other > 0 { Chip(text: "Other \(totals.other.currency)") }
-                    if totals.repayments > 0 { Chip(text: "Repaid to you \(totals.repayments.currency)") }
+                    Chip(text: "Income \(totals.sources.currency)")
+                    Chip(text: "Repaid to you \(totals.repayments.currency)")
                 }
             }
         }
@@ -84,33 +81,13 @@ struct IncomeView: View {
         .card()
     }
 
-    private var mainIncomeCard: some View {
-        HStack {
-            Text("Main income")
-                .font(.headline)
-                .foregroundStyle(Theme.ink)
-            Spacer()
-            DecimalField(value: Binding(
-                get: { income > 0 ? income : nil },
-                set: { income = max($0 ?? 0, 0) }
-            ))
-                .multilineTextAlignment(.trailing)
-                .font(.headline)
-                .monospacedDigit()
-                .foregroundStyle(Theme.ink)
-                .frame(maxWidth: 140)
-                .accessibilityIdentifier("monthly-income")
-        }
-        .card()
-    }
-
     @ViewBuilder
-    private var otherIncomeSection: some View {
-        SectionTitle(title: "Other income", trailing: totals.other > 0 ? totals.other.currency : nil)
+    private var incomeSection: some View {
+        SectionTitle(title: "Income", trailing: totals.sources > 0 ? totals.sources.currency : nil)
         if sources.isEmpty {
             hint(
-                title: "No other income yet",
-                text: "Add income that comes in some months only, like freelance work or a bonus, and switch it on when it does.",
+                title: "No income yet",
+                text: "Add your salary and any other income, like freelance work or a bonus. Switch a line off in the months it doesn't come in.",
                 button: "Add income"
             ) { addingSource = true }
         }
