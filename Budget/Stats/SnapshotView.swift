@@ -29,7 +29,6 @@ struct SnapshotView: View {
     @Query(sort: \Loan.name) private var loans: [Loan]
     @Query(sort: \Lending.date) private var allLendings: [Lending]
     @Query(sort: \Snapshot.date) private var snapshots: [Snapshot]
-    @AppStorage(AppSettings.incomeKey) private var storedIncome: Double = 0
 
     private struct SourceDraft {
         var amount: Double?
@@ -42,21 +41,11 @@ struct SnapshotView: View {
     @State private var askingMonth = false
     @State private var confirmingDiscard = false
     @State private var note = ""
-    @State private var mainIncome: Double?
     @State private var sourceDrafts: [PersistentIdentifier: SourceDraft] = [:]
     @State private var chargeDrafts: [PersistentIdentifier: Double?] = [:]
     @State private var drafts: [PersistentIdentifier: SnapshotDraft] = [:]
     @State private var loanDrafts: [PersistentIdentifier: LoanDraft] = [:]
     @State private var lendingDrafts: [PersistentIdentifier: Double?] = [:]
-
-    /// Main income as it was when the sheet opened, to tell if it was changed.
-    private let initialIncome: Double?
-
-    init() {
-        let income = UserDefaults.standard.double(forKey: AppSettings.incomeKey)
-        initialIncome = income > 0 ? income : nil
-        _mainIncome = State(initialValue: initialIncome)
-    }
 
     /// Money lent that isn't fully repaid yet.
     private var lendings: [Lending] { allLendings.filter { !$0.isSettled } }
@@ -196,8 +185,10 @@ struct SnapshotView: View {
 
     private var incomeSection: some View {
         Section {
-            NumberField(title: "Main income", value: $mainIncome, identifier: "snapshot-main-income")
-                .foregroundStyle(mainIncome.differs(from: initialIncome) ? Theme.accent : Theme.ink)
+            if sources.isEmpty {
+                Text("No income yet: add it in the Income tab.")
+                    .foregroundStyle(Theme.softInk)
+            }
             ForEach(sources) { source in
                 let draft = sourceBinding(for: source)
                 HStack(spacing: 10) {
@@ -395,7 +386,6 @@ struct SnapshotView: View {
     /// Something was changed and would be lost on Cancel.
     private var hasChanges: Bool {
         !note.isEmpty
-            || mainIncome.differs(from: initialIncome)
             || investments.contains { isEdited($0) }
             || loans.contains { isEdited($0) }
             || lendings.contains { isEdited($0) }
@@ -405,7 +395,7 @@ struct SnapshotView: View {
 
     // MARK: - Totals as they would be saved
 
-    private var otherIncome: Double {
+    private var sourcesIncome: Double {
         var total = 0.0
         for source in sources {
             let draft = sourceDraft(of: source)
@@ -423,7 +413,7 @@ struct SnapshotView: View {
         return total
     }
 
-    private var income: Double { max(mainIncome ?? 0, 0) + otherIncome + repayments }
+    private var income: Double { sourcesIncome + repayments }
 
     private var chargesTotal: Double {
         var total = 0.0
@@ -452,8 +442,7 @@ struct SnapshotView: View {
 
         // The budget of the month. Fixed for the current month, it becomes
         // the current state; a past month keeps it to itself.
-        let main = max(mainIncome ?? 0, 0)
-        var incomeLines = [SnapshotLine(title: "Main income", amount: main)]
+        var incomeLines: [SnapshotLine] = []
         var other = 0.0
         for source in sources {
             let draft = sourceDraft(of: source)
@@ -481,7 +470,6 @@ struct SnapshotView: View {
             chargeLines.append(SnapshotLine(title: charge.title, amount: amount, category: charge.categoryRaw))
             if isCurrentMonth { charge.amount = amount }
         }
-        if isCurrentMonth { storedIncome = main }
 
         // Values of the month, replacing the ones already recorded that month
         for lending in lendings {
@@ -526,7 +514,9 @@ struct SnapshotView: View {
         let snapshot = existing ?? Snapshot()
         snapshot.date = date
         snapshot.note = note
-        snapshot.mainIncome = main
+        // Income comes only from the income lines now; `mainIncome` is kept
+        // for snapshots taken before.
+        snapshot.mainIncome = 0
         snapshot.otherIncome = other
         snapshot.repayments = repaid
         snapshot.charges = chargeLines.reduce(0) { $0 + $1.amount }

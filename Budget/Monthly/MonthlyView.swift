@@ -9,7 +9,6 @@ struct MonthlyView: View {
     @Query(sort: \Investment.name) private var investments: [Investment]
     @Query private var incomeSources: [IncomeSource]
     @Query private var lendings: [Lending]
-    @AppStorage(AppSettings.incomeKey) private var mainIncome: Double = 0
     @Binding var showingSettings: Bool
     @Binding var showingSnapshot: Bool
     /// The selected tab, to jump to the Income tab from the income line.
@@ -19,9 +18,9 @@ struct MonthlyView: View {
     @State private var deleting: FixedCharge?
     @State private var editingPlan = false
 
-    /// Main income, other income switched on and monthly repayments (Income tab).
+    /// Income lines switched on and monthly repayments (Income tab).
     private var income: Double {
-        IncomeTotals(main: mainIncome, sources: incomeSources, lendings: lendings).total
+        IncomeTotals(sources: incomeSources, lendings: lendings).total
     }
     private var total: Double { charges.reduce(0) { $0 + $1.amount } }
     private var savers: [Investment] { investments.filter { $0.monthlyContribution > 0 } }

@@ -12,7 +12,6 @@ final class BudgetUITests: XCTestCase {
         app.launchArguments = [
             "-demo-data",
             // UserDefaults read by @AppStorage
-            "-monthlyIncome", "2500",
             "-currencyCode", "EUR",
             "-AppleLanguages", "(en)",
             "-AppleLocale", "en_US",
@@ -70,6 +69,7 @@ final class BudgetUITests: XCTestCase {
     func testIncome() {
         openTab("Income")
         XCTAssertTrue(app.staticTexts["Monthly income"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Salary"].exists, "The salary is an income line")
         XCTAssertTrue(app.staticTexts["Freelance"].exists)
         snapshot("05a-income")
 
@@ -190,9 +190,9 @@ final class BudgetUITests: XCTestCase {
         // Snapshot of everything: pre-filled with the current state, to check and fix
         app.buttons["Snapshot"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
-        let income = app.textFields["snapshot-main-income"]
+        let income = app.textFields["snapshot-income-Salary"]
         XCTAssertTrue(income.waitForExistence(timeout: 5))
-        XCTAssertEqual(income.value as? String, "2500", "Main income should be pre-filled")
+        XCTAssertEqual(income.value as? String, "2500", "The salary should be pre-filled")
         snapshot("11a-snapshot")
 
         // Forgot the rent went up: fix it here, it becomes the current charge
@@ -277,7 +277,7 @@ final class BudgetUITests: XCTestCase {
     func testDiscardSnapshotChanges() {
         XCTAssertTrue(app.buttons["Snapshot"].firstMatch.waitForExistence(timeout: 10))
         app.buttons["Snapshot"].firstMatch.tap()
-        let income = app.textFields["snapshot-main-income"]
+        let income = app.textFields["snapshot-income-Salary"]
         XCTAssertTrue(income.waitForExistence(timeout: 5))
         income.tap()
         income.typeText("0")

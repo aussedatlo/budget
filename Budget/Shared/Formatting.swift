@@ -2,7 +2,8 @@ import SwiftUI
 
 enum AppSettings {
     static let currencyKey = "currencyCode"
-    static let incomeKey = "monthlyIncome"
+    /// Main income of earlier versions, moved to an income line at launch.
+    static let legacyIncomeKey = "monthlyIncome"
 
     static var defaultCurrency: String { Locale.current.currency?.identifier ?? "EUR" }
 

@@ -21,6 +21,22 @@ struct BudgetApp: App {
             container = DemoData.makeContainer(for: schema)
         } else {
             container = Self.makeContainer(for: schema)
+            Self.moveMainIncome(to: container)
+        }
+    }
+
+    /// The main income used to be a setting of its own: it becomes an
+    /// income line, listed first, and the setting is removed.
+    private static func moveMainIncome(to container: ModelContainer) {
+        let defaults = UserDefaults.standard
+        let amount = defaults.double(forKey: AppSettings.legacyIncomeKey)
+        guard amount > 0 else { return }
+        let context = ModelContext(container)
+        let salary = IncomeSource(title: "Salary", amount: amount)
+        salary.createdAt = .distantPast
+        context.insert(salary)
+        if (try? context.save()) != nil {
+            defaults.removeObject(forKey: AppSettings.legacyIncomeKey)
         }
     }
 

@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// Income on top of the main salary (freelance work, a lodger, a bonus...).
+/// A line of income: a salary, freelance work, a lodger, a bonus...
 /// Switched off when it doesn't come in, so it stays listed without counting.
 @Model
 final class IncomeSource {
@@ -90,18 +90,16 @@ final class LendingSnapshot {
     }
 }
 
-/// Monthly income: the main income, other income that's switched on,
-/// and the monthly repayments of money lent.
+/// Monthly income: the income lines that are switched on, and the monthly
+/// repayments of money lent.
 struct IncomeTotals {
-    let main: Double
-    let other: Double
+    let sources: Double
     let repayments: Double
 
-    init(main: Double, sources: [IncomeSource], lendings: [Lending]) {
-        self.main = main
-        self.other = sources.filter(\.isActive).reduce(0) { $0 + $1.amount }
+    init(sources: [IncomeSource], lendings: [Lending]) {
+        self.sources = sources.filter(\.isActive).reduce(0) { $0 + $1.amount }
         self.repayments = lendings.reduce(0) { $0 + $1.expectedThisMonth }
     }
 
-    var total: Double { main + other + repayments }
+    var total: Double { sources + repayments }
 }
