@@ -111,6 +111,7 @@ struct InvestmentFormView: View {
     @State private var monthlyContribution: Double?
     /// First snapshot, only when creating.
     @State private var draft = SnapshotDraft()
+    @State private var confirmingDelete = false
 
     init(investment: Investment? = nil) {
         self.investment = investment
@@ -163,10 +164,12 @@ struct InvestmentFormView: View {
                 }
                 if let investment {
                     Section {
-                        Button("Delete this investment", role: .destructive) {
-                            context.delete(investment)
-                            dismiss()
-                        }
+                        Button("Delete this investment", role: .destructive) { confirmingDelete = true }
+                            .confirmDelete("Delete \(investment.name)?", message: "Its whole history goes too.",
+                                           isPresented: $confirmingDelete) {
+                                context.delete(investment)
+                                dismiss()
+                            }
                     }
                 }
             }
@@ -225,6 +228,7 @@ struct SnapshotFormView: View {
     let snapshot: ValueSnapshot?
 
     @State private var draft: SnapshotDraft
+    @State private var confirmingDelete = false
 
     init(investment: Investment, snapshot: ValueSnapshot? = nil) {
         self.investment = investment
@@ -252,11 +256,12 @@ struct SnapshotFormView: View {
                 }
                 if let snapshot {
                     Section {
-                        Button("Delete these values", role: .destructive) {
-                            investment.history.removeAll { $0 == snapshot }
-                            context.delete(snapshot)
-                            dismiss()
-                        }
+                        Button("Delete these values", role: .destructive) { confirmingDelete = true }
+                            .confirmDelete("Delete these values?", isPresented: $confirmingDelete) {
+                                investment.history.removeAll { $0 == snapshot }
+                                context.delete(snapshot)
+                                dismiss()
+                            }
                     }
                 }
             }

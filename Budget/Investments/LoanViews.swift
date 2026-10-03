@@ -250,6 +250,7 @@ struct LoanFormView: View {
     @State private var borrowed: Double?
     /// First snapshot when creating; the latest one when editing.
     @State private var draft: LoanDraft
+    @State private var confirmingDelete = false
 
     init(loan: Loan? = nil) {
         self.loan = loan
@@ -294,10 +295,12 @@ struct LoanFormView: View {
                 }
                 if let loan {
                     Section {
-                        Button("Delete this loan", role: .destructive) {
-                            context.delete(loan)
-                            dismiss()
-                        }
+                        Button("Delete this loan", role: .destructive) { confirmingDelete = true }
+                            .confirmDelete("Delete \(loan.name)?", message: "Its whole history goes too.",
+                                           isPresented: $confirmingDelete) {
+                                context.delete(loan)
+                                dismiss()
+                            }
                     }
                 }
             }
@@ -351,6 +354,7 @@ struct LoanSnapshotFormView: View {
     let snapshot: LoanSnapshot?
 
     @State private var draft: LoanDraft
+    @State private var confirmingDelete = false
 
     init(loan: Loan, snapshot: LoanSnapshot? = nil) {
         self.loan = loan
@@ -377,11 +381,12 @@ struct LoanSnapshotFormView: View {
                 }
                 if let snapshot {
                     Section {
-                        Button("Delete these values", role: .destructive) {
-                            loan.history.removeAll { $0 == snapshot }
-                            context.delete(snapshot)
-                            dismiss()
-                        }
+                        Button("Delete these values", role: .destructive) { confirmingDelete = true }
+                            .confirmDelete("Delete these values?", isPresented: $confirmingDelete) {
+                                loan.history.removeAll { $0 == snapshot }
+                                context.delete(snapshot)
+                                dismiss()
+                            }
                     }
                 }
             }

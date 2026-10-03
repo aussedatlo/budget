@@ -7,11 +7,14 @@ struct IncomeView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \IncomeSource.createdAt) private var sources: [IncomeSource]
     @Query(sort: \Lending.date) private var lendings: [Lending]
+    @Query(sort: \Snapshot.date, order: .reverse) private var snapshots: [Snapshot]
     @AppStorage(AppSettings.incomeKey) private var income: Double = 0
     @Binding var showingSnapshot: Bool
     @State private var addingSource = false
     @State private var addingLending = false
     @State private var editing: IncomeSource?
+    @State private var deleting: IncomeSource?
+    @State private var showingRepaid = false
 
     private var totals: IncomeTotals { IncomeTotals(main: income, sources: sources, lendings: lendings) }
     private var owed: Double { lendings.reduce(0) { $0 + $1.remaining } }
@@ -47,6 +50,9 @@ struct IncomeView: View {
             .sheet(isPresented: $addingSource) { IncomeSourceFormView() }
             .sheet(isPresented: $addingLending) { LendingFormView() }
             .sheet(item: $editing) { IncomeSourceFormView(source: $0) }
+            .confirmDelete($deleting, title: { "Delete \($0.title)?" }) { source in
+                withAnimation(.snappy) { context.delete(source) }
+            }
             .sensoryFeedback(.success, trigger: sources.count + lendings.count) { old, new in new > old }
         }
     }
@@ -67,7 +73,7 @@ struct IncomeView: View {
                     .animation(.snappy, value: totals.total)
             }
             if totals.other > 0 || totals.repayments > 0 {
-                HStack(spacing: 6) {
+                FlowChips {
                     Chip(text: "Main \(totals.main.currency)")
                     if totals.other > 0 { Chip(text: "Other \(totals.other.currency)") }
                     if totals.repayments > 0 { Chip(text: "Repaid to you \(totals.repayments.currency)") }
@@ -109,12 +115,10 @@ struct IncomeView: View {
             ) { addingSource = true }
         }
         ForEach(sources) { source in
-            IncomeSourceCard(source: source) { editing = source }
+            IncomeSourceCard(source: source, lastCounted: lastCounted(source)) { editing = source }
                 .contextMenu {
                     Button("Edit", systemImage: "pencil") { editing = source }
-                    Button("Delete", systemImage: "trash", role: .destructive) {
-                        withAnimation(.snappy) { context.delete(source) }
-                    }
+                    Button("Delete", systemImage: "trash", role: .destructive) { deleting = source }
                 }
                 .transition(.opacity)
         }
@@ -130,11 +134,46 @@ struct IncomeView: View {
                 button: "Add money lent"
             ) { addingLending = true }
         }
-        ForEach(lendings) { lending in
+        ForEach(lendings.filter { !$0.isSettled }) { lending in
             NavigationLink(value: lending) { LendingCard(lending: lending) }
                 .buttonStyle(SquishyButtonStyle())
                 .transition(.opacity)
         }
+        let repaid = lendings.filter(\.isSettled)
+        if !repaid.isEmpty {
+            Button {
+                withAnimation(.snappy) { showingRepaid.toggle() }
+            } label: {
+                HStack {
+                    Text("Fully repaid (\(repaid.count))")
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(showingRepaid ? 0 : -90))
+                }
+                .font(.subheadline.bold())
+                .foregroundStyle(Theme.softInk)
+                .padding(.horizontal, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if showingRepaid {
+                ForEach(repaid) { lending in
+                    NavigationLink(value: lending) { LendingCard(lending: lending) }
+                        .buttonStyle(SquishyButtonStyle())
+                        .transition(.opacity)
+                }
+            }
+        }
+    }
+
+    /// The month of the latest snapshot that counted this income, when it's
+    /// not the current month: a hint to switch it on or off for the new month.
+    private func lastCounted(_ source: IncomeSource) -> Date? {
+        let snapshot = snapshots.first { snapshot in
+            snapshot.incomeLines.contains { $0.title == source.title }
+        }
+        guard let date = snapshot?.date, !Calendar.current.isDate(date, inSameMonthAs: .now) else { return nil }
+        return date
     }
 
     private func hint(title: String, text: String, button: String, action: @escaping () -> Void) -> some View {
@@ -158,7 +197,15 @@ struct IncomeView: View {
 /// An income line with a switch: off when it doesn't come in this month.
 private struct IncomeSourceCard: View {
     @Bindable var source: IncomeSource
+    /// Month of the last snapshot it was counted in, if before this month.
+    let lastCounted: Date?
     let edit: () -> Void
+
+    private var subtitle: String {
+        var text = source.isActive ? "Counted this month" : "Not this month"
+        if let lastCounted { text += " · last counted in \(lastCounted.monthName)" }
+        return text
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -169,7 +216,7 @@ private struct IncomeSourceCard: View {
                         Text(source.title)
                             .font(.headline)
                             .foregroundStyle(Theme.ink)
-                        Text(source.isActive ? "Counted this month" : "Not this month")
+                        Text(subtitle)
                             .font(.caption)
                             .foregroundStyle(Theme.softInk)
                     }
@@ -203,6 +250,7 @@ struct IncomeSourceFormView: View {
     @State private var amount: Double?
     @State private var emoji: String
     @State private var isActive: Bool
+    @State private var confirmingDelete = false
 
     init(source: IncomeSource? = nil) {
         self.source = source
@@ -237,10 +285,11 @@ struct IncomeSourceFormView: View {
                 }
                 if let source {
                     Section {
-                        Button("Delete this income", role: .destructive) {
-                            context.delete(source)
-                            dismiss()
-                        }
+                        Button("Delete this income", role: .destructive) { confirmingDelete = true }
+                            .confirmDelete("Delete \(source.title)?", isPresented: $confirmingDelete) {
+                                context.delete(source)
+                                dismiss()
+                            }
                     }
                 }
             }

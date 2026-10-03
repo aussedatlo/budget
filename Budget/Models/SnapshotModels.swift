@@ -39,6 +39,11 @@ final class Snapshot {
     /// Everything recorded up to the end of its month counts.
     var endOfMonth: Date { Calendar.current.endOfMonth(for: date) }
 
+    /// Whether the current month already has its snapshot.
+    static func isTaken(thisMonthIn snapshots: [Snapshot]) -> Bool {
+        snapshots.contains { Calendar.current.isDate($0.date, inSameMonthAs: .now) }
+    }
+
     var income: Double { mainIncome + otherIncome + repayments }
     /// What was free to spend each month.
     var left: Double { income - charges - savings }

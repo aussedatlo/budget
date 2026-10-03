@@ -12,8 +12,11 @@ struct MonthlyView: View {
     @AppStorage(AppSettings.incomeKey) private var mainIncome: Double = 0
     @Binding var showingSettings: Bool
     @Binding var showingSnapshot: Bool
+    /// The selected tab, to jump to the Income tab from the income line.
+    @Binding var tab: ContentView.Tab
     @State private var adding = false
     @State private var editing: FixedCharge?
+    @State private var deleting: FixedCharge?
     @State private var editingPlan = false
 
     /// Main income, other income switched on and monthly repayments (Income tab).
@@ -42,7 +45,7 @@ struct MonthlyView: View {
                             .contextMenu {
                                 Button("Edit", systemImage: "pencil") { editing = charge }
                                 Button("Delete", systemImage: "trash", role: .destructive) {
-                                    withAnimation(.snappy) { context.delete(charge) }
+                                    deleting = charge
                                 }
                             }
                             .transition(.opacity)
@@ -71,6 +74,9 @@ struct MonthlyView: View {
             }
             .sheet(isPresented: $adding) { FixedChargeFormView() }
             .sheet(item: $editing) { FixedChargeFormView(charge: $0) }
+            .confirmDelete($deleting, title: { "Delete \($0.title)?" }) { charge in
+                withAnimation(.snappy) { context.delete(charge) }
+            }
             .sheet(isPresented: $editingPlan) { SavingsPlanView() }
             .sensoryFeedback(.success, trigger: charges.count) { old, new in new > old }
             .sensoryFeedback(.impact(weight: .light), trigger: charges.count) { old, new in new < old }
@@ -96,9 +102,17 @@ struct MonthlyView: View {
                         .minimumScaleFactor(0.6)
                         .contentTransition(.numericText(value: left))
                         .animation(.snappy, value: left)
-                    Text(income > 0 ? "of \(income.currency) income" : "Add your income in the Income tab.")
+                    Button { tab = .income } label: {
+                        HStack(spacing: 2) {
+                            Text(income > 0 ? "of \(income.currency) income" : "Add your income in the Income tab.")
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.bold())
+                        }
                         .font(.footnote)
                         .foregroundStyle(Theme.softInk)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("open-income")
                 }
             }
             if income > 0 || total > 0 {
@@ -205,6 +219,7 @@ struct FixedChargeFormView: View {
     @State private var category: ChargeCategory
     @State private var dayOfMonth: Int
     @State private var emoji: String
+    @State private var confirmingDelete = false
 
     init(charge: FixedCharge? = nil) {
         self.charge = charge
@@ -242,10 +257,11 @@ struct FixedChargeFormView: View {
                 }
                 if let charge {
                     Section {
-                        Button("Delete this charge", role: .destructive) {
-                            context.delete(charge)
-                            dismiss()
-                        }
+                        Button("Delete this charge", role: .destructive) { confirmingDelete = true }
+                            .confirmDelete("Delete \(charge.title)?", isPresented: $confirmingDelete) {
+                                context.delete(charge)
+                                dismiss()
+                            }
                     }
                 }
             }
