@@ -42,7 +42,7 @@ open Budget.xcodeproj
 
 ## E2E tests and screenshots (pull requests)
 
-Every pull request runs the UI tests in `BudgetUITests/` on an iPad simulator. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. They walk through the main screens and take a screenshot of each.
+Every pull request runs the UI tests in `BudgetUITests/` on an iPad simulator. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. Each test is one scenario of the Gherkin plan (Given / When / Then steps, one file per tab). Only the main screens are screenshotted, plus the screen of any failing test.
 
 CI pushes the screenshots to the `ci-screenshots` branch and posts them in a PR comment, which is updated on every run. They are also available as workflow artifacts. Pushes to `main` and tags don't run these tests.
 
