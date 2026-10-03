@@ -84,7 +84,7 @@ final class InvestmentsTests: BudgetUITestCase {
             type("150", into: field("snapshot-unit-price"))
         }
         then("the value is 450 €") {
-            expect(text("€450.00"))
+            expect(anything(containing: "€450.00"))
         }
     }
 

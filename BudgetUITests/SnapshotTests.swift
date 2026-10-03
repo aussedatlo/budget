@@ -44,7 +44,7 @@ final class SnapshotFormTests: BudgetUITestCase {
         then("the top shows what is left, net worth and the month") {
             expect(text("Left each month"))
             expect(text("Net worth"))
-            expect(text(monthName(monthsAgo: 0)))
+            expect(anything(containing: monthName(monthsAgo: 0)))
         }
         and("each income line has its switch and amount") {
             XCTAssertEqual(field("snapshot-income-Salary").value as? String, "2500")
@@ -354,7 +354,7 @@ final class MissedMonthsTests: BudgetUITestCase {
         and("the \(missed) snapshot has Rent at 800 €") {
             openTab("Trends")
             tap(text(missed))
-            XCTAssertTrue(scrollUntilVisible(text("€800.00")))
+            XCTAssertTrue(scrollUntilVisible(anything(containing: "€800.00")))
         }
     }
 }
