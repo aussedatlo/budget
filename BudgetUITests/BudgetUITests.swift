@@ -286,8 +286,11 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(discard.waitForExistence(timeout: 5), "Should ask before losing the changes")
         snapshot("11h-discard-snapshot")
         discard.tap()
-        XCTAssertTrue(app.staticTexts["Left after savings"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.navigationBars["Snapshot"].exists, "The snapshot should be closed")
+        // The sheet slides away: wait until it's gone rather than checking right away
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                               object: app.navigationBars["Snapshot"])
+        XCTAssertEqual(XCTWaiter().wait(for: [closed], timeout: 5), .completed, "The snapshot should be closed")
+        XCTAssertTrue(app.staticTexts["Left after savings"].exists)
     }
 
     /// Deleting a snapshot asks first, and can keep that month's values.
