@@ -32,9 +32,9 @@ open Budget.xcodeproj
 
 ## E2E tests and screenshots (pull requests)
 
-Pull requests with the `test` label run the UI tests in `BudgetUITests/` on an iPad simulator. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. They walk through the main screens and take a screenshot of each.
+Every pull request runs the UI tests in `BudgetUITests/` on an iPad simulator. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. They walk through the main screens and take a screenshot of each.
 
-CI pushes the screenshots to the `ci-screenshots` branch and posts them in a PR comment, which is updated on every run. They are also available as workflow artifacts. Adding the label starts a run, and every new push to a labeled PR runs them again. PRs without the label, pushes to `main` and tags don't run these tests (macOS runners are expensive).
+CI pushes the screenshots to the `ci-screenshots` branch and posts them in a PR comment, which is updated on every run. They are also available as workflow artifacts. Pushes to `main` and tags don't run these tests.
 
 To add a screen, call `snapshot("NN-name")` in a test. The number sets the order.
 
