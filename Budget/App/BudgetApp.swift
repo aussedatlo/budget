@@ -3,26 +3,32 @@ import SwiftUI
 
 @main
 struct BudgetApp: App {
-    let container: ModelContainer
+    private static let schema = Schema([
+        Investment.self,
+        ValueSnapshot.self,
+        Loan.self,
+        LoanSnapshot.self,
+        FixedCharge.self,
+        IncomeSource.self,
+        Lending.self,
+        LendingSnapshot.self,
+        Snapshot.self,
+    ])
+
+    @State private var container: ModelContainer
+    /// How many times the UI tests asked to start over (see `demoResets`).
+    @State private var demoResets = 0
 
     init() {
-        let schema = Schema([
-            Investment.self,
-            ValueSnapshot.self,
-            Loan.self,
-            LoanSnapshot.self,
-            FixedCharge.self,
-            IncomeSource.self,
-            Lending.self,
-            LendingSnapshot.self,
-            Snapshot.self,
-        ])
+        let container: ModelContainer
         if DemoData.isEnabled {
-            container = DemoData.makeContainer(for: schema)
+            container = DemoData.makeContainer(for: Self.schema)
+            DemoData.listenForResets()
         } else {
-            container = Self.makeContainer(for: schema)
+            container = Self.makeContainer(for: Self.schema)
             Self.moveMainIncome(to: container)
         }
+        _container = State(initialValue: container)
     }
 
     /// The main income used to be a setting of its own: it becomes an
@@ -57,8 +63,14 @@ struct BudgetApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .modelContainer(container)
+                // A new id rebuilds every screen: tab, sheets and scroll positions
+                .id(demoResets)
+                .demoResets(demoResets) {
+                    container = DemoData.makeContainer(for: Self.schema)
+                    demoResets += 1
+                }
         }
-        .modelContainer(container)
     }
 }
 
