@@ -28,8 +28,8 @@ struct InvestmentDetailView: View {
                     .card()
 
                 HStack {
-                    SectionTitle(title: "Snapshots")
-                    Button("New snapshot", systemImage: "plus") { adding = true }
+                    SectionTitle(title: "History")
+                    Button("Update values", systemImage: "pencil") { adding = true }
                         .buttonStyle(PillButtonStyle())
                 }
                 let history = investment.sortedHistory
@@ -87,7 +87,7 @@ struct InvestmentDetailView: View {
     }
 }
 
-/// One snapshot, with how much the value moved since the previous one.
+/// The values on a day, with how much they moved since the previous ones.
 private struct SnapshotRow: View {
     let snapshot: ValueSnapshot
     let previous: ValueSnapshot?

@@ -44,7 +44,7 @@ struct SavingsChart: View {
                 }
             }
             if points.isEmpty {
-                Text("Update “invested so far” in your snapshots to see how much you save each month. Market moves don't count, only the money you put in.")
+                Text("Keep “invested so far” up to date to see how much you save each month. Market moves don't count, only the money you put in.")
                     .font(.footnote)
                     .foregroundStyle(Theme.softInk)
             } else {
@@ -120,7 +120,7 @@ struct SavingsPlanView: View {
                             }
                         }
                     } footer: {
-                        Text("Set aside on the Month screen, and added to “invested so far” when you take a new snapshot. You can always correct a month that was different.")
+                        Text("Set aside on the Month screen, and added to “invested so far” in your next snapshot. You can always correct a month that was different.")
                     }
                     Section {
                         LabeledContent("Every month", value: total.currency)

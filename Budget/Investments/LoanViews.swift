@@ -131,12 +131,12 @@ struct LoanDetailView: View {
 
                 LoanChart(loan: loan).card()
 
-                SectionTitle(title: "Snapshots")
+                SectionTitle(title: "History")
                 ForEach(loan.sortedHistory) { snapshot in
                     Button { editing = snapshot } label: { LoanSnapshotRow(snapshot: snapshot) }
                         .buttonStyle(SquishyButtonStyle())
                 }
-                Button("New snapshot", systemImage: "plus") { adding = true }
+                Button("Update values", systemImage: "pencil") { adding = true }
                     .buttonStyle(PillButtonStyle())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -167,7 +167,7 @@ private struct LoanChart: View {
     var body: some View {
         let points = loan.history.sorted { $0.date < $1.date }
         if points.count < 2 {
-            Text("Add a snapshot from time to time to see the loan go down.")
+            Text("Take a snapshot from time to time to see the loan go down.")
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
         } else {
@@ -278,15 +278,15 @@ struct LoanFormView: View {
                     LoanFields(draft: $draft)
                 } header: {
                     if let latest = loan?.latest {
-                        Text("Latest snapshot · \(latest.date.formatted(date: .abbreviated, time: .omitted))")
+                        Text("Current values · \(latest.date.formatted(date: .abbreviated, time: .omitted))")
                     } else {
                         Text("Today")
                     }
                 } footer: {
                     if loan?.latest != nil {
-                        Text("Corrects the latest snapshot. To keep the history, add a new snapshot from the loan page instead.")
+                        Text("Corrects the values of that day. To keep the history, use “Update values” on the loan page or take a snapshot instead.")
                     } else {
-                        Text("“Left to repay” is on your bank statement. The home value is your best estimate; you can update both with a new snapshot.")
+                        Text("“Left to repay” is on your bank statement. The home value is your best estimate; you can update both any time.")
                     }
                 }
                 Section("Icon") {
@@ -368,7 +368,7 @@ struct LoanSnapshotFormView: View {
                     TextField("Note", text: $draft.note)
                 } footer: {
                     if snapshot == nil && loan.latest != nil {
-                        Text("Pre-filled with the last snapshot: just change what moved.")
+                        Text("Pre-filled with the current values: just change what moved.")
                     }
                 }
                 Section {
@@ -377,7 +377,7 @@ struct LoanSnapshotFormView: View {
                 }
                 if let snapshot {
                     Section {
-                        Button("Delete this snapshot", role: .destructive) {
+                        Button("Delete these values", role: .destructive) {
                             loan.history.removeAll { $0 == snapshot }
                             context.delete(snapshot)
                             dismiss()
@@ -387,7 +387,7 @@ struct LoanSnapshotFormView: View {
             }
             .themedForm()
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(snapshot == nil ? "New snapshot" : "Edit snapshot")
+            .navigationTitle(snapshot == nil ? "Update values" : "Edit past values")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -399,9 +399,10 @@ struct LoanSnapshotFormView: View {
     }
 
     private func save() {
-        let item = snapshot ?? LoanSnapshot()
+        let existing = snapshot ?? loan.entry(on: draft.date)
+        let item = existing ?? LoanSnapshot()
         draft.apply(to: item)
-        if snapshot == nil {
+        if existing == nil {
             context.insert(item)
             loan.history.append(item)
         }

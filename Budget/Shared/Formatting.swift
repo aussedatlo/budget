@@ -24,6 +24,11 @@ extension Double {
         formatted(.percent.precision(.fractionLength(2)).sign(strategy: .always()))
     }
 
+    /// Short form for chart axes, e.g. "12K".
+    var compact: String {
+        formatted(.number.notation(.compactName))
+    }
+
     var quantityText: String {
         formatted(.number.precision(.fractionLength(0...6)))
     }
@@ -32,6 +37,11 @@ extension Double {
 extension Calendar {
     func monthInterval(for date: Date) -> DateInterval {
         dateInterval(of: .month, for: date) ?? DateInterval(start: date, duration: 0)
+    }
+
+    /// The last second of the day `date` is in.
+    func endOfDay(for date: Date) -> Date {
+        self.date(byAdding: .day, value: 1, to: startOfDay(for: date))!.addingTimeInterval(-1)
     }
 
     /// Number of calendar months from `start` to `end` (0 within the same month).

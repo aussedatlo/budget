@@ -2,10 +2,17 @@
 
 A small iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
 
-- **Income**: your main income, plus **other income** you only get some months (freelance work, a bonus…), each with a switch to count it or not. **Money lent** is followed like the home loan: a snapshot of what's left to repay from time to time (also from "Snapshot all") shows what's already repaid. An optional monthly repayment counts as income until everything is paid back, and money still owed is part of your net worth.
-- **Month**: your monthly income (from the Income tab) minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, drawn as a jar that fills up. A bar splits the income into charges, savings and what's left, with amounts and percentages.
-- **Savings plan**: set how much goes to each investment every month (for example 200 € to a savings account, 300 € to gold). The Month screen sets it aside, so the jar shows what's really left to spend, and new snapshots add it to "invested so far" automatically. A **Saved per month** chart shows what you actually saved each month, per position, from the changes in "invested so far". Market moves don't count.
-- **Investments**: investments (ETFs, gold coins, crypto, savings…) followed through **snapshots**. Each snapshot records what a position is worth and how much was put in so far, with quantity × unit price as an option. A new snapshot starts as a copy of the latest one, so you only change what moved, and the camera button updates everything at once. The **home loan** is followed the same way, through what's left to repay and the home's value. The app shows what's already repaid, your home equity, and your net worth (investments + home equity). A toggle at the top switches between investments only (the default) and net worth.
+- **Month**: your monthly income minus recurring charges (rent, subscriptions, insurance…) shows how much is left each month, drawn as a jar that fills up. A bar splits the income into charges, savings and what's left, with amounts and percentages.
+- **Income**: your main income, plus **other income** you only get some months (freelance work, a bonus…), each with a switch to count it or not. **Money lent** shows what's already repaid; an optional monthly repayment counts as income until everything is paid back, and money still owed is part of your net worth.
+- **Investments**: what each position (ETFs, gold coins, crypto, savings…) is worth now and how much was put in so far, with quantity × unit price as an option. The **home loan** is followed the same way, through what's left to repay and the home's value. A toggle at the top switches between investments only (the default) and net worth (investments + home equity + money lent).
+- **Savings plan**: set how much goes to each investment every month (for example 200 € to a savings account, 300 € to gold). The Month screen sets it aside, so the jar shows what's really left to spend, and it's added to "invested so far" automatically.
+- **Stats**: how everything moved over time: net worth and what it's made of, investments value against money put in, what you saved each month, the monthly budget (income, charges, savings, what's left) and recurring charges per category. Below the charts, the list of snapshots shows what each one saved.
+
+### Snapshots
+
+The first three tabs hold your **current state**: update them whenever you have time. Then tap the camera (on every tab) to take a **snapshot**, which saves the whole picture for that day: income, recurring charges, savings plan, investments, home loan and money lent.
+
+The snapshot screen is pre-filled with the current values, so it's also the place to check everything and fix what you forgot (a new price, a charge that went up): what you change there becomes the current state. One snapshot per day: taking another one the same day replaces it. Each snapshot adds a point to the charts of the Stats tab.
 
 The design is calm: neutral cards, one dusty-rose accent, an [OpenMoji](https://openmoji.org) icon for each item, numbers that roll when they change, and a small confetti burst when net worth reaches a new high. All data stays on the device.
 
@@ -18,6 +25,7 @@ Budget/Models               SwiftData models + calculations
 Budget/Income               Income, other income and money lent
 Budget/Monthly              Income vs. recurring charges
 Budget/Investments          Investments UI
+Budget/Stats                Snapshot of everything + evolution charts
 BudgetUITests               E2E tests (screenshots on PRs)
 .github/workflows/ios.yml   CI: build, sign, export .ipa
 ```

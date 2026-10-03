@@ -88,7 +88,7 @@ final class BudgetUITests: XCTestCase {
         app.buttons["Save"].tap()
         XCTAssertTrue(scrollUntilVisible(app.staticTexts["Bonus"]), "New income should be listed")
 
-        // Money lent, followed through snapshots
+        // Money lent, followed through what's left to repay
         let lucas = app.staticTexts["Lucas"]
         XCTAssertTrue(scrollUntilVisible(lucas))
         snapshot("05c-money-lent")
@@ -96,16 +96,16 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Already repaid"].waitForExistence(timeout: 5))
         snapshot("05d-money-lent-detail")
 
-        // A new snapshot starts from what was left last time
-        let newSnapshot = app.buttons["New snapshot"]
-        XCTAssertTrue(scrollUntilVisible(newSnapshot))
-        newSnapshot.tap()
-        XCTAssertTrue(app.navigationBars["New snapshot"].waitForExistence(timeout: 5))
+        // Updating starts from what was left last time
+        let update = app.buttons["Update what's left"]
+        XCTAssertTrue(scrollUntilVisible(update))
+        update.tap()
+        XCTAssertTrue(app.navigationBars["Update what's left"].waitForExistence(timeout: 5))
         let remaining = app.textFields["lending-remaining"]
-        XCTAssertEqual(remaining.value as? String, "1500", "Should be pre-filled with the last snapshot")
+        XCTAssertEqual(remaining.value as? String, "1500", "Should be pre-filled with what was left")
         remaining.tap()
         remaining.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "1250")
-        snapshot("05e-new-lending-snapshot")
+        snapshot("05e-update-money-lent")
         app.buttons["Save"].tap()
         let left = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '1,250'")).firstMatch
         XCTAssertTrue(left.waitForExistence(timeout: 5), "Left to repay should go down")
@@ -125,10 +125,8 @@ final class BudgetUITests: XCTestCase {
         let moneyLent = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Money lent'")).firstMatch
         XCTAssertTrue(moneyLent.exists, "Net worth counts money lent")
         snapshot("06-net-worth")
-        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Saved per month"]))
-        snapshot("06-saved-per-month")
 
-        // An investment and its snapshots
+        // An investment and its history
         let etf = app.staticTexts["MSCI World"]
         XCTAssertTrue(scrollUntilVisible(etf))
         etf.tap()
@@ -137,15 +135,15 @@ final class BudgetUITests: XCTestCase {
         app.swipeUp()
         snapshot("08-investment-history")
 
-        // New snapshot starts from the previous one
-        let newSnapshot = app.buttons["New snapshot"]
-        XCTAssertTrue(scrollUntilVisible(newSnapshot))
-        newSnapshot.tap()
-        XCTAssertTrue(app.navigationBars["New snapshot"].waitForExistence(timeout: 5))
+        // Updating starts from the current values
+        let update = app.buttons["Update values"]
+        XCTAssertTrue(scrollUntilVisible(update))
+        update.tap()
+        XCTAssertTrue(app.navigationBars["Update values"].waitForExistence(timeout: 5))
         let quantity = app.textFields["snapshot-quantity"]
         XCTAssertTrue(quantity.exists)
-        XCTAssertEqual(quantity.value as? String, "21", "Quantity should be pre-filled from the last snapshot")
-        snapshot("09-new-snapshot")
+        XCTAssertEqual(quantity.value as? String, "21", "Quantity should be pre-filled with the current one")
+        snapshot("09-update-values")
         app.buttons["Cancel"].tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
@@ -169,11 +167,48 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(updated.waitForExistence(timeout: 5), "Left to repay should be updated")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        // Snapshot of everything
-        app.buttons["Snapshot all"].tap()
-        XCTAssertTrue(app.navigationBars["Snapshot of everything"].waitForExistence(timeout: 5))
-        snapshot("11-snapshot-all")
+        // The snapshot of everything can be taken from any tab
+        app.buttons["Snapshot"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
         app.buttons["Cancel"].tap()
+    }
+
+    func testStats() {
+        openTab("Stats")
+        XCTAssertTrue(app.staticTexts["Net worth over time"].waitForExistence(timeout: 10))
+        snapshot("11-stats")
+
+        // Snapshot of everything: pre-filled with the current state, to check and fix
+        app.buttons["Take a snapshot"].tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
+        let income = app.textFields["snapshot-main-income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 5))
+        XCTAssertEqual(income.value as? String, "2500", "Main income should be pre-filled")
+        snapshot("11a-snapshot")
+
+        // Forgot the rent went up: fix it here, it becomes the current charge
+        let rent = app.textFields["snapshot-charge-Rent"]
+        XCTAssertTrue(scrollUntilVisible(rent))
+        XCTAssertEqual(rent.value as? String, "850", "Charges should be pre-filled")
+        rent.tap()
+        rent.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "900")
+        snapshot("11b-snapshot-fixed")
+        app.buttons["Save"].tap()
+
+        // Evolution, snapshot after snapshot
+        XCTAssertTrue(app.staticTexts["Net worth over time"].waitForExistence(timeout: 5))
+        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Saved per month"]))
+        snapshot("11c-stats-savings")
+        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Monthly budget"]))
+        snapshot("11d-stats-budget")
+        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Snapshots"]))
+        app.swipeUp()
+        snapshot("11e-stats-snapshots")
+
+        // The correction made in the snapshot is the new current state
+        openTab("Month")
+        let newRent = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '900'")).firstMatch
+        XCTAssertTrue(newRent.waitForExistence(timeout: 5), "Rent should be updated")
     }
 
     func testSettings() {

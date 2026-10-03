@@ -15,6 +15,7 @@ struct BudgetApp: App {
             IncomeSource.self,
             Lending.self,
             LendingSnapshot.self,
+            Snapshot.self,
         ])
         if DemoData.isEnabled {
             container = DemoData.makeContainer(for: schema)
@@ -46,28 +47,33 @@ struct BudgetApp: App {
 }
 
 struct ContentView: View {
-    enum Tab: Hashable { case monthly, income, investments }
+    enum Tab: Hashable { case monthly, income, investments, stats }
 
     @State private var selection: Tab = .monthly
     @State private var showingSettings = false
+    @State private var showingSnapshot = false
     // Re-render everything when the display currency changes.
     @AppStorage(AppSettings.currencyKey) private var currency = AppSettings.defaultCurrency
 
     var body: some View {
         TabView(selection: $selection) {
-            MonthlyView(showingSettings: $showingSettings)
+            MonthlyView(showingSettings: $showingSettings, showingSnapshot: $showingSnapshot)
                 .tabItem { Label("Month", systemImage: "calendar") }
                 .tag(Tab.monthly)
-            IncomeView()
+            IncomeView(showingSnapshot: $showingSnapshot)
                 .tabItem { Label("Income", systemImage: "banknote") }
                 .tag(Tab.income)
-            InvestmentsView()
+            InvestmentsView(showingSnapshot: $showingSnapshot)
                 .tabItem { Label("Investments", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(Tab.investments)
+            StatsView(showingSnapshot: $showingSnapshot)
+                .tabItem { Label("Stats", systemImage: "chart.bar.xaxis") }
+                .tag(Tab.stats)
         }
         .id(currency)
         .tint(Theme.accent)
         // Outside the .id() so changing the currency doesn't close it
         .sheet(isPresented: $showingSettings) { SettingsView() }
+        .sheet(isPresented: $showingSnapshot) { SnapshotView() }
     }
 }

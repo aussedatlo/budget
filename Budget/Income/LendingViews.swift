@@ -69,12 +69,12 @@ struct LendingDetailView: View {
 
                 LendingChart(lending: lending).card()
 
-                SectionTitle(title: "Snapshots")
+                SectionTitle(title: "History")
                 ForEach(lending.sortedHistory) { snapshot in
                     Button { editing = snapshot } label: { LendingSnapshotRow(snapshot: snapshot) }
                         .buttonStyle(SquishyButtonStyle())
                 }
-                Button("New snapshot", systemImage: "plus") { adding = true }
+                Button("Update what's left", systemImage: "pencil") { adding = true }
                     .buttonStyle(PillButtonStyle(color: Theme.lent))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -98,7 +98,7 @@ struct LendingDetailView: View {
     }
 }
 
-/// What's left to repay going down, from the amount lent through each snapshot.
+/// What's left to repay going down, from the amount lent through each update.
 private struct LendingChart: View {
     let lending: Lending
 
@@ -118,7 +118,7 @@ private struct LendingChart: View {
     var body: some View {
         let points = chartPoints
         if points.count < 2 {
-            Text("Add a snapshot from time to time to see what's left go down.")
+            Text("Update what's left from time to time to see it go down.")
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
         } else {
@@ -220,15 +220,15 @@ struct LendingFormView: View {
                     Section {
                         NumberField(title: "Left to repay", value: $remaining, identifier: "lending-remaining")
                     } header: {
-                        Text("Latest snapshot · \(latest.date.formatted(date: .abbreviated, time: .omitted))")
+                        Text("Current value · \(latest.date.formatted(date: .abbreviated, time: .omitted))")
                     } footer: {
-                        Text("Corrects the latest snapshot. To keep the history, add a new snapshot from the loan page instead.")
+                        Text("Corrects the value of that day. To keep the history, use “Update what's left” on the loan page or take a snapshot instead.")
                     }
                 }
                 Section {
                     NumberField(title: "Monthly repayment", value: $monthlyRepayment, identifier: "lending-monthly")
                 } footer: {
-                    Text("Optional. Counted as income each month until it's all repaid. Update what's left with a snapshot from time to time.")
+                    Text("Optional. Counted as income each month until it's all repaid. Update what's left from time to time.")
                 }
                 Section("Icon") {
                     EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.lending)
@@ -286,7 +286,7 @@ struct LendingSnapshotFormView: View {
         self.lending = lending
         self.snapshot = snapshot
         _date = State(initialValue: snapshot?.date ?? .now)
-        // A new snapshot starts from what was left last time
+        // Starts from what was left last time
         _remaining = State(initialValue: snapshot?.remaining ?? lending.remaining)
         _note = State(initialValue: snapshot?.note ?? "")
     }
@@ -308,7 +308,7 @@ struct LendingSnapshotFormView: View {
                 }
                 if let snapshot {
                     Section {
-                        Button("Delete this snapshot", role: .destructive) {
+                        Button("Delete this value", role: .destructive) {
                             lending.history.removeAll { $0 == snapshot }
                             context.delete(snapshot)
                             dismiss()
@@ -318,7 +318,7 @@ struct LendingSnapshotFormView: View {
             }
             .themedForm()
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(snapshot == nil ? "New snapshot" : "Edit snapshot")
+            .navigationTitle(snapshot == nil ? "Update what's left" : "Edit past value")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -330,11 +330,12 @@ struct LendingSnapshotFormView: View {
     }
 
     private func save() {
-        let item = snapshot ?? LendingSnapshot()
+        let existing = snapshot ?? lending.entry(on: date)
+        let item = existing ?? LendingSnapshot()
         item.date = date
         item.remaining = max(remaining ?? 0, 0)
         item.note = note
-        if snapshot == nil {
+        if existing == nil {
             context.insert(item)
             lending.history.append(item)
         }

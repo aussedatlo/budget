@@ -42,8 +42,8 @@ enum InvestmentKind: String, CaseIterable, Identifiable {
 }
 
 /// A position (ETF, gold coins, crypto, savings account...).
-/// It is followed through snapshots: from time to time, what it's worth
-/// and how much money was put in so far.
+/// Its history records, from time to time, what it's worth and how much
+/// money was put in so far.
 @Model
 final class Investment {
     var name: String = ""
@@ -78,6 +78,11 @@ final class Investment {
     /// The most recent snapshot on or before a date.
     func snapshot(at date: Date = .distantFuture) -> ValueSnapshot? {
         history.filter { $0.date <= date }.max { $0.date < $1.date }
+    }
+
+    /// The values recorded on the same day as `date`, if any.
+    func entry(on date: Date) -> ValueSnapshot? {
+        history.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
     }
 
     var latest: ValueSnapshot? { snapshot() }

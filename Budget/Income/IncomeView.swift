@@ -8,6 +8,7 @@ struct IncomeView: View {
     @Query(sort: \IncomeSource.createdAt) private var sources: [IncomeSource]
     @Query(sort: \Lending.date) private var lendings: [Lending]
     @AppStorage(AppSettings.incomeKey) private var income: Double = 0
+    @Binding var showingSnapshot: Bool
     @State private var addingSource = false
     @State private var addingLending = false
     @State private var editing: IncomeSource?
@@ -33,7 +34,8 @@ struct IncomeView: View {
             .navigationTitle("Income")
             .navigationDestination(for: Lending.self) { LendingDetailView(lending: $0) }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    SnapshotButton(isPresented: $showingSnapshot)
                     Menu {
                         Button("Add income", systemImage: "plus.circle") { addingSource = true }
                         Button("Add money lent", systemImage: "arrow.up.right.circle") { addingLending = true }
