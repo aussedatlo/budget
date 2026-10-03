@@ -8,10 +8,10 @@ enum DemoData {
         ProcessInfo.processInfo.arguments.contains("-demo-data")
     }
 
-    /// Leaves out the snapshots of the last two months (`-demo-missed-month`),
-    /// to test catching up on a missed month.
-    static var missesMonths: Bool {
-        ProcessInfo.processInfo.arguments.contains("-demo-missed-month")
+    /// Months skipped before the current one (`-demo-missed-months 2`), to test
+    /// catching up: their snapshots and the current month's are left out.
+    static var missedMonths: Int {
+        UserDefaults.standard.integer(forKey: "demo-missed-months")
     }
 
     /// Settings that tests expect at their default value. Not passed as
@@ -106,7 +106,7 @@ enum DemoData {
                                   quantity: goldCoins, unitPrice: goldPrice), to: gold, context)
             }
 
-            if missesMonths && i >= 10 { continue }
+            if missedMonths > 0 && i >= 11 - missedMonths { continue }
             // The monthly budget that month: a raise, a rent increase, new subscriptions
             let snapshot = Snapshot(date: date)
             snapshot.mainIncome = i < 5 ? 2_350 : 2_500

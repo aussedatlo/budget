@@ -214,14 +214,8 @@ final class BudgetUITests: XCTestCase {
 
     /// A month was skipped: the snapshot asks which month to do.
     func testMissedMonth() {
-        app.terminate()
-        app.launchArguments.append("-demo-missed-month")
-        app.launch()
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US")
-        formatter.dateFormat = "MMMM yyyy"
-        let missed = formatter.string(from: Calendar.current.date(byAdding: .month, value: -1, to: Date())!)
+        relaunch(missedMonths: 1)
+        let missed = monthName(monthsAgo: 1)
 
         openTab("Stats")
         XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
@@ -236,6 +230,40 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[missed].waitForExistence(timeout: 5), "The missed month should be listed")
     }
 
+    /// Two months were skipped: both are proposed, along with the current month.
+    func testTwoMissedMonths() {
+        relaunch(missedMonths: 2)
+        let older = monthName(monthsAgo: 2)
+        let newer = monthName(monthsAgo: 1)
+        let current = monthName(monthsAgo: 0)
+
+        openTab("Stats")
+        XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
+        app.buttons["Take a snapshot"].tap()
+        var alert = app.alerts["No snapshot for 2 months"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "Should ask about the missed months")
+        XCTAssertTrue(alert.buttons[older].exists, "The older missed month should be proposed")
+        XCTAssertTrue(alert.buttons[newer].exists, "The newer missed month should be proposed")
+        XCTAssertTrue(alert.buttons[current].exists, "The current month should be proposed")
+        snapshot("11g-two-missed-months")
+
+        // Catch up on the older one
+        alert.buttons[older].tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts[older].waitForExistence(timeout: 5), "The older month should be listed")
+
+        // Only the newer one is still missing
+        app.buttons["Take a snapshot"].tap()
+        alert = app.alerts["No snapshot for \(newer)"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "Should ask about the month still missing")
+        XCTAssertFalse(alert.buttons[older].exists, "The month just done shouldn't be proposed again")
+        XCTAssertTrue(alert.buttons[current].exists)
+        alert.buttons[current].tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].tap()
+    }
+
     func testSettings() {
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
         app.buttons["Settings"].tap()
@@ -245,6 +273,23 @@ final class BudgetUITests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Starts again with demo data where the last months have no snapshot.
+    private func relaunch(missedMonths: Int) {
+        app.terminate()
+        app.launchArguments += ["-demo-missed-months", "\(missedMonths)"]
+        app.launch()
+    }
+
+    /// "September 2026", as the app writes it.
+    private func monthName(monthsAgo: Int) -> String {
+        let calendar = Calendar.current
+        let thisMonth = calendar.dateInterval(of: .month, for: Date())!.start
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: calendar.date(byAdding: .month, value: -monthsAgo, to: thisMonth)!)
+    }
 
     private func snapshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
