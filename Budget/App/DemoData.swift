@@ -8,6 +8,12 @@ enum DemoData {
         ProcessInfo.processInfo.arguments.contains("-demo-data")
     }
 
+    /// Months skipped before the current one (`-demo-missed-months 2`), to test
+    /// catching up: their snapshots and the current month's are left out.
+    static var missedMonths: Int {
+        UserDefaults.standard.integer(forKey: "demo-missed-months")
+    }
+
     /// Settings that tests expect at their default value. Not passed as
     /// launch arguments: those would override what the app saves during the test.
     static let resetKeys = ["includeHome", "netWorthHigh", "investmentsHigh"]
@@ -53,7 +59,7 @@ enum DemoData {
         let emma = Lending(name: "Emma", emoji: "🎓", lent: 600, date: monthsAgo(2, day: 12))
         context.insert(lucas)
         context.insert(emma)
-        // A snapshot of what's left from time to time
+        // What's left, recorded from time to time
         for (months, remaining) in [(5, 2_500.0), (3, 2_000.0), (1, 1_500.0)] {
             let snapshot = LendingSnapshot(date: monthsAgo(months, day: 5), remaining: remaining)
             context.insert(snapshot)
@@ -63,7 +69,7 @@ enum DemoData {
         context.insert(fromEmma)
         emma.history.append(fromEmma)
 
-        // Investments: a snapshot every month over a year
+        // Investments: a snapshot of everything every month over a year
         let etf = Investment(name: "MSCI World", ticker: "CW8", kind: .etf)
         let crypto = Investment(name: "Bitcoin", ticker: "BTC", kind: .crypto)
         let savings = Investment(name: "Savings account", kind: .savings)
@@ -99,9 +105,34 @@ enum DemoData {
                 add(ValueSnapshot(date: date, value: goldCoins * goldPrice, invested: 1_592 + 300 * Double(i - 1),
                                   quantity: goldCoins, unitPrice: goldPrice), to: gold, context)
             }
+
+            if missedMonths > 0 && i >= 11 - missedMonths { continue }
+            // The monthly budget that month: a raise, a rent increase, new subscriptions
+            let snapshot = Snapshot(date: date)
+            snapshot.mainIncome = i < 5 ? 2_350 : 2_500
+            snapshot.otherIncome = i.isMultiple(of: 3) ? 400 : 0
+            snapshot.repayments = i >= 5 ? 250 : 0
+            snapshot.savings = i >= 1 ? 500 : 200
+            let past = charges.filter { charge in
+                (charge.0 != "Netflix" || i >= 3) && (charge.0 != "Yoga" || i >= 7)
+            }
+            snapshot.chargeLines = past.map { charge in
+                SnapshotLine(title: charge.0, amount: charge.0 == "Rent" && i < 6 ? 820 : charge.1,
+                             category: charge.2.rawValue)
+            }
+            snapshot.charges = snapshot.chargeLines.reduce(0) { $0 + $1.amount }
+            var incomeLines = [SnapshotLine(title: "Main income", amount: snapshot.mainIncome)]
+            if snapshot.otherIncome > 0 {
+                incomeLines.append(SnapshotLine(title: "Freelance", amount: snapshot.otherIncome))
+            }
+            if snapshot.repayments > 0 {
+                incomeLines.append(SnapshotLine(title: "Repaid by Lucas", amount: snapshot.repayments))
+            }
+            snapshot.incomeLines = incomeLines
+            context.insert(snapshot)
         }
 
-        // Home loan: a snapshot every 6 months over 4 years
+        // Home loan: values recorded every 6 months over 4 years
         let home = Loan(name: "Apartment", borrowed: 240_000)
         context.insert(home)
         for half in 0...8 {

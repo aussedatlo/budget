@@ -11,6 +11,7 @@ struct MonthlyView: View {
     @Query private var lendings: [Lending]
     @AppStorage(AppSettings.incomeKey) private var mainIncome: Double = 0
     @Binding var showingSettings: Bool
+    @Binding var showingSnapshot: Bool
     @State private var adding = false
     @State private var editing: FixedCharge?
     @State private var editingPlan = false
@@ -61,7 +62,8 @@ struct MonthlyView: View {
                         Label("Settings", systemImage: "gearshape")
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    SnapshotButton(isPresented: $showingSnapshot)
                     Button { adding = true } label: {
                         Label("Add charge", systemImage: "plus")
                     }

@@ -7,9 +7,9 @@ struct InvestmentsView: View {
     @Query(sort: \Investment.name) private var investments: [Investment]
     @Query(sort: \Loan.name) private var loans: [Loan]
     @Query private var lendings: [Lending]
+    @Binding var showingSnapshot: Bool
     @State private var showingAdd = false
     @State private var showingAddLoan = false
-    @State private var showingSnapshot = false
     @State private var editing: Investment?
     @State private var confetti = 0
     /// Highest net worth seen so far: confetti only when it's beaten.
@@ -38,9 +38,6 @@ struct InvestmentsView: View {
                         emptyState
                     } else {
                         header
-                        if !investments.isEmpty {
-                            SavingsChart(investments: investments)
-                        }
                         if showsHome {
                             SectionTitle(title: "Home")
                             ForEach(loans) { loan in
@@ -75,15 +72,8 @@ struct InvestmentsView: View {
             .navigationDestination(for: Investment.self) { InvestmentDetailView(investment: $0) }
             .navigationDestination(for: Loan.self) { LoanDetailView(loan: $0) }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingSnapshot = true
-                    } label: {
-                        Label("Snapshot all", systemImage: "camera")
-                    }
-                    .disabled(investments.isEmpty && loans.isEmpty)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    SnapshotButton(isPresented: $showingSnapshot)
                     Menu {
                         Button("Add investment", systemImage: "chart.line.uptrend.xyaxis") { showingAdd = true }
                         Button("Add home loan", systemImage: "house") { showingAddLoan = true }
@@ -94,8 +84,6 @@ struct InvestmentsView: View {
             }
             .sheet(isPresented: $showingAdd) { InvestmentFormView() }
             .sheet(isPresented: $showingAddLoan) { LoanFormView() }
-            .sheet(isPresented: $showingSnapshot) { SnapshotAllView(investments: investments, loans: loans,
-                                lendings: lendings.filter { !$0.isSettled }) }
             .sheet(item: $editing) { InvestmentFormView(investment: $0) }
             .overlay { ConfettiView(trigger: confetti).ignoresSafeArea() }
             .sensoryFeedback(.success, trigger: confetti)
@@ -158,9 +146,6 @@ struct InvestmentsView: View {
                     )
                 }
             }
-            if !investments.isEmpty {
-                HistoryChart(points: History.points(for: investments))
-            }
         }
         .card()
     }
@@ -170,7 +155,7 @@ struct InvestmentsView: View {
             Text("No investments yet")
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
-            Text("Add an ETF, gold coins, crypto, a savings account or your home loan, then update it with a snapshot from time to time.")
+            Text("Add an ETF, gold coins, crypto, a savings account or your home loan, then update what it's worth from time to time.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.softInk)
@@ -189,7 +174,7 @@ struct InvestmentsView: View {
 }
 
 /// Chips that wrap to the next line when they don't fit.
-private struct FlowChips<Content: View>: View {
+struct FlowChips<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -238,7 +223,7 @@ struct HistoryChart: View {
 
     var body: some View {
         if points.count < 2 {
-            Text("Add a few snapshots to see the evolution.")
+            Text("Take a few snapshots to see the evolution.")
                 .font(.footnote)
                 .foregroundStyle(Theme.softInk)
         } else {

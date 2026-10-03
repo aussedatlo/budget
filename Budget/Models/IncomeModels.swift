@@ -20,8 +20,8 @@ final class IncomeSource {
     }
 }
 
-/// Money lent to someone, followed like the home loan: a snapshot
-/// of what's left to repay from time to time.
+/// Money lent to someone, followed like the home loan: what's left
+/// to repay is recorded from time to time.
 @Model
 final class Lending {
     /// Who the money was lent to.
@@ -48,6 +48,23 @@ final class Lending {
 
     /// Newest first.
     var sortedHistory: [LendingSnapshot] { history.sorted { $0.date > $1.date } }
+
+    /// What was left to repay on the same day as `date`, if recorded.
+    func entry(on date: Date) -> LendingSnapshot? {
+        history.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
+    }
+
+    /// The latest value recorded in the same month as `date`, if any.
+    func entry(inMonthOf date: Date) -> LendingSnapshot? {
+        history.filter { Calendar.current.isDate($0.date, inSameMonthAs: date) }.max { $0.date < $1.date }
+    }
+
+    /// What was still owed at `date`: nothing before the money was lent.
+    func remaining(at date: Date) -> Double {
+        guard self.date <= date else { return 0 }
+        let snapshot = history.filter { $0.date <= date }.max { $0.date < $1.date }
+        return max(snapshot?.remaining ?? lent, 0)
+    }
 
     var latest: LendingSnapshot? { history.max { $0.date < $1.date } }
     var remaining: Double { max(latest?.remaining ?? lent, 0) }

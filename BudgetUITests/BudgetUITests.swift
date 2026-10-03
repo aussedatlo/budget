@@ -88,7 +88,7 @@ final class BudgetUITests: XCTestCase {
         app.buttons["Save"].tap()
         XCTAssertTrue(scrollUntilVisible(app.staticTexts["Bonus"]), "New income should be listed")
 
-        // Money lent, followed through snapshots
+        // Money lent, followed through what's left to repay
         let lucas = app.staticTexts["Lucas"]
         XCTAssertTrue(scrollUntilVisible(lucas))
         snapshot("05c-money-lent")
@@ -96,16 +96,16 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Already repaid"].waitForExistence(timeout: 5))
         snapshot("05d-money-lent-detail")
 
-        // A new snapshot starts from what was left last time
-        let newSnapshot = app.buttons["New snapshot"]
-        XCTAssertTrue(scrollUntilVisible(newSnapshot))
-        newSnapshot.tap()
-        XCTAssertTrue(app.navigationBars["New snapshot"].waitForExistence(timeout: 5))
+        // Updating starts from what was left last time
+        let update = app.buttons["Update what's left"]
+        XCTAssertTrue(scrollUntilVisible(update))
+        update.tap()
+        XCTAssertTrue(app.navigationBars["Update what's left"].waitForExistence(timeout: 5))
         let remaining = app.textFields["lending-remaining"]
-        XCTAssertEqual(remaining.value as? String, "1500", "Should be pre-filled with the last snapshot")
+        XCTAssertEqual(remaining.value as? String, "1500", "Should be pre-filled with what was left")
         remaining.tap()
         remaining.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "1250")
-        snapshot("05e-new-lending-snapshot")
+        snapshot("05e-update-money-lent")
         app.buttons["Save"].tap()
         let left = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '1,250'")).firstMatch
         XCTAssertTrue(left.waitForExistence(timeout: 5), "Left to repay should go down")
@@ -125,10 +125,8 @@ final class BudgetUITests: XCTestCase {
         let moneyLent = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Money lent'")).firstMatch
         XCTAssertTrue(moneyLent.exists, "Net worth counts money lent")
         snapshot("06-net-worth")
-        XCTAssertTrue(scrollUntilVisible(app.staticTexts["Saved per month"]))
-        snapshot("06-saved-per-month")
 
-        // An investment and its snapshots
+        // An investment and its history
         let etf = app.staticTexts["MSCI World"]
         XCTAssertTrue(scrollUntilVisible(etf))
         etf.tap()
@@ -137,15 +135,15 @@ final class BudgetUITests: XCTestCase {
         app.swipeUp()
         snapshot("08-investment-history")
 
-        // New snapshot starts from the previous one
-        let newSnapshot = app.buttons["New snapshot"]
-        XCTAssertTrue(scrollUntilVisible(newSnapshot))
-        newSnapshot.tap()
-        XCTAssertTrue(app.navigationBars["New snapshot"].waitForExistence(timeout: 5))
+        // Updating starts from the current values
+        let update = app.buttons["Update values"]
+        XCTAssertTrue(scrollUntilVisible(update))
+        update.tap()
+        XCTAssertTrue(app.navigationBars["Update values"].waitForExistence(timeout: 5))
         let quantity = app.textFields["snapshot-quantity"]
         XCTAssertTrue(quantity.exists)
-        XCTAssertEqual(quantity.value as? String, "21", "Quantity should be pre-filled from the last snapshot")
-        snapshot("09-new-snapshot")
+        XCTAssertEqual(quantity.value as? String, "21", "Quantity should be pre-filled with the current one")
+        snapshot("09-update-values")
         app.buttons["Cancel"].tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
@@ -169,10 +167,100 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(updated.waitForExistence(timeout: 5), "Left to repay should be updated")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        // Snapshot of everything
-        app.buttons["Snapshot all"].tap()
-        XCTAssertTrue(app.navigationBars["Snapshot of everything"].waitForExistence(timeout: 5))
-        snapshot("11-snapshot-all")
+        // The snapshot of everything can be taken from any tab
+        app.buttons["Snapshot"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].tap()
+    }
+
+    func testStats() {
+        openTab("Stats")
+        XCTAssertTrue(app.staticTexts["Net worth over time"].waitForExistence(timeout: 10))
+        snapshot("11-stats")
+
+        // Snapshot of everything: pre-filled with the current state, to check and fix
+        app.buttons["Take a snapshot"].tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
+        let income = app.textFields["snapshot-main-income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 5))
+        XCTAssertEqual(income.value as? String, "2500", "Main income should be pre-filled")
+        snapshot("11a-snapshot")
+
+        // Forgot the rent went up: fix it here, it becomes the current charge
+        let rent = app.textFields["snapshot-charge-Rent"]
+        XCTAssertTrue(dragUntilVisible(rent))
+        XCTAssertEqual(rent.value as? String, "850", "Charges should be pre-filled")
+        rent.tap()
+        rent.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "900")
+        snapshot("11b-snapshot-fixed")
+        app.buttons["Save"].tap()
+
+        // Evolution, snapshot after snapshot
+        XCTAssertTrue(app.staticTexts["Net worth over time"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Saved per month"].exists)
+        XCTAssertTrue(app.staticTexts["Monthly budget"].exists)
+        XCTAssertTrue(app.staticTexts["Snapshots"].exists)
+        // The page isn't lazy: everything exists at once, so scroll by hand
+        app.swipeUp()
+        snapshot("11c-stats-budget")
+        app.swipeUp()
+        snapshot("11d-stats-snapshots")
+
+        // The correction made in the snapshot is the new current state
+        openTab("Month")
+        let newRent = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '900'")).firstMatch
+        XCTAssertTrue(newRent.waitForExistence(timeout: 5), "Rent should be updated")
+    }
+
+    /// A month was skipped: the snapshot asks which month to do.
+    func testMissedMonth() {
+        relaunch(missedMonths: 1)
+        let missed = monthName(monthsAgo: 1)
+
+        openTab("Stats")
+        XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
+        app.buttons["Take a snapshot"].tap()
+        let alert = app.alerts["No snapshot for \(missed)"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "Should ask about the missed month")
+        snapshot("11e-missed-month")
+        alert.buttons[missed].tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
+        snapshot("11f-missed-month-snapshot")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts[missed].waitForExistence(timeout: 5), "The missed month should be listed")
+    }
+
+    /// Two months were skipped: both are proposed, along with the current month.
+    func testTwoMissedMonths() {
+        relaunch(missedMonths: 2)
+        let older = monthName(monthsAgo: 2)
+        let newer = monthName(monthsAgo: 1)
+        let current = monthName(monthsAgo: 0)
+
+        openTab("Stats")
+        XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
+        app.buttons["Take a snapshot"].tap()
+        var alert = app.alerts["No snapshot for 2 months"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "Should ask about the missed months")
+        XCTAssertTrue(alert.buttons[older].exists, "The older missed month should be proposed")
+        XCTAssertTrue(alert.buttons[newer].exists, "The newer missed month should be proposed")
+        XCTAssertTrue(alert.buttons[current].exists, "The current month should be proposed")
+        snapshot("11g-two-missed-months")
+
+        // Catch up on the older one
+        alert.buttons[older].tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts[older].waitForExistence(timeout: 5), "The older month should be listed")
+
+        // Only the newer one is still missing
+        app.buttons["Take a snapshot"].tap()
+        alert = app.alerts["No snapshot for \(newer)"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "Should ask about the month still missing")
+        XCTAssertFalse(alert.buttons[older].exists, "The month just done shouldn't be proposed again")
+        XCTAssertTrue(alert.buttons[current].exists)
+        alert.buttons[current].tap()
+        XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
         app.buttons["Cancel"].tap()
     }
 
@@ -185,6 +273,23 @@ final class BudgetUITests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Starts again with demo data where the last months have no snapshot.
+    private func relaunch(missedMonths: Int) {
+        app.terminate()
+        app.launchArguments += ["-demo-missed-months", "\(missedMonths)"]
+        app.launch()
+    }
+
+    /// "September 2026", as the app writes it.
+    private func monthName(monthsAgo: Int) -> String {
+        let calendar = Calendar.current
+        let thisMonth = calendar.dateInterval(of: .month, for: Date())!.start
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: calendar.date(byAdding: .month, value: -monthsAgo, to: thisMonth)!)
+    }
 
     private func snapshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
@@ -201,6 +306,18 @@ final class BudgetUITests: XCTestCase {
         } else {
             app.buttons[name].firstMatch.tap()
         }
+    }
+
+    /// Short drags without momentum, for a row in a long form that a
+    /// full swipe would scroll past.
+    private func dragUntilVisible(_ element: XCUIElement, maxDrags: Int = 15) -> Bool {
+        for _ in 0..<maxDrags {
+            if element.exists && element.isHittable { return true }
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.42))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        return element.exists && element.isHittable
     }
 
     @discardableResult

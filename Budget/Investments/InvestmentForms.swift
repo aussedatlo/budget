@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Snapshot draft
 
-/// Editable copy of a snapshot. New snapshots start from the previous one,
+/// Editable copy of a position's values. It starts from the latest ones,
 /// so updating a position is just changing what moved.
 struct SnapshotDraft {
     var date = Date.now
@@ -147,7 +147,7 @@ struct InvestmentFormView: View {
                 } header: {
                     Text("Savings plan")
                 } footer: {
-                    Text("How much you usually add every month. New snapshots add it to “invested so far” for you, and it's set aside on the Month screen.")
+                    Text("How much you usually add every month. It's added to “invested so far” for you when you update the values, and it's set aside on the Month screen.")
                 }
                 if investment == nil {
                     Section {
@@ -155,7 +155,7 @@ struct InvestmentFormView: View {
                     } header: {
                         Text("Today")
                     } footer: {
-                        Text("What it's worth now and how much you put in so far. You can update it any time with a new snapshot.")
+                        Text("What it's worth now and how much you put in so far. You can update it any time.")
                     }
                 }
                 Section("Icon") {
@@ -214,8 +214,9 @@ struct InvestmentFormView: View {
     }
 }
 
-// MARK: - Snapshot
+// MARK: - Values
 
+/// Updates what a position is worth (no `snapshot`), or corrects past values.
 struct SnapshotFormView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -240,7 +241,7 @@ struct SnapshotFormView: View {
                     TextField("Note", text: $draft.note)
                 } footer: {
                     if snapshot == nil && investment.latest != nil {
-                        Text("Pre-filled with the last snapshot: just change what moved.")
+                        Text("Pre-filled with the current values: just change what moved.")
                     }
                 }
                 Section {
@@ -251,7 +252,7 @@ struct SnapshotFormView: View {
                 }
                 if let snapshot {
                     Section {
-                        Button("Delete this snapshot", role: .destructive) {
+                        Button("Delete these values", role: .destructive) {
                             investment.history.removeAll { $0 == snapshot }
                             context.delete(snapshot)
                             dismiss()
@@ -261,7 +262,7 @@ struct SnapshotFormView: View {
             }
             .themedForm()
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(snapshot == nil ? "New snapshot" : "Edit snapshot")
+            .navigationTitle(snapshot == nil ? "Update values" : "Edit past values")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -273,138 +274,13 @@ struct SnapshotFormView: View {
     }
 
     private func save() {
-        let item = snapshot ?? ValueSnapshot()
+        // One set of values per day: updating twice the same day corrects it
+        let existing = snapshot ?? investment.entry(on: draft.date)
+        let item = existing ?? ValueSnapshot()
         draft.apply(to: item)
-        if snapshot == nil {
+        if existing == nil {
             context.insert(item)
             investment.history.append(item)
-        }
-        dismiss()
-    }
-}
-
-/// Snapshot of everything at once: every investment and loan, pre-filled
-/// with their latest values.
-struct SnapshotAllView: View {
-    @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
-
-    let investments: [Investment]
-    let loans: [Loan]
-    /// Money lent that isn't fully repaid yet.
-    var lendings: [Lending] = []
-
-    @State private var date = Date.now
-    @State private var drafts: [PersistentIdentifier: SnapshotDraft] = [:]
-    @State private var loanDrafts: [PersistentIdentifier: LoanDraft] = [:]
-    @State private var lendingDrafts: [PersistentIdentifier: Double?] = [:]
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
-                } footer: {
-                    Text("Everything is pre-filled with the last snapshot: just change what moved.")
-                }
-                ForEach(investments) { investment in
-                    Section {
-                        SnapshotFields(draft: draft(for: investment), showsDate: false, showsUnitsToggle: false)
-                    } header: {
-                        HStack(spacing: 6) {
-                            Moji(investment.displayEmoji, size: 18)
-                            Text(investment.name)
-                        }
-                    }
-                }
-                ForEach(loans) { loan in
-                    Section {
-                        LoanFields(draft: loanDraft(for: loan))
-                    } header: {
-                        HStack(spacing: 6) {
-                            Moji(loan.emoji, size: 18)
-                            Text(loan.name)
-                        }
-                    }
-                }
-                ForEach(lendings) { lending in
-                    Section {
-                        NumberField(title: "Left to repay", value: lendingDraft(for: lending))
-                    } header: {
-                        HStack(spacing: 6) {
-                            Moji(lending.emoji, size: 18)
-                            Text("Lent to \(lending.name)")
-                        }
-                    }
-                }
-            }
-            .themedForm()
-            .scrollDismissesKeyboard(.interactively)
-            .onChange(of: date) {
-                for investment in investments {
-                    var updated = draft(for: investment).wrappedValue
-                    updated.date = date
-                    updated.applyPlan()
-                    drafts[investment.persistentModelID] = updated
-                }
-            }
-            .navigationTitle("Snapshot of everything")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
-            }
-        }
-    }
-
-    private func draft(for investment: Investment) -> Binding<SnapshotDraft> {
-        Binding(
-            get: { drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution) },
-            set: { drafts[investment.persistentModelID] = $0 }
-        )
-    }
-
-    private func loanDraft(for loan: Loan) -> Binding<LoanDraft> {
-        Binding(
-            get: { loanDrafts[loan.persistentModelID] ?? LoanDraft(from: loan.latest, loan: loan) },
-            set: { loanDrafts[loan.persistentModelID] = $0 }
-        )
-    }
-
-    private func lendingDraft(for lending: Lending) -> Binding<Double?> {
-        Binding(
-            get: { lendingDrafts[lending.persistentModelID] ?? Optional(lending.remaining) },
-            set: { lendingDrafts[lending.persistentModelID] = .some($0) }
-        )
-    }
-
-    private func save() {
-        for lending in lendings {
-            let draft = lendingDrafts[lending.persistentModelID] ?? Optional(lending.remaining)
-            guard let remaining = draft else { continue }
-            let snapshot = LendingSnapshot(date: date, remaining: max(remaining, 0))
-            context.insert(snapshot)
-            lending.history.append(snapshot)
-        }
-        for investment in investments {
-            var draft = drafts[investment.persistentModelID] ?? SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution)
-            guard draft.isValid else { continue }
-            draft.date = date
-            draft.note = ""
-            let snapshot = ValueSnapshot()
-            draft.apply(to: snapshot)
-            context.insert(snapshot)
-            investment.history.append(snapshot)
-        }
-        for loan in loans {
-            var draft = loanDrafts[loan.persistentModelID] ?? LoanDraft(from: loan.latest, loan: loan)
-            guard draft.isValid else { continue }
-            draft.date = date
-            draft.note = ""
-            let snapshot = LoanSnapshot()
-            draft.apply(to: snapshot)
-            context.insert(snapshot)
-            loan.history.append(snapshot)
         }
         dismiss()
     }
