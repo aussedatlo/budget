@@ -3,15 +3,22 @@ import XCTest
 /// Base of every UI test. Each test is one scenario of the Gherkin plan,
 /// written with `given`, `when`, `then` and `and` steps so it reads like the plan.
 /// The app starts with demo data (see `DemoData` in the app), stored in memory only.
+/// It is launched once and asked to start over before each test, which is much
+/// faster than launching it again; only tests with other launch arguments relaunch it.
 ///
 /// Only a few tests attach a screenshot of a main screen; a failing test
 /// always attaches one of the screen at the time of failure.
 class BudgetUITestCase: XCTestCase {
     var app: XCUIApplication!
 
+    /// Whether the app left running was launched with the usual arguments.
+    private static var usualLaunch = false
+    /// How many times the running app was asked to start over.
+    private static var resets = 0
+
     override func setUp() {
         continueAfterFailure = false
-        launch()
+        startOver()
     }
 
     override func tearDown() {
@@ -24,6 +31,32 @@ class BudgetUITestCase: XCTestCase {
     }
 
     // MARK: - Launching
+
+    /// The demo data as at launch, on the Budget tab: the running app starts
+    /// over when it can, and is launched again otherwise.
+    func startOver() {
+        if Self.usualLaunch {
+            app = XCUIApplication()
+            if app.state == .runningForeground && resetDemoData() { return }
+        }
+        launch()
+    }
+
+    /// Asks the app for new demo data and waits until it says it's done.
+    private func resetDemoData() -> Bool {
+        Self.resets += 1
+        // Same name as `DemoData.resetSignal` in the app
+        let signal = CFNotificationName("com.example.budget.demo-reset" as CFString)
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), signal, nil, nil, true)
+
+        let counter = app.staticTexts["demo-resets"]
+        let deadline = Date().addingTimeInterval(5)
+        repeat {
+            if counter.exists && counter.label == "\(Self.resets)" { return true }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < deadline
+        return false
+    }
 
     /// Starts the app again.
     /// - Parameters:
@@ -42,6 +75,8 @@ class BudgetUITestCase: XCTestCase {
         if let currency { launchArguments += ["-currencyCode", currency] }
         app.launchArguments = launchArguments + arguments
         app.launch()
+        Self.usualLaunch = demoData && missedMonths == 0 && currency == "EUR" && arguments.isEmpty
+        Self.resets = 0
     }
 
     // MARK: - Steps
