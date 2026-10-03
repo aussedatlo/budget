@@ -71,6 +71,7 @@ final class FixedCharge {
     var title: String = ""
     var amount: Double = 0
     var categoryRaw: String = ChargeCategory.other.rawValue
+    /// No longer shown or edited; kept so stored data opens unchanged.
     var dayOfMonth: Int = 1
     var emoji: String = ""
 

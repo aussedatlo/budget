@@ -23,7 +23,7 @@ struct SnapshotButton: View {
 struct SnapshotView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \FixedCharge.dayOfMonth) private var charges: [FixedCharge]
+    @Query(sort: \FixedCharge.amount, order: .reverse) private var charges: [FixedCharge]
     @Query(sort: \IncomeSource.createdAt) private var sources: [IncomeSource]
     @Query(sort: \Investment.name) private var investments: [Investment]
     @Query(sort: \Loan.name) private var loans: [Loan]

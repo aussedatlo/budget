@@ -5,7 +5,7 @@ import SwiftUI
 /// shown as a jar that fills up.
 struct MonthlyView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \FixedCharge.dayOfMonth) private var charges: [FixedCharge]
+    @Query(sort: \FixedCharge.amount, order: .reverse) private var charges: [FixedCharge]
     @Query(sort: \Investment.name) private var investments: [Investment]
     @Query private var incomeSources: [IncomeSource]
     @Query private var lendings: [Lending]
@@ -192,7 +192,7 @@ private struct ChargeCard: View {
                 Text(charge.title)
                     .font(.headline)
                     .foregroundStyle(Theme.ink)
-                Text("Day \(charge.dayOfMonth) · \(charge.category.label)")
+                Text(charge.category.label)
                     .font(.caption)
                     .foregroundStyle(Theme.softInk)
             }
@@ -216,7 +216,6 @@ struct FixedChargeFormView: View {
     @State private var title: String
     @State private var amount: Double?
     @State private var category: ChargeCategory
-    @State private var dayOfMonth: Int
     @State private var emoji: String
     @State private var confirmingDelete = false
 
@@ -225,7 +224,6 @@ struct FixedChargeFormView: View {
         _title = State(initialValue: charge?.title ?? "")
         _amount = State(initialValue: charge?.amount)
         _category = State(initialValue: charge?.category ?? .housing)
-        _dayOfMonth = State(initialValue: charge?.dayOfMonth ?? 1)
         _emoji = State(initialValue: charge?.displayEmoji ?? ChargeCategory.housing.emoji)
     }
 
@@ -249,7 +247,6 @@ struct FixedChargeFormView: View {
                             Text(category.label).tag(category)
                         }
                     }
-                    Stepper("Day of month: \(dayOfMonth)", value: $dayOfMonth, in: 1...31)
                 }
                 Section("Icon") {
                     EmojiPicker(emoji: $emoji, suggestions: EmojiPicker.charges)
@@ -287,7 +284,6 @@ struct FixedChargeFormView: View {
         item.title = title.trimmingCharacters(in: .whitespaces)
         item.amount = amount ?? 0
         item.category = category
-        item.dayOfMonth = dayOfMonth
         item.emoji = emoji == category.emoji ? "" : emoji
         if charge == nil { context.insert(item) }
         dismiss()
