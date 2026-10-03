@@ -188,6 +188,7 @@ struct LendingFormView: View {
     @State private var monthlyRepayment: Double?
     /// Corrects the latest snapshot when editing.
     @State private var remaining: Double?
+    @State private var confirmingDelete = false
 
     init(lending: Lending? = nil) {
         self.lending = lending
@@ -235,10 +236,13 @@ struct LendingFormView: View {
                 }
                 if let lending {
                     Section {
-                        Button("Delete this loan", role: .destructive) {
-                            context.delete(lending)
-                            dismiss()
-                        }
+                        Button("Delete this loan", role: .destructive) { confirmingDelete = true }
+                            .confirmDelete("Delete the money lent to \(lending.name)?",
+                                           message: "Its whole history goes too.",
+                                           isPresented: $confirmingDelete) {
+                                context.delete(lending)
+                                dismiss()
+                            }
                     }
                 }
             }
@@ -281,6 +285,7 @@ struct LendingSnapshotFormView: View {
     @State private var date: Date
     @State private var remaining: Double?
     @State private var note: String
+    @State private var confirmingDelete = false
 
     init(lending: Lending, snapshot: LendingSnapshot? = nil) {
         self.lending = lending
@@ -308,11 +313,12 @@ struct LendingSnapshotFormView: View {
                 }
                 if let snapshot {
                     Section {
-                        Button("Delete this value", role: .destructive) {
-                            lending.history.removeAll { $0 == snapshot }
-                            context.delete(snapshot)
-                            dismiss()
-                        }
+                        Button("Delete this value", role: .destructive) { confirmingDelete = true }
+                            .confirmDelete("Delete this value?", isPresented: $confirmingDelete) {
+                                lending.history.removeAll { $0 == snapshot }
+                                context.delete(snapshot)
+                                dismiss()
+                            }
                     }
                 }
             }

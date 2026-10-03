@@ -11,6 +11,7 @@ struct InvestmentsView: View {
     @State private var showingAdd = false
     @State private var showingAddLoan = false
     @State private var editing: Investment?
+    @State private var deleting: Investment?
     @State private var confetti = 0
     /// Highest net worth seen so far: confetti only when it's beaten.
     @AppStorage("netWorthHigh") private var netWorthHigh: Double = 0
@@ -56,7 +57,7 @@ struct InvestmentsView: View {
                             .contextMenu {
                                 Button("Edit", systemImage: "pencil") { editing = investment }
                                 Button("Delete", systemImage: "trash", role: .destructive) {
-                                    withAnimation(.snappy) { context.delete(investment) }
+                                    deleting = investment
                                 }
                             }
                             .transition(.opacity)
@@ -85,6 +86,10 @@ struct InvestmentsView: View {
             .sheet(isPresented: $showingAdd) { InvestmentFormView() }
             .sheet(isPresented: $showingAddLoan) { LoanFormView() }
             .sheet(item: $editing) { InvestmentFormView(investment: $0) }
+            .confirmDelete($deleting, title: { "Delete \($0.name)?" },
+                           message: { _ in "Its whole history goes too." }) { investment in
+                withAnimation(.snappy) { context.delete(investment) }
+            }
             .overlay { ConfettiView(trigger: confetti).ignoresSafeArea() }
             .sensoryFeedback(.success, trigger: confetti)
             .onAppear {

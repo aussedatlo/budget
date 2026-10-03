@@ -12,7 +12,9 @@ struct StatsView: View {
     @Query(sort: \Snapshot.date) private var snapshots: [Snapshot]
     @Binding var showingSnapshot: Bool
     @State private var selected: SnapshotSummary?
-    @State private var deleting: Snapshot?
+    /// Snapshot to delete once its sheet is closed, and whether the values
+    /// recorded that month go too.
+    @State private var deleting: (snapshot: Snapshot, withValues: Bool)?
 
     private var now: WealthPoint {
         Wealth.point(investments: investments, loans: loans, lendings: lendings)
@@ -39,7 +41,8 @@ struct StatsView: View {
                 VStack(spacing: 14) {
                     header(points: points)
                     ChartCard(title: "Net worth over time") {
-                        NetWorthChart(points: points, showsHome: !loans.isEmpty, showsLent: !lendings.isEmpty)
+                        NetWorthChart(points: points, showsHome: !loans.isEmpty, showsLent: !lendings.isEmpty,
+                                      snapshots: snapshots, openSnapshot: openSnapshot)
                     }
                     if !investments.isEmpty {
                         ChartCard(title: "Investments") {
@@ -48,10 +51,10 @@ struct StatsView: View {
                         SavingsChart(investments: investments)
                     }
                     ChartCard(title: "Monthly budget", trailing: snapshots.last.map { "left \($0.left.currency)" }) {
-                        BudgetChart(snapshots: snapshots)
+                        BudgetChart(snapshots: snapshots, openSnapshot: openSnapshot)
                     }
                     ChartCard(title: "Recurring charges", trailing: snapshots.last.map { $0.charges.currency }) {
-                        ChargesChart(snapshots: snapshots)
+                        ChargesChart(snapshots: snapshots, openSnapshot: openSnapshot)
                     }
                     snapshotList
                 }
@@ -67,8 +70,8 @@ struct StatsView: View {
                 }
             }
             .sheet(item: $selected, onDismiss: deletePending) { summary in
-                SnapshotDetailView(summary: summary, showsHome: !loans.isEmpty) {
-                    deleting = summary.snapshot
+                SnapshotDetailView(summary: summary, showsHome: !loans.isEmpty) { withValues in
+                    deleting = (summary.snapshot, withValues)
                 }
             }
             .sensoryFeedback(.success, trigger: snapshots.count) { old, new in new > old }
@@ -99,17 +102,30 @@ struct StatsView: View {
                         color: Theme.gain(change)
                     )
                 }
-                if let last = snapshots.last {
+                if takenThisMonth, let last = snapshots.last {
+                    Chip(text: "\(last.date.monthName) snapshot taken", color: Theme.positive,
+                         background: Theme.positive.opacity(0.12))
+                } else if let last = snapshots.last {
                     Chip(text: "Last snapshot \(last.date.monthName)")
                 }
             }
-            Text("Once a month or so, update your charges, income and investments, then take the month's snapshot: it saves the whole picture and adds a point to these charts.")
-                .font(.footnote)
-                .foregroundStyle(Theme.softInk)
-            Button("Take a snapshot", systemImage: "camera") { showingSnapshot = true }
-                .buttonStyle(PillButtonStyle())
+            // Only while this month's snapshot is still to take
+            if !takenThisMonth {
+                Text("Once a month or so, update your charges, income and investments, then take the month's snapshot: it saves the whole picture and adds a point to these charts.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.softInk)
+                Button("Take a snapshot", systemImage: "calendar.badge.plus") { showingSnapshot = true }
+                    .buttonStyle(PillButtonStyle())
+            }
         }
         .card()
+    }
+
+    private var takenThisMonth: Bool { Snapshot.isTaken(thisMonthIn: snapshots) }
+
+    /// Opens a snapshot picked from a chart.
+    private func openSnapshot(_ snapshot: Snapshot) {
+        selected = summaries.first { $0.snapshot == snapshot }
     }
 
     @ViewBuilder
@@ -130,10 +146,15 @@ struct StatsView: View {
     }
 
     /// Deletes the snapshot picked in the detail sheet, once the sheet is closed,
-    /// along with the values recorded that month.
+    /// and if asked, the values recorded that month.
     private func deletePending() {
-        guard let snapshot = deleting else { return }
+        guard let pending = deleting else { return }
         deleting = nil
+        let snapshot = pending.snapshot
+        guard pending.withValues else {
+            withAnimation(.snappy) { context.delete(snapshot) }
+            return
+        }
         let calendar = Calendar.current
         let day = snapshot.date
         for investment in investments {
@@ -226,11 +247,77 @@ private struct ChartHint: View {
     }
 }
 
+private extension View {
+    /// Tapping the chart selects the nearest date. A tap rather than the
+    /// default drag, so the page still scrolls over the charts.
+    func tapSelection(_ selection: Binding<Date?>) -> some View {
+        self
+            .chartXSelection(value: selection)
+            .chartGesture { proxy in
+                SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) }
+            }
+    }
+}
+
+/// The item whose date is the closest to `date`.
+private func nearest<Item>(_ items: [Item], to date: Date?, by itemDate: (Item) -> Date) -> Item? {
+    guard let date else { return nil }
+    return items.min { abs(itemDate($0).timeIntervalSince(date)) < abs(itemDate($1).timeIntervalSince(date)) }
+}
+
+/// The value at the date tapped on a chart, with a link to that month's snapshot.
+private struct SelectionBar: View {
+    let date: Date?
+    let text: String
+    let snapshot: Snapshot?
+    let hint: String
+    let openSnapshot: (Snapshot) -> Void
+
+    var body: some View {
+        if let date {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(date.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption)
+                        .foregroundStyle(Theme.softInk)
+                    Text(text)
+                        .font(.subheadline.bold())
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.ink)
+                }
+                Spacer()
+                if let snapshot {
+                    Button("Open snapshot") { openSnapshot(snapshot) }
+                        .font(.subheadline.bold())
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+        } else {
+            ChartHint(text: hint)
+        }
+    }
+}
+
+/// A thin vertical line at the selected date.
+private func selectionRule(at date: Date) -> some ChartContent {
+    RuleMark(x: .value("Date", date))
+        .foregroundStyle(Theme.softInk.opacity(0.5))
+        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+}
+
 /// Net worth as a soft area, with what it's made of as thin lines.
+/// Dots mark the days a snapshot was taken.
 private struct NetWorthChart: View {
     let points: [WealthPoint]
     let showsHome: Bool
     let showsLent: Bool
+    let snapshots: [Snapshot]
+    let openSnapshot: (Snapshot) -> Void
+    @State private var selection: Date?
+
+    private var snapshotDays: Set<Date> {
+        Set(snapshots.map { Calendar.current.startOfDay(for: $0.date) })
+    }
 
     private var scale: [(name: String, color: Color)] {
         var result = [(name: "Net worth", color: Theme.accent)]
@@ -245,6 +332,8 @@ private struct NetWorthChart: View {
             ChartHint(text: "Take a few snapshots to see your net worth move.")
         } else {
             let showsParts = showsHome || showsLent
+            let days = snapshotDays
+            let selected = nearest(points, to: selection, by: \.date)
             Chart {
                 ForEach(points) { point in
                     AreaMark(x: .value("Date", point.date), y: .value("Amount", point.netWorth))
@@ -279,10 +368,31 @@ private struct NetWorthChart: View {
                             .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round))
                             .foregroundStyle(by: .value("Series", "Money lent"))
                     }
+                    if days.contains(point.date) {
+                        PointMark(x: .value("Date", point.date), y: .value("Amount", point.netWorth))
+                            .symbolSize(22)
+                            .foregroundStyle(Theme.accent)
+                    }
+                }
+                if let selected {
+                    selectionRule(at: selected.date)
+                    PointMark(x: .value("Date", selected.date), y: .value("Amount", selected.netWorth))
+                        .symbolSize(70)
+                        .foregroundStyle(Theme.accent)
                 }
             }
             .chartForegroundStyleScale(domain: scale.map { $0.name }, range: scale.map { $0.color })
             .statsChartStyle()
+            .tapSelection($selection)
+            SelectionBar(
+                date: selected?.date,
+                text: selected.map { "Net worth \($0.netWorth.currency)" } ?? "",
+                snapshot: selected.flatMap { point in
+                    snapshots.last { Calendar.current.isDate($0.date, inSameMonthAs: point.date) }
+                },
+                hint: "Dots are your snapshots. Tap the chart to see a date.",
+                openSnapshot: openSnapshot
+            )
         }
     }
 }
@@ -300,9 +410,15 @@ private struct StackedChart: View {
     let rows: [StackRow]
     var line: [StackRow] = []
     let scale: [(name: String, color: Color)]
+    @Binding var selection: Date?
+    /// Date of the selected snapshot.
+    var highlight: Date?
 
     var body: some View {
         Chart {
+            if let highlight {
+                selectionRule(at: highlight)
+            }
             ForEach(rows) { row in
                 AreaMark(x: .value("Date", row.date), y: .value("Amount", row.amount))
                     .interpolationMethod(.monotone)
@@ -318,6 +434,7 @@ private struct StackedChart: View {
         }
         .chartForegroundStyleScale(domain: scale.map { $0.name }, range: scale.map { $0.color })
         .statsChartStyle()
+        .tapSelection($selection)
     }
 }
 
@@ -325,6 +442,8 @@ private struct StackedChart: View {
 /// and what's left, under the income line.
 private struct BudgetChart: View {
     let snapshots: [Snapshot]
+    let openSnapshot: (Snapshot) -> Void
+    @State private var selection: Date?
 
     private var rows: [StackRow] {
         snapshots.flatMap { snapshot in
@@ -340,6 +459,7 @@ private struct BudgetChart: View {
         if snapshots.count < 2 {
             ChartHint(text: "Take a snapshot now and another one later to see how your income, charges and savings move.")
         } else {
+            let selected = nearest(snapshots, to: selection, by: \.date)
             if let last = snapshots.last {
                 HStack(spacing: 6) {
                     Chip(text: "Income \(last.income.currency)")
@@ -356,7 +476,16 @@ private struct BudgetChart: View {
                     (name: "Savings", color: Theme.series[1].opacity(0.75)),
                     (name: "Left", color: Theme.series[2].opacity(0.45)),
                     (name: "Income", color: Theme.ink),
-                ]
+                ],
+                selection: $selection,
+                highlight: selected?.date
+            )
+            SelectionBar(
+                date: selected?.date,
+                text: selected.map { "Income \($0.income.currency) · left \($0.left.currency)" } ?? "",
+                snapshot: selected,
+                hint: "Tap the chart to see a month.",
+                openSnapshot: openSnapshot
             )
         }
     }
@@ -365,11 +494,14 @@ private struct BudgetChart: View {
 /// Recurring charges per category, snapshot after snapshot.
 private struct ChargesChart: View {
     let snapshots: [Snapshot]
+    let openSnapshot: (Snapshot) -> Void
+    @State private var selection: Date?
 
     var body: some View {
         if snapshots.count < 2 {
             ChartHint(text: "Take a snapshot now and another one later to see which charges go up or down.")
         } else {
+            let selected = nearest(snapshots, to: selection, by: \.date)
             let lines: [(date: Date, lines: [SnapshotLine])] = snapshots.map { (date: $0.date, lines: $0.chargeLines) }
             let categories = ChargeCategory.allCases.filter { category in
                 lines.contains { entry in entry.lines.contains { $0.category == category.rawValue } }
@@ -378,7 +510,16 @@ private struct ChargesChart: View {
                 rows: Self.rows(lines, categories),
                 scale: categories.enumerated().map { index, category in
                     (name: category.label, color: Theme.series[index % Theme.series.count].opacity(0.75))
-                }
+                },
+                selection: $selection,
+                highlight: selected?.date
+            )
+            SelectionBar(
+                date: selected?.date,
+                text: selected.map { "Recurring charges \($0.charges.currency)" } ?? "",
+                snapshot: selected,
+                hint: "Tap the chart to see a month.",
+                openSnapshot: openSnapshot
             )
         }
     }
@@ -444,8 +585,10 @@ struct SnapshotDetailView: View {
 
     let summary: SnapshotSummary
     let showsHome: Bool
-    /// Called when "Delete" is tapped; the sheet closes first.
-    let onDelete: () -> Void
+    /// Called when the deletion is confirmed, with whether the values recorded
+    /// that month go too; the sheet closes first.
+    let onDelete: (_ withValues: Bool) -> Void
+    @State private var confirmingDelete = false
 
     var body: some View {
         let snapshot = summary.snapshot
@@ -491,12 +634,22 @@ struct SnapshotDetailView: View {
                     }
                 }
                 Section {
-                    Button("Delete this snapshot", role: .destructive) {
-                        onDelete()
-                        dismiss()
-                    }
+                    Button("Delete this snapshot", role: .destructive) { confirmingDelete = true }
+                        .confirmationDialog("Delete the \(snapshot.date.monthName) snapshot?",
+                                            isPresented: $confirmingDelete, titleVisibility: .visible) {
+                            Button("Delete the snapshot only", role: .destructive) {
+                                onDelete(false)
+                                dismiss()
+                            }
+                            Button("Delete it and that month's values", role: .destructive) {
+                                onDelete(true)
+                                dismiss()
+                            }
+                        } message: {
+                            Text("The snapshot only: its budget goes, investments, the home loan and money lent keep what they were worth that month. With that month's values: those go too, including values you updated by hand that month.")
+                        }
                 } footer: {
-                    Text("Also removes what investments, the home loan and money lent were worth that month.")
+                    Text("This can't be undone.")
                 }
             }
             .themedForm()

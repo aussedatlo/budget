@@ -2,13 +2,17 @@ import SwiftData
 import SwiftUI
 
 /// Toolbar button that opens the snapshot of everything, on every tab.
+/// Its icon shows whether this month's snapshot is still to take.
 struct SnapshotButton: View {
     @Binding var isPresented: Bool
+    @Query(sort: \Snapshot.date, order: .reverse) private var snapshots: [Snapshot]
 
     var body: some View {
+        let isDone = Snapshot.isTaken(thisMonthIn: snapshots)
         Button { isPresented = true } label: {
-            Label("Snapshot", systemImage: "camera")
+            Label("Snapshot", systemImage: isDone ? "calendar.badge.checkmark" : "calendar.badge.exclamationmark")
         }
+        .accessibilityValue(isDone ? "Taken this month" : "To take this month")
     }
 }
 
@@ -36,6 +40,7 @@ struct SnapshotView: View {
     /// First day of the month this snapshot is for.
     @State private var month = Calendar.current.monthInterval(for: .now).start
     @State private var askingMonth = false
+    @State private var confirmingDiscard = false
     @State private var note = ""
     @State private var mainIncome: Double?
     @State private var sourceDrafts: [PersistentIdentifier: SourceDraft] = [:]
@@ -44,9 +49,13 @@ struct SnapshotView: View {
     @State private var loanDrafts: [PersistentIdentifier: LoanDraft] = [:]
     @State private var lendingDrafts: [PersistentIdentifier: Double?] = [:]
 
+    /// Main income as it was when the sheet opened, to tell if it was changed.
+    private let initialIncome: Double?
+
     init() {
         let income = UserDefaults.standard.double(forKey: AppSettings.incomeKey)
-        _mainIncome = State(initialValue: income > 0 ? income : nil)
+        initialIncome = income > 0 ? income : nil
+        _mainIncome = State(initialValue: initialIncome)
     }
 
     /// Money lent that isn't fully repaid yet.
@@ -92,6 +101,12 @@ struct SnapshotView: View {
                             }
                         }
                     }
+                    if let taken {
+                        Label("Replaces the snapshot taken on \(taken.date.formatted(date: .abbreviated, time: .omitted))",
+                              systemImage: "arrow.triangle.2.circlepath")
+                            .font(.footnote)
+                            .foregroundStyle(Theme.accent)
+                    }
                     TextField("Note", text: $note)
                 } footer: {
                     Text(summaryFooter)
@@ -102,26 +117,48 @@ struct SnapshotView: View {
                     Section {
                         SnapshotFields(draft: draftBinding(for: investment), showsDate: false, showsUnitsToggle: false)
                     } header: {
-                        itemHeader(investment.displayEmoji, investment.name)
+                        itemHeader(investment.displayEmoji, investment.name, edited: isEdited(investment))
+                    } footer: {
+                        if let latest = investment.latest {
+                            lastRecorded(latest.value.currency, on: latest.date)
+                        }
                     }
                 }
                 ForEach(loans) { loan in
                     Section {
                         LoanFields(draft: loanBinding(for: loan))
                     } header: {
-                        itemHeader(loan.emoji, loan.name)
+                        itemHeader(loan.emoji, loan.name, edited: isEdited(loan))
+                    } footer: {
+                        if let latest = loan.latest {
+                            lastRecorded("\(latest.remaining.currency) left to repay, home \(latest.homeValue.currency)",
+                                         on: latest.date)
+                        }
                     }
                 }
                 ForEach(lendings) { lending in
                     Section {
                         NumberField(title: "Left to repay", value: lendingBinding(for: lending))
                     } header: {
-                        itemHeader(lending.emoji, "Lent to \(lending.name)")
+                        itemHeader(lending.emoji, "Lent to \(lending.name)", edited: isEdited(lending))
+                    } footer: {
+                        if let latest = lending.latest {
+                            lastRecorded("\(latest.remaining.currency) left to repay", on: latest.date)
+                        } else {
+                            lastRecorded("\(lending.lent.currency) lent", on: lending.date)
+                        }
                     }
                 }
             }
             .themedForm()
             .scrollDismissesKeyboard(.interactively)
+            .interactiveDismissDisabled(hasChanges)
+            .confirmationDialog("Discard your changes?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
+                Button("Discard changes", role: .destructive) { dismiss() }
+                Button("Keep editing", role: .cancel) {}
+            } message: {
+                Text("Nothing in this snapshot is saved yet.")
+            }
             .onAppear {
                 if !missing.isEmpty { askingMonth = true }
             }
@@ -131,21 +168,25 @@ struct SnapshotView: View {
                 }
                 Button(currentMonth.monthName) { month = currentMonth }
             } message: {
-                Text("Catch up on a missing month, or go for \(currentMonth.monthName)? You can change it at the top of the snapshot.")
+                Text(missedMessage)
             }
             .onChange(of: month) {
+                // Edited values follow the month too ("invested so far" from the plan)
                 let date = self.date
-                for investment in investments {
-                    var updated = investmentDraft(of: investment)
-                    updated.date = date
-                    updated.applyPlan()
-                    drafts[investment.persistentModelID] = updated
+                for (id, var draft) in drafts {
+                    draft.date = date
+                    draft.applyPlan()
+                    drafts[id] = draft
                 }
             }
             .navigationTitle("Snapshot")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        if hasChanges { confirmingDiscard = true } else { dismiss() }
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
             }
         }
@@ -156,6 +197,7 @@ struct SnapshotView: View {
     private var incomeSection: some View {
         Section {
             NumberField(title: "Main income", value: $mainIncome, identifier: "snapshot-main-income")
+                .foregroundStyle(mainIncome.differs(from: initialIncome) ? Theme.accent : Theme.ink)
             ForEach(sources) { source in
                 let draft = sourceBinding(for: source)
                 HStack(spacing: 10) {
@@ -164,7 +206,8 @@ struct SnapshotView: View {
                         .tint(Theme.accent)
                         .accessibilityIdentifier("snapshot-income-toggle-\(source.title)")
                     Text(source.title)
-                        .foregroundStyle(draft.wrappedValue.isActive ? Theme.ink : Theme.softInk)
+                        .foregroundStyle(isEdited(source) ? Theme.accent
+                                         : draft.wrappedValue.isActive ? Theme.ink : Theme.softInk)
                     Spacer()
                     DecimalField(value: draft.amount)
                         .multilineTextAlignment(.trailing)
@@ -189,6 +232,7 @@ struct SnapshotView: View {
                         Moji(charge.displayEmoji, size: 22)
                         NumberField(title: charge.title, value: chargeBinding(for: charge),
                                     identifier: "snapshot-charge-\(charge.title)")
+                            .foregroundStyle(isEdited(charge) ? Theme.accent : Theme.ink)
                     }
                 }
                 if savings > 0 {
@@ -208,11 +252,19 @@ struct SnapshotView: View {
         }
     }
 
-    private func itemHeader(_ emoji: String, _ title: String) -> some View {
+    private func itemHeader(_ emoji: String, _ title: String, edited: Bool = false) -> some View {
         HStack(spacing: 6) {
             Moji(emoji, size: 18)
             Text(title)
+            Spacer()
+            if edited {
+                Text("Edited").foregroundStyle(Theme.accent)
+            }
         }
+    }
+
+    private func lastRecorded(_ value: String, on date: Date) -> some View {
+        Text("Last recorded: \(value) on \(date.formatted(date: .abbreviated, time: .omitted))")
     }
 
     private var missedTitle: String {
@@ -221,13 +273,17 @@ struct SnapshotView: View {
         return "No snapshot for \(missing.count) months"
     }
 
+    private var missedMessage: String {
+        var text = "Catch up on a missing month, or go for \(currentMonth.monthName)? You can change it at the top of the snapshot."
+        if missing.count > 3 { text += " Older months are listed there too." }
+        return text
+    }
+
     private var summaryFooter: String {
-        var text = "Everything is pre-filled with your current values. Check them, fix what moved, then save."
+        var text = "Everything is pre-filled with your current values. Check them, fix what moved, then save. What you changed shows in color."
         if !isCurrentMonth {
+            text += " Investments, the home loan and money lent start from their latest values: set them to what they were in \(month.monthName)."
             text += " Income and charges changed here are saved in this past month only: the tabs keep your current state."
-        }
-        if taken != nil {
-            text += " This replaces the snapshot already taken for \(month.monthName)."
         }
         if let previous {
             let before = Wealth.point(at: previous.endOfMonth,
@@ -254,8 +310,15 @@ struct SnapshotView: View {
     }
 
     private func investmentDraft(of investment: Investment) -> SnapshotDraft {
-        drafts[investment.persistentModelID]
-            ?? SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution)
+        drafts[investment.persistentModelID] ?? baseDraft(of: investment)
+    }
+
+    /// The latest values, with the savings plan added up to the snapshot's month.
+    private func baseDraft(of investment: Investment) -> SnapshotDraft {
+        var draft = SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution)
+        draft.date = date
+        draft.applyPlan()
+        return draft
     }
 
     private func loanDraft(of loan: Loan) -> LoanDraft {
@@ -299,6 +362,45 @@ struct SnapshotView: View {
             get: { lendingRemaining(of: lending) },
             set: { lendingDrafts[lending.persistentModelID] = .some($0) }
         )
+    }
+
+    // MARK: - What was changed
+
+    private func isEdited(_ investment: Investment) -> Bool {
+        guard let draft = drafts[investment.persistentModelID] else { return false }
+        return draft.differs(from: baseDraft(of: investment))
+    }
+
+    private func isEdited(_ loan: Loan) -> Bool {
+        guard let draft = loanDrafts[loan.persistentModelID] else { return false }
+        let base = LoanDraft(from: loan.latest, loan: loan)
+        return draft.remaining.differs(from: base.remaining) || draft.homeValue.differs(from: base.homeValue)
+    }
+
+    private func isEdited(_ lending: Lending) -> Bool {
+        guard let remaining = lendingDrafts[lending.persistentModelID] else { return false }
+        return remaining.differs(from: lending.remaining)
+    }
+
+    private func isEdited(_ charge: FixedCharge) -> Bool {
+        guard let amount = chargeDrafts[charge.persistentModelID] else { return false }
+        return amount.differs(from: charge.amount)
+    }
+
+    private func isEdited(_ source: IncomeSource) -> Bool {
+        guard let draft = sourceDrafts[source.persistentModelID] else { return false }
+        return draft.isActive != source.isActive || draft.amount.differs(from: source.amount)
+    }
+
+    /// Something was changed and would be lost on Cancel.
+    private var hasChanges: Bool {
+        !note.isEmpty
+            || mainIncome.differs(from: initialIncome)
+            || investments.contains { isEdited($0) }
+            || loans.contains { isEdited($0) }
+            || lendings.contains { isEdited($0) }
+            || charges.contains { isEdited($0) }
+            || sources.contains { isEdited($0) }
     }
 
     // MARK: - Totals as they would be saved
@@ -433,5 +535,26 @@ struct SnapshotView: View {
         snapshot.chargeLines = chargeLines
         if existing == nil { context.insert(snapshot) }
         dismiss()
+    }
+}
+
+private extension Optional where Wrapped == Double {
+    /// Different amounts, ignoring rounding from typing them.
+    func differs(from other: Double?) -> Bool {
+        switch (self, other) {
+        case (nil, nil): return false
+        case let (a?, b?): return abs(a - b) > 0.000_5
+        default: return true
+        }
+    }
+}
+
+private extension SnapshotDraft {
+    func differs(from other: SnapshotDraft) -> Bool {
+        tracksUnits != other.tracksUnits
+            || quantity.differs(from: other.quantity)
+            || unitPrice.differs(from: other.unitPrice)
+            || value.differs(from: other.value)
+            || invested.differs(from: other.invested)
     }
 }

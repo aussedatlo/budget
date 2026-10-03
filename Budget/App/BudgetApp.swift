@@ -57,7 +57,7 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            MonthlyView(showingSettings: $showingSettings, showingSnapshot: $showingSnapshot)
+            MonthlyView(showingSettings: $showingSettings, showingSnapshot: $showingSnapshot, tab: $selection)
                 .tabItem { Label("Month", systemImage: "calendar") }
                 .tag(Tab.monthly)
             IncomeView(showingSnapshot: $showingSnapshot)

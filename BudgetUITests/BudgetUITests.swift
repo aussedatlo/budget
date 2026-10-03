@@ -58,6 +58,13 @@ final class BudgetUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Savings plan"].waitForExistence(timeout: 5))
         snapshot("05-savings-plan")
         app.buttons["Done"].tap()
+
+        // The income line leads to the Income tab
+        app.swipeDown()
+        let openIncome = app.buttons["open-income"]
+        XCTAssertTrue(openIncome.waitForExistence(timeout: 5))
+        openIncome.tap()
+        XCTAssertTrue(app.staticTexts["Monthly income"].waitForExistence(timeout: 5), "Should open the Income tab")
     }
 
     func testIncome() {
@@ -176,10 +183,12 @@ final class BudgetUITests: XCTestCase {
     func testStats() {
         openTab("Stats")
         XCTAssertTrue(app.staticTexts["Net worth over time"].waitForExistence(timeout: 10))
+        // This month's snapshot is already taken in the demo data
+        XCTAssertFalse(app.buttons["Take a snapshot"].exists, "Nothing to take this month")
         snapshot("11-stats")
 
         // Snapshot of everything: pre-filled with the current state, to check and fix
-        app.buttons["Take a snapshot"].tap()
+        app.buttons["Snapshot"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
         let income = app.textFields["snapshot-main-income"]
         XCTAssertTrue(income.waitForExistence(timeout: 5))
@@ -262,6 +271,47 @@ final class BudgetUITests: XCTestCase {
         alert.buttons[current].tap()
         XCTAssertTrue(app.navigationBars["Snapshot"].waitForExistence(timeout: 5))
         app.buttons["Cancel"].tap()
+    }
+
+    /// Leaving a snapshot with changes asks first.
+    func testDiscardSnapshotChanges() {
+        XCTAssertTrue(app.buttons["Snapshot"].firstMatch.waitForExistence(timeout: 10))
+        app.buttons["Snapshot"].firstMatch.tap()
+        let income = app.textFields["snapshot-main-income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 5))
+        income.tap()
+        income.typeText("0")
+        app.buttons["Cancel"].tap()
+        let discard = app.buttons["Discard changes"]
+        XCTAssertTrue(discard.waitForExistence(timeout: 5), "Should ask before losing the changes")
+        snapshot("11h-discard-snapshot")
+        discard.tap()
+        XCTAssertTrue(app.staticTexts["Left after savings"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Snapshot"].exists, "The snapshot should be closed")
+    }
+
+    /// Deleting a snapshot asks first, and can keep that month's values.
+    func testDeleteSnapshot() {
+        openTab("Stats")
+        let current = monthName(monthsAgo: 0)
+        let row = app.staticTexts[current]
+        XCTAssertTrue(scrollUntilVisible(row, maxSwipes: 10), "This month's snapshot should be listed")
+        row.tap()
+        XCTAssertTrue(app.navigationBars[current].waitForExistence(timeout: 5))
+        let delete = app.buttons["Delete this snapshot"]
+        XCTAssertTrue(scrollUntilVisible(delete))
+        delete.tap()
+        let only = app.buttons["Delete the snapshot only"]
+        XCTAssertTrue(only.waitForExistence(timeout: 5), "Should ask before deleting")
+        XCTAssertTrue(app.buttons["Delete it and that month's values"].exists)
+        snapshot("11i-delete-snapshot")
+        only.tap()
+
+        // This month's snapshot is to take again
+        app.swipeDown()
+        app.swipeDown()
+        app.swipeDown()
+        XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 5))
     }
 
     func testSettings() {
