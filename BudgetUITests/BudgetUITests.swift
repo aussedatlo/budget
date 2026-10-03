@@ -120,7 +120,7 @@ final class BudgetUITests: XCTestCase {
     }
 
     func testInvestments() {
-        openTab("Investments")
+        openTab("Wealth")
         XCTAssertTrue(app.staticTexts["Investments value"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["Apartment"].exists, "Home is hidden in investments mode")
         snapshot("06-investments")
@@ -181,7 +181,7 @@ final class BudgetUITests: XCTestCase {
     }
 
     func testStats() {
-        openTab("Stats")
+        openTab("Trends")
         XCTAssertTrue(app.staticTexts["Net worth over time"].waitForExistence(timeout: 10))
         // This month's snapshot is already taken in the demo data
         XCTAssertFalse(app.buttons["Take a snapshot"].exists, "Nothing to take this month")
@@ -216,7 +216,7 @@ final class BudgetUITests: XCTestCase {
         snapshot("11d-stats-snapshots")
 
         // The correction made in the snapshot is the new current state
-        openTab("Month")
+        openTab("Budget")
         let newRent = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '900'")).firstMatch
         XCTAssertTrue(newRent.waitForExistence(timeout: 5), "Rent should be updated")
     }
@@ -226,7 +226,7 @@ final class BudgetUITests: XCTestCase {
         relaunch(missedMonths: 1)
         let missed = monthName(monthsAgo: 1)
 
-        openTab("Stats")
+        openTab("Trends")
         XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
         app.buttons["Take a snapshot"].tap()
         let alert = app.alerts["No snapshot for \(missed)"]
@@ -246,7 +246,7 @@ final class BudgetUITests: XCTestCase {
         let newer = monthName(monthsAgo: 1)
         let current = monthName(monthsAgo: 0)
 
-        openTab("Stats")
+        openTab("Trends")
         XCTAssertTrue(app.buttons["Take a snapshot"].waitForExistence(timeout: 10))
         app.buttons["Take a snapshot"].tap()
         var alert = app.alerts["No snapshot for 2 months"]
@@ -292,7 +292,7 @@ final class BudgetUITests: XCTestCase {
 
     /// Deleting a snapshot asks first, and can keep that month's values.
     func testDeleteSnapshot() {
-        openTab("Stats")
+        openTab("Trends")
         let current = monthName(monthsAgo: 0)
         let row = app.staticTexts[current]
         XCTAssertTrue(scrollUntilVisible(row, maxSwipes: 10), "This month's snapshot should be listed")

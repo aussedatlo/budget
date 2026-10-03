@@ -74,16 +74,16 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selection) {
             MonthlyView(showingSettings: $showingSettings, showingSnapshot: $showingSnapshot, tab: $selection)
-                .tabItem { Label("Month", systemImage: "calendar") }
+                .tabItem { Label("Budget", systemImage: "wallet.pass") }
                 .tag(Tab.monthly)
             IncomeView(showingSnapshot: $showingSnapshot)
                 .tabItem { Label("Income", systemImage: "banknote") }
                 .tag(Tab.income)
             InvestmentsView(showingSnapshot: $showingSnapshot)
-                .tabItem { Label("Investments", systemImage: "chart.line.uptrend.xyaxis") }
+                .tabItem { Label("Wealth", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(Tab.investments)
             StatsView(showingSnapshot: $showingSnapshot)
-                .tabItem { Label("Stats", systemImage: "chart.bar.xaxis") }
+                .tabItem { Label("Trends", systemImage: "chart.bar.xaxis") }
                 .tag(Tab.stats)
         }
         .id(currency)

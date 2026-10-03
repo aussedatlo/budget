@@ -69,7 +69,7 @@ struct InvestmentsView: View {
                 .animation(.snappy, value: investments.count + loans.count)
             }
             .background(Theme.background)
-            .navigationTitle("Investments")
+            .navigationTitle("Wealth")
             .navigationDestination(for: Investment.self) { InvestmentDetailView(investment: $0) }
             .navigationDestination(for: Loan.self) { LoanDetailView(loan: $0) }
             .toolbar {

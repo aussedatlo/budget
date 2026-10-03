@@ -57,7 +57,7 @@ struct MonthlyView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Theme.background)
-            .navigationTitle("This month")
+            .navigationTitle("Budget")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showingSettings = true } label: {
