@@ -67,6 +67,7 @@ struct BudgetApp: App {
                 // A new id rebuilds every screen: tab, sheets and scroll positions
                 .id(demoResets)
                 .demoResets(demoResets) {
+                    DemoData.retire(container)
                     container = DemoData.makeContainer(for: Self.schema)
                     demoResets += 1
                 }

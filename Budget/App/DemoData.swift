@@ -37,6 +37,15 @@ enum DemoData {
     static let resetSignal = "com.example.budget.demo-reset"
     static let resetRequested = Notification.Name("demo-reset-requested")
 
+    /// Stores replaced when starting over. A sheet still sliding away keeps
+    /// showing their models, and reading a model whose store is gone crashes
+    /// the app, so they are kept until the app quits.
+    private static var retired: [ModelContainer] = []
+
+    static func retire(_ container: ModelContainer) {
+        retired.append(container)
+    }
+
     /// Passes the tests' signal on inside the app. Debug builds only.
     static func listenForResets() {
         #if DEBUG

@@ -52,9 +52,18 @@ class BudgetUITestCase: XCTestCase {
         let counter = app.staticTexts["demo-resets"]
         let deadline = Date().addingTimeInterval(5)
         repeat {
-            if counter.exists && counter.label == "\(Self.resets)" { return true }
+            if counter.exists && counter.label == "\(Self.resets)" { break }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
+        guard counter.exists && counter.label == "\(Self.resets)" else { return false }
+
+        // The sheets and keyboard of the previous test slide away after the
+        // reset: wait for them to be gone so this test doesn't tap them.
+        let settled = Date().addingTimeInterval(3)
+        repeat {
+            if app.navigationBars.count <= 1 && !app.keyboards.firstMatch.exists { return true }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < settled
         return false
     }
 
