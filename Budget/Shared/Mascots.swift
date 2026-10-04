@@ -117,13 +117,14 @@ struct FlyingBanknotesView: View {
         return GeometryReader { geometry in
             let width: CGFloat = geometry.size.width
             let height: CGFloat = geometry.size.height
-            let side: CGFloat = width * 0.5
+            let side: CGFloat = width * 0.75
             Moji("💸", size: side)
                 .scaleEffect(x: 1, y: flap)
                 .rotationEffect(.degrees(pitch))
                 .scaleEffect(x: facing, y: 1)
-                .position(x: width / 2 + (width - side) / 2 * across,
-                          y: height / 2 + (height - side) / 2 * upDown)
+                // The loop may reach a little past the box, over the card's padding
+                .position(x: width / 2 + width * 0.22 * across,
+                          y: height / 2 + height * 0.2 * upDown)
         }
     }
 }

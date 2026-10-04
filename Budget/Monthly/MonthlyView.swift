@@ -87,7 +87,7 @@ struct MonthlyView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 18) {
                 FlyingBanknotesView()
-                    .frame(width: 100)
+                    .frame(width: 110)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(left >= 0 ? (savings > 0 ? "Left after savings" : "Left this month") : "Over budget")
                         .font(.subheadline)
