@@ -79,6 +79,14 @@ final class SnapshotFormTests: BudgetUITestCase {
         }
     }
 
+    func testInvestedSoFarIsNotAskedInTheSnapshot() {
+        then("no investment section has an Invested so far field") {
+            XCTAssertTrue(scrollUntilVisible(header("MSCI World")))
+            XCTAssertTrue(scrollUntilVisible(header("Gold coins")))
+            XCTAssertFalse(field("snapshot-invested").exists)
+        }
+    }
+
     func testTotalsFollowWhatIType() {
         given("1,609.02 € left each month") {
             expect(text("€1,609.02"))
@@ -194,6 +202,42 @@ final class SnapshotSwitchesTests: BudgetUITestCase {
             XCTAssertTrue(scrollUntilVisible(text("Gold coins")))
             expect(text("€300.00"))
         }
+    }
+
+    func testInvestedSoFarAddsTheMonthsSavingToThePreviousValues() {
+        given("Gold coins saves 300 € a month and had 4,292 € invested last month") {
+            openSnapshot()
+        }
+        when("I save the snapshot") {
+            save()
+            expectNo(screen("Snapshot"))
+        }
+        then("Gold coins shows 4,592 € invested so far") {
+            openGoldCoins()
+            expect(text(containing: "Invested €4,592.00"))
+        }
+    }
+
+    func testASavingSwitchedOffAddsNothingToInvestedSoFar() {
+        given("Gold coins had 4,292 € invested last month") {
+            openSnapshot()
+        }
+        when("I switch off Gold coins under Monthly savings and save") {
+            flip(toggle(goldCoins))
+            save()
+            expectNo(screen("Snapshot"))
+        }
+        then("Gold coins shows 4,292 € invested so far") {
+            openGoldCoins()
+            expect(text(containing: "Invested €4,292.00"))
+        }
+    }
+
+    private func openGoldCoins() {
+        openTab("Wealth")
+        XCTAssertTrue(scrollUntilVisible(text("Gold coins")))
+        tap(text("Gold coins"))
+        expect(screen("Gold coins"))
     }
 
     func testSwitchingOffARepaymentCountsAsAChange() {

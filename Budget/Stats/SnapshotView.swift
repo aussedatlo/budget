@@ -108,7 +108,8 @@ struct SnapshotView: View {
                 savingsSection
                 ForEach(investments) { investment in
                     Section {
-                        SnapshotFields(draft: draftBinding(for: investment), showsDate: false, showsUnitsToggle: false)
+                        SnapshotFields(draft: draftBinding(for: investment), showsDate: false, showsUnitsToggle: false,
+                                       showsInvested: false)
                     } header: {
                         itemHeader(investment.displayEmoji, investment.name, edited: isEdited(investment))
                     } footer: {
@@ -162,15 +163,6 @@ struct SnapshotView: View {
                 Button(currentMonth.monthName) { month = currentMonth }
             } message: {
                 Text(missedMessage)
-            }
-            .onChange(of: month) {
-                // Edited values follow the month too ("invested so far" from the plan)
-                let date = self.date
-                for (id, var draft) in drafts {
-                    draft.date = date
-                    draft.applyPlan()
-                    drafts[id] = draft
-                }
             }
             .navigationTitle("Snapshot")
             .navigationBarTitleDisplayMode(.inline)
@@ -351,12 +343,9 @@ struct SnapshotView: View {
         drafts[investment.persistentModelID] ?? baseDraft(of: investment)
     }
 
-    /// The latest values, with the savings plan added up to the snapshot's month.
+    /// The latest values; "invested so far" is worked out when saving.
     private func baseDraft(of investment: Investment) -> SnapshotDraft {
-        var draft = SnapshotDraft(from: investment.latest, monthlyContribution: investment.monthlyContribution)
-        draft.date = date
-        draft.applyPlan()
-        return draft
+        SnapshotDraft(from: investment.latest)
     }
 
     private func loanDraft(of loan: Loan) -> LoanDraft {
@@ -546,6 +535,8 @@ struct SnapshotView: View {
             let existing = investment.entry(inMonthOf: date)
             draft.date = date
             draft.note = existing?.note ?? ""
+            draft.invested = investment.investedForSnapshot(
+                at: date, savingIncluded: !skippedSavings.contains(investment.persistentModelID))
             let entry = existing ?? ValueSnapshot()
             draft.apply(to: entry)
             if existing == nil {
@@ -602,6 +593,5 @@ private extension SnapshotDraft {
             || quantity.differs(from: other.quantity)
             || unitPrice.differs(from: other.unitPrice)
             || value.differs(from: other.value)
-            || invested.differs(from: other.invested)
     }
 }
