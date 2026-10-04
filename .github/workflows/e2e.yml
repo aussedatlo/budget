@@ -9,13 +9,18 @@ concurrency:
 
 jobs:
   ui-tests:
-    name: UI tests (${{ matrix.device }})
+    name: UI tests (${{ matrix.device }}, ${{ matrix.shard }}/4)
     runs-on: macos-15
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         device: [iPad] # add iPhone here to test it too
+        # Every test launches the app again, so the suite is split over
+        # jobs that run at the same time. Keep SHARDS in step with this list.
+        shard: [1, 2, 3, 4]
+    env:
+      SHARDS: 4
 
     steps:
       - uses: actions/checkout@v4
@@ -43,11 +48,26 @@ jobs:
       - name: Run UI tests
         run: |
           set -o pipefail
+          ONLY="$(python3 .github/scripts/shard_tests.py BudgetUITests "${{ matrix.shard }}" "$SHARDS")"
           xcodebuild test -project Budget.xcodeproj -scheme Budget \
             -destination "id=$UDID" \
+            $ONLY \
             -resultBundlePath "$RUNNER_TEMP/UITests.xcresult" \
             -parallel-testing-enabled NO \
             -quiet
+
+      - name: List failures
+        if: failure()
+        run: |
+          [ -d "$RUNNER_TEMP/UITests.xcresult" ] || exit 0
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/UITests.xcresult" --format json |
+            python3 -c '
+          import json, sys
+          for f in json.load(sys.stdin).get("testFailures", []):
+              name = f.get("testName", "test")
+              text = f.get("failureText", "").replace("\n", " ")
+              print(f"::error title={name}::{text}")
+          '
 
       - name: Collect screenshots
         if: always()
@@ -66,14 +86,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-${{ matrix.device }}
+          name: screenshots-${{ matrix.device }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/screenshots
 
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: xcresult-${{ matrix.device }}
+          name: xcresult-${{ matrix.device }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/UITests.xcresult
 
   # Publishes the screenshots to the `ci-screenshots` branch and shows them
