@@ -125,25 +125,29 @@ struct InvestmentsView: View {
     private var header: some View {
         let total = showsNetWorth ? netWorth : value
         return VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text(showsNetWorth ? "Net worth" : "Investments value")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.softInk)
-                    Spacer()
-                    if hasNetWorthExtras {
-                        NetWorthButton(isOn: $includeHome)
+            HStack(alignment: .center, spacing: 18) {
+                FlyingBanknotesView(flips: confetti)
+                    .frame(width: 100)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(showsNetWorth ? "Net worth" : "Investments value")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.softInk)
+                        Spacer()
+                        if hasNetWorthExtras {
+                            NetWorthButton(isOn: $includeHome)
+                        }
                     }
+                    Text(total.currency)
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText(value: total))
+                        .animation(.snappy, value: total)
+                        .accessibilityIdentifier("wealth-total")
                 }
-                Text(total.currency)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .contentTransition(.numericText(value: total))
-                    .animation(.snappy, value: total)
-                    .accessibilityIdentifier("wealth-total")
             }
             FlowChips {
                 if showsNetWorth {

@@ -27,6 +27,15 @@ final class WealthOverviewTests: BudgetUITestCase {
         screenshot("04-wealth")
     }
 
+    func testFlyingBanknotesNextToTheTotal() {
+        given("the demo data")
+        then("banknotes with wings fly next to Investments value") {
+            let banknotes = app.descendants(matching: .any)["flying-banknotes"].firstMatch
+            expect(banknotes, timeout: 10)
+            XCTAssertLessThanOrEqual(banknotes.frame.maxX, text("Investments value").frame.minX)
+        }
+    }
+
     func testSwitchToNetWorth() {
         when("I tap the bank button next to Investments value") {
             tap(button("Show net worth"))

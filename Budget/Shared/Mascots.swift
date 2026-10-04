@@ -71,3 +71,52 @@ struct MoneyBagView: View {
         }
     }
 }
+
+/// Banknotes with wings, flying a loop around their box, turning back at
+/// each end. They do a somersault each time `flips` goes up.
+struct FlyingBanknotesView: View {
+    var flips = 0
+
+    var body: some View {
+        KeyframeAnimator(initialValue: 0.0, trigger: flips) { spin in
+            // Frozen during UI tests so XCTest can wait for the app to be idle
+            TimelineView(.animation(paused: DemoData.isEnabled)) { timeline in
+                banknotes(time: timeline.date.timeIntervalSinceReferenceDate, spin: spin)
+            }
+        } keyframes: { _ in
+            KeyframeTrack {
+                CubicKeyframe(-360, duration: 0.8)
+                LinearKeyframe(0, duration: 0.01)
+            }
+        }
+        .aspectRatio(1.15, contentMode: .fit)
+        .accessibilityElement()
+        .accessibilityLabel("Flying banknotes")
+        .accessibilityIdentifier("flying-banknotes")
+    }
+
+    /// The banknotes where they are at `time`, spun by `spin` degrees.
+    private func banknotes(time: Double, spin: Double) -> some View {
+        // One figure eight every 7 seconds
+        let angle: Double = time * 2 * .pi / 7
+        // Faces where it's going, squeezing flat while it turns around
+        let turn: Double = min(max(cos(angle) * 4, -1), 1)
+        let facing = CGFloat(turn >= 0 ? max(turn, 0.05) : min(turn, -0.05))
+        // Nose down while going down
+        let tilt: Double = cos(angle * 2) * 10 + spin
+        // Wings beating: a quick squeeze up and down
+        let flap = CGFloat(1 + sin(time * 2 * .pi * 3) * 0.08)
+        let across = CGFloat(sin(angle))
+        let upDown = CGFloat(sin(angle * 2))
+        return GeometryReader { geometry in
+            let width: CGFloat = geometry.size.width
+            let height: CGFloat = geometry.size.height
+            let side: CGFloat = width * 0.6
+            Moji("💸", size: side)
+                .scaleEffect(x: 1, y: flap)
+                .rotationEffect(.degrees(tilt))
+                .scaleEffect(x: facing, y: 1)
+                .position(x: width / 2 + (width - side) / 2 * across, y: height / 2 + height * 0.14 * upDown)
+        }
+    }
+}
