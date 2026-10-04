@@ -56,18 +56,19 @@ final class SnapshotFormTests: BudgetUITestCase {
             XCTAssertEqual(lucas.value as? String, "1")
         }
         screenshot("07-snapshot")
-        and("each charge shows its amount, largest first") {
-            let rent = field("snapshot-charge-Rent")
-            XCTAssertTrue(scrollUntilVisible(rent))
-            XCTAssertEqual(rent.value as? String, "850")
-            XCTAssertTrue(scrollUntilVisible(field("snapshot-charge-Electricity")))
-            XCTAssertTrue(isAbove(rent, field("snapshot-charge-Electricity")))
-        }
         and("Monthly savings lists each planned saving with its switch, switched on") {
             let gold = toggle("snapshot-saving-toggle-Gold coins")
             XCTAssertTrue(scrollUntilVisible(gold))
             XCTAssertEqual(gold.value as? String, "1")
             XCTAssertTrue(toggle("snapshot-saving-toggle-Savings account").exists)
+        }
+        and("each charge shows its amount, largest first, under Monthly savings") {
+            let rent = field("snapshot-charge-Rent")
+            XCTAssertTrue(scrollUntilVisible(rent))
+            XCTAssertEqual(rent.value as? String, "850")
+            XCTAssertTrue(isAbove(toggle("snapshot-saving-toggle-Savings account"), rent))
+            XCTAssertTrue(scrollUntilVisible(field("snapshot-charge-Electricity")))
+            XCTAssertTrue(isAbove(rent, field("snapshot-charge-Electricity")))
         }
         and("each investment and the home loan has its own section") {
             XCTAssertTrue(scrollUntilVisible(header("MSCI World")))

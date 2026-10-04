@@ -104,8 +104,8 @@ struct SnapshotView: View {
                     Text(summaryFooter)
                 }
                 incomeSection
-                chargesSection
                 savingsSection
+                chargesSection
                 ForEach(investments) { investment in
                     Section {
                         SnapshotFields(draft: draftBinding(for: investment), showsDate: false, showsUnitsToggle: false,
