@@ -2,25 +2,64 @@ name: E2E tests
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
-  group: e2e-${{ github.event.pull_request.number }}
+  # Adding a label other than `all-tests` runs nothing, and gets its own
+  # group so it never cancels a running test run.
+  group: e2e-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'all-tests' && github.run_id || 'tests' }}
   cancel-in-progress: true
 
 jobs:
-  ui-tests:
-    name: UI tests (${{ matrix.device }}, ${{ matrix.shard }}/4)
+  # Picks the test classes this pull request can break, from the files it
+  # changes (.github/scripts/impacted_tests.py). The `all-tests` label runs
+  # every test. Nothing runs on macOS when no test is concerned.
+  plan:
+    name: Pick the tests to run
+    runs-on: ubuntu-latest
+    outputs:
+      classes: ${{ steps.pick.outputs.classes }}
+      shards: ${{ steps.pick.outputs.shards }}
+      count: ${{ steps.pick.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pick the tests
+        id: pick
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          ALL: ${{ contains(github.event.pull_request.labels.*.name, 'all-tests') }}
+          OTHER_LABEL: ${{ github.event.action == 'labeled' && github.event.label.name != 'all-tests' }}
+          MAX_SHARDS: 4
+        run: |
+          set -euo pipefail
+          if [ "$OTHER_LABEL" = "true" ]; then
+            echo "Only a label was added: nothing to run"
+            : > changed.txt
+          elif [ "$ALL" = "true" ]; then
+            echo "The all-tests label is set: running every test"
+            echo "BudgetUITests/BudgetUITestCase.swift" > changed.txt
+          else
+            git diff --name-only "$BASE...$HEAD" > changed.txt
+          fi
+          python3 .github/scripts/impacted_tests.py BudgetUITests "$MAX_SHARDS" < changed.txt > picked.txt
+          cat picked.txt >> "$GITHUB_OUTPUT"
+          echo "count=$(sed -n 's/^shards=//p' picked.txt | python3 -c 'import json, sys; print(len(json.load(sys.stdin)))')" >> "$GITHUB_OUTPUT"
+
+  # Builds the app and the tests once. The test jobs download the result
+  # and only run the tests, so none of them compiles anything.
+  build:
+    name: Build for testing
+    needs: plan
+    if: needs.plan.outputs.count != '0'
     runs-on: macos-15
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        device: [iPad] # add iPhone here to test it too
-        # Every test launches the app again, so the suite is split over
-        # jobs that run at the same time. Keep SHARDS in step with this list.
-        shard: [1, 2, 3, 4]
+    timeout-minutes: 30
     env:
-      SHARDS: 4
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -34,26 +73,114 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
-      - name: Boot ${{ matrix.device }} simulator
+      # Building for the same simulator model the tests use keeps it to one
+      # architecture.
+      - name: Build for testing
+        run: |
+          set -euo pipefail
+          UDID="$(xcrun simctl list devices available -j | python3 .github/scripts/pick_simulator.py iPad)"
+          xcodebuild build-for-testing -project Budget.xcodeproj -scheme Budget \
+            -destination "id=$UDID" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -quiet
+          # tar keeps the executable bits that the artifact upload would drop
+          mkdir -p "$RUNNER_TEMP/build"
+          tar -C "$RUNNER_TEMP/DerivedData/Build" -czf "$RUNNER_TEMP/build/Products.tar.gz" Products
+
+      # How long each test class took in the latest run, to split the tests
+      # by duration (saved by the `timings` job below).
+      - uses: actions/cache/restore@v4
+        with:
+          path: ui-test-timings.json
+          key: ui-test-timings-${{ github.run_id }}
+          restore-keys: ui-test-timings-
+
+      - name: Keep the timings with the build
+        run: cp ui-test-timings.json "$RUNNER_TEMP/build/" 2>/dev/null || echo '{}' > "$RUNNER_TEMP/build/ui-test-timings.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-tests-build
+          path: ${{ runner.temp }}/build
+          retention-days: 1
+          if-no-files-found: error
+
+  ui-tests:
+    name: UI tests (${{ matrix.device }}, ${{ matrix.shard }}/${{ needs.plan.outputs.count }})
+    needs: [plan, build]
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPad] # add iPhone here to test it too
+        # The tests are split over jobs that run at the same time (up to 4,
+        # fewer for a few tests), by the duration of each test class in the
+        # latest run.
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    env:
+      SHARDS: ${{ needs.plan.outputs.count }}
+      TEST_CLASSES: ${{ needs.plan.outputs.classes }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # The first boot of a simulator is the slowest, so it starts now and
+      # finishes while the build is downloaded.
+      - name: Start booting the ${{ matrix.device }} simulator
         run: |
           set -euo pipefail
           UDID="$(xcrun simctl list devices available -j | python3 .github/scripts/pick_simulator.py "${{ matrix.device }}")"
           xcrun simctl boot "$UDID"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-tests-build
+          path: ${{ runner.temp }}/build
+
+      - name: Unpack the build
+        run: |
+          set -euo pipefail
+          tar -C "$RUNNER_TEMP/build" -xzf "$RUNNER_TEMP/build/Products.tar.gz"
+          XCTESTRUN="$(ls "$RUNNER_TEMP"/build/Products/*.xctestrun | head -n 1)"
+          echo "XCTESTRUN=$XCTESTRUN" >> "$GITHUB_ENV"
+
+      # One simulator per job: a standard macOS runner is too small for two
+      # (clones fail to boot and every test gets slower).
+      # Right after booting, the simulator is still busy and the first app
+      # launches time out ("Failed to get background assertion"), so the app
+      # is installed and opened once (on the demo data) before the tests.
+      - name: Wait for the simulator and open the app once
+        run: |
+          set -euo pipefail
           xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$RUNNER_TEMP/build/Products/Debug-iphonesimulator/Budget.app"
+          for attempt in 1 2 3; do
+            xcrun simctl launch "$UDID" com.example.budget -demo-data && break
+            echo "Launch $attempt failed, waiting"; sleep 15
+          done
+          sleep 10
+          xcrun simctl terminate "$UDID" com.example.budget || true
           # Clean, consistent status bar for screenshots
           xcrun simctl status_bar "$UDID" override --time 9:41 \
             --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4
-          echo "UDID=$UDID" >> "$GITHUB_ENV"
 
       - name: Run UI tests
         run: |
           set -o pipefail
-          ONLY="$(python3 .github/scripts/shard_tests.py BudgetUITests "${{ matrix.shard }}" "$SHARDS")"
-          xcodebuild test -project Budget.xcodeproj -scheme Budget \
+          ONLY="$(python3 .github/scripts/shard_tests.py BudgetUITests "${{ matrix.shard }}" "$SHARDS" "$RUNNER_TEMP/build/ui-test-timings.json")"
+          # A failing test is tried once more before it counts as failed
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN" \
             -destination "id=$UDID" \
             $ONLY \
             -resultBundlePath "$RUNNER_TEMP/UITests.xcresult" \
             -parallel-testing-enabled NO \
+            -retry-tests-on-failure -test-iterations 2 \
             -quiet
 
       - name: List failures
@@ -69,17 +196,20 @@ jobs:
               print(f"::error title={name}::{text}")
           '
 
-      - name: Collect screenshots
+      - name: Collect screenshots and timings
         if: always()
         run: |
           set -euo pipefail
           OUT="$RUNNER_TEMP/screenshots/${{ matrix.device }}"
-          mkdir -p "$OUT"
+          mkdir -p "$OUT" "$RUNNER_TEMP/timings"
           if [ -d "$RUNNER_TEMP/UITests.xcresult" ]; then
             xcrun xcresulttool export attachments \
               --path "$RUNNER_TEMP/UITests.xcresult" \
               --output-path "$RUNNER_TEMP/attachments"
             python3 .github/scripts/collect_screenshots.py "$RUNNER_TEMP/attachments" "$OUT"
+            xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/UITests.xcresult" --format json |
+              python3 .github/scripts/test_timings.py > "$RUNNER_TEMP/timings/${{ matrix.shard }}.json" ||
+              echo "::warning::Could not read the test timings"
           fi
 
       - name: Upload screenshots
@@ -89,6 +219,15 @@ jobs:
           name: screenshots-${{ matrix.device }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/screenshots
 
+      - name: Upload timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: timings-${{ matrix.device }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/timings
+          retention-days: 1
+          if-no-files-found: ignore
+
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
@@ -96,11 +235,61 @@ jobs:
           name: xcresult-${{ matrix.device }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/UITests.xcresult
 
+  # Keeps how long each test class took, for the next run to split the tests.
+  timings:
+    needs: ui-tests
+    if: always() && needs.ui-tests.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      # Only some classes may have run: the others keep their last timing
+      - uses: actions/cache/restore@v4
+        with:
+          path: ui-test-timings.json
+          key: ui-test-timings-${{ github.run_id }}
+          restore-keys: ui-test-timings-
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: timings-*
+          merge-multiple: true
+          path: timings
+
+      - name: Merge the timings of every job
+        id: merge
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          merged = {}
+          if Path("ui-test-timings.json").is_file():
+              merged = json.loads(Path("ui-test-timings.json").read_text())
+          found = False
+          for part in sorted(Path("timings").glob("*.json")):
+              try:
+                  new = json.loads(part.read_text())
+                  merged.update(new)
+                  found = found or bool(new)
+              except ValueError:
+                  pass
+          Path("ui-test-timings.json").write_text(json.dumps(merged, indent=1, sort_keys=True))
+          print(json.dumps(merged, indent=1, sort_keys=True))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"found={'true' if found else 'false'}\n")
+          PY
+
+      - uses: actions/cache/save@v4
+        if: steps.merge.outputs.found == 'true'
+        with:
+          path: ui-test-timings.json
+          key: ui-test-timings-${{ github.run_id }}
+
   # Publishes the screenshots to the `ci-screenshots` branch and shows them
   # in a single PR comment that is updated on every run.
   comment:
-    needs: ui-tests
-    if: always() && github.event.pull_request.head.repo.full_name == github.repository
+    needs: [plan, ui-tests]
+    if: >-
+      always() && needs.plan.result == 'success' && needs.plan.outputs.count != '0' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write
