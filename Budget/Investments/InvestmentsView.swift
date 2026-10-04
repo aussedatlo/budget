@@ -18,13 +18,10 @@ struct InvestmentsView: View {
     @AppStorage("investmentsHigh") private var investmentsHigh: Double = 0
     /// Off: investments only. On: net worth, including the home, its loan and money lent.
     @AppStorage("includeHome") private var includeHome = false
-    /// Investments left out of the totals for a while, kept in settings rather than in the stored data.
-    @AppStorage(HiddenInvestments.key) private var hiddenData = Data()
+    /// Investments left out of the totals for a while.
+    private let hiddenInvestments = HiddenInvestments.shared
 
-    private func isHidden(_ investment: Investment) -> Bool {
-        HiddenInvestments.ids(in: hiddenData).contains(investment.persistentModelID)
-    }
-    private var counted: [Investment] { investments.filter { !isHidden($0) } }
+    private var counted: [Investment] { investments.filter { !hiddenInvestments.contains($0) } }
     private var hiddenCount: Int { investments.count - counted.count }
 
     private var value: Double { counted.reduce(0) { $0 + $1.currentValue } }
@@ -206,32 +203,37 @@ struct FlowChips<Content: View>: View {
     }
 }
 
-/// Investments left out of the Wealth totals, kept in settings as encoded ids.
-enum HiddenInvestments {
+/// Investments left out of the Wealth totals, kept in settings rather than in the stored data,
+/// and observed by every view that shows them.
+@Observable
+final class HiddenInvestments {
     static let key = "hiddenInvestments"
+    static let shared = HiddenInvestments()
 
-    static func ids(in data: Data) -> Set<PersistentIdentifier> {
-        (try? JSONDecoder().decode(Set<PersistentIdentifier>.self, from: data)) ?? []
+    private(set) var ids: Set<PersistentIdentifier>
+
+    private init() {
+        let data = UserDefaults.standard.data(forKey: Self.key) ?? Data()
+        ids = (try? JSONDecoder().decode(Set<PersistentIdentifier>.self, from: data)) ?? []
     }
 
-    static func data(for ids: Set<PersistentIdentifier>) -> Data {
-        (try? JSONEncoder().encode(ids)) ?? Data()
+    func contains(_ investment: Investment) -> Bool { ids.contains(investment.persistentModelID) }
+
+    func toggle(_ investment: Investment) {
+        if contains(investment) { ids.remove(investment.persistentModelID) } else { ids.insert(investment.persistentModelID) }
+        UserDefaults.standard.set(try? JSONEncoder().encode(ids), forKey: Self.key)
     }
 }
 
 /// The eye on each card: hides the investment from the totals, or shows it again.
-/// Reads the setting itself so it updates on its own.
 private struct EyeButton: View {
     let investment: Investment
-    @AppStorage(HiddenInvestments.key) private var hiddenData = Data()
+    private let hiddenInvestments = HiddenInvestments.shared
 
     var body: some View {
-        let ids = HiddenInvestments.ids(in: hiddenData)
-        let isHidden = ids.contains(investment.persistentModelID)
+        let isHidden = hiddenInvestments.contains(investment)
         Button {
-            var next = ids
-            if isHidden { next.remove(investment.persistentModelID) } else { next.insert(investment.persistentModelID) }
-            withAnimation(.snappy) { hiddenData = HiddenInvestments.data(for: next) }
+            withAnimation(.snappy) { hiddenInvestments.toggle(investment) }
         } label: {
             Image(systemName: isHidden ? "eye.slash" : "eye")
                 .font(.subheadline)
@@ -248,9 +250,9 @@ private struct EyeButton: View {
 
 private struct InvestmentCard: View {
     let investment: Investment
-    @AppStorage(HiddenInvestments.key) private var hiddenData = Data()
+    private let hiddenInvestments = HiddenInvestments.shared
     /// Left out of the totals: dimmed, still listed.
-    private var isHidden: Bool { HiddenInvestments.ids(in: hiddenData).contains(investment.persistentModelID) }
+    private var isHidden: Bool { hiddenInvestments.contains(investment) }
 
     var body: some View {
         HStack(spacing: 12) {
