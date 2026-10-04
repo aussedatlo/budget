@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 /// Monthly income (from the Income tab) minus recurring charges: what's left each month,
-/// shown as a jar that fills up.
+/// next to banknotes with wings flying a figure 8.
 struct MonthlyView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \FixedCharge.amount, order: .reverse) private var charges: [FixedCharge]
@@ -27,7 +27,6 @@ struct MonthlyView: View {
     private var savings: Double { savers.reduce(0) { $0 + $1.monthlyContribution } }
     /// What's really free to spend: income minus charges and planned savings.
     private var left: Double { income - total - savings }
-    private var level: Double { income > 0 ? max(left, 0) / income : 0 }
 
     var body: some View {
         NavigationStack {
@@ -82,13 +81,13 @@ struct MonthlyView: View {
         }
     }
 
-    // MARK: - Header with the jar
+    // MARK: - Header with the flying banknotes
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 18) {
-                JarView(level: level)
-                    .frame(width: 100)
+                FlyingBanknotesView()
+                    .frame(width: 110)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(left >= 0 ? (savings > 0 ? "Left after savings" : "Left this month") : "Over budget")
                         .font(.subheadline)

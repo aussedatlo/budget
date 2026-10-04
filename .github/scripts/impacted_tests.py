@@ -23,9 +23,9 @@ from pathlib import Path
 # App file -> test files that use its screens (in BudgetUITests/)
 TESTS_FOR = {
     "Budget/Monthly/*": ["BudgetTabTests", "SnapshotTests"],
-    "Budget/Shared/JarView.swift": ["BudgetTabTests"],
     "Budget/Shared/ConfettiView.swift": ["WealthTabTests"],
-    "Budget/Shared/PiggyBankView.swift": ["IncomeTabTests"],
+    "Budget/Shared/JarView.swift": ["BudgetTabTests"],  # removed, replaced by Mascots.swift
+    "Budget/Shared/Mascots.swift": ["BudgetTabTests", "IncomeTabTests", "WealthTabTests"],
     "Budget/Income/IncomeView.swift": ["IncomeTabTests", "MoneyLentTests", "SettingsAndLaunchTests"],
     "Budget/Income/LendingViews.swift": ["MoneyLentTests", "IncomeTabTests", "SnapshotTests", "WealthTabTests"],
     "Budget/Investments/SavingsViews.swift": ["BudgetTabTests", "WealthTabTests", "TrendsTabTests"],

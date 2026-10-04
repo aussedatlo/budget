@@ -12,6 +12,11 @@ final class MonthlyBudgetTests: BudgetUITestCase {
             expect(text("Left after savings"))
             expect(text("€1,609.02"))
         }
+        and("banknotes with wings fly next to the amount left") {
+            let banknotes = app.descendants(matching: .any)["flying-banknotes"].firstMatch
+            expect(banknotes)
+            XCTAssertLessThanOrEqual(banknotes.frame.maxX, text("Left after savings").frame.minX)
+        }
         and("under it the income it comes from") {
             XCTAssertTrue(button("open-income").label.contains("€3,150.00"))
         }
