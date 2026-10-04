@@ -105,8 +105,9 @@ struct FlyingBanknotesView: View {
         let dx: Double = next.x - here.x
         let dy: Double = next.y - here.y
         // Faces where it's going, squeezing flat while it turns around
+        // (never thinner than a third, so they don't turn into a sliver)
         let turn: Double = min(max(dx * 60, -1), 1)
-        let facing = CGFloat(turn >= 0 ? max(turn, 0.05) : min(turn, -0.05))
+        let facing = CGFloat(turn >= 0 ? max(turn, 0.35) : min(turn, -0.35))
         // Nose down while going down
         let slope: Double = dy / max(abs(dx), 0.01)
         let pitch: Double = min(max(slope, -1), 1) * 18
