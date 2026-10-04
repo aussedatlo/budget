@@ -23,7 +23,7 @@ struct IncomeBar: View {
         [
             Segment(label: "Charges", amount: charges, color: Theme.accent),
             Segment(label: "Savings", amount: savings, color: Theme.series[1]),
-            Segment(label: "Left", amount: max(left, 0), color: Theme.series[2].opacity(0.35)),
+            Segment(label: "Left", amount: max(left, 0), color: Theme.left.opacity(0.35)),
         ]
     }
 

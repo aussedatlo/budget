@@ -18,7 +18,7 @@ struct JarView: View {
                         .fill(Theme.background)
                     // Content
                     WaveShape(level: level, phase: time * 1.2, amplitude: level > 0 ? 2.5 : 0)
-                        .fill(Theme.accent.opacity(0.55))
+                        .fill(Theme.left.opacity(0.35))
                         .clipShape(JarShape())
                         .animation(.spring(duration: 1.2, bounce: 0.15), value: level)
                     // Shine
