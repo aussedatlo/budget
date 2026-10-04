@@ -5,10 +5,7 @@ description: Use for any feature, behavior or UI change in the Budget app. Updat
 
 # Gherkin first
 
-The Gherkin plan is the spec: the Claude Doc "Budget app: Gherkin plan"
-(https://claude.ai/code/artifact/9bef54b2-460b-42ae-95b8-e4ea0a1a0721).
-
-1. **Plan.** Add or edit the scenario(s) in the doc before touching code.
+1. **Plan.** Add or edit the scenario(s) in the Gherkin plan doc before touching code.
    Remove scenarios for behavior that goes away.
 2. **UI.** Change the app in `Budget/` to match the scenarios exactly.
 3. **Test.** One test per scenario in `BudgetUITests/`, under the matching
