@@ -2,16 +2,59 @@ name: E2E tests
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
-  group: e2e-${{ github.event.pull_request.number }}
+  # Adding a label other than `all-tests` runs nothing, and gets its own
+  # group so it never cancels a running test run.
+  group: e2e-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'all-tests' && github.run_id || 'tests' }}
   cancel-in-progress: true
 
 jobs:
+  # Picks the test classes this pull request can break, from the files it
+  # changes (.github/scripts/impacted_tests.py). The `all-tests` label runs
+  # every test. Nothing runs on macOS when no test is concerned.
+  plan:
+    name: Pick the tests to run
+    runs-on: ubuntu-latest
+    outputs:
+      classes: ${{ steps.pick.outputs.classes }}
+      shards: ${{ steps.pick.outputs.shards }}
+      count: ${{ steps.pick.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pick the tests
+        id: pick
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          ALL: ${{ contains(github.event.pull_request.labels.*.name, 'all-tests') }}
+          OTHER_LABEL: ${{ github.event.action == 'labeled' && github.event.label.name != 'all-tests' }}
+          MAX_SHARDS: 4
+        run: |
+          set -euo pipefail
+          if [ "$OTHER_LABEL" = "true" ]; then
+            echo "Only a label was added: nothing to run"
+            : > changed.txt
+          elif [ "$ALL" = "true" ]; then
+            echo "The all-tests label is set: running every test"
+            echo "BudgetUITests/BudgetUITestCase.swift" > changed.txt
+          else
+            git diff --name-only "$BASE...$HEAD" > changed.txt
+          fi
+          python3 .github/scripts/impacted_tests.py BudgetUITests "$MAX_SHARDS" < changed.txt > picked.txt
+          cat picked.txt >> "$GITHUB_OUTPUT"
+          echo "count=$(sed -n 's/^shards=//p' picked.txt | python3 -c 'import json, sys; print(len(json.load(sys.stdin)))')" >> "$GITHUB_OUTPUT"
+
   # Builds the app and the tests once. The test jobs download the result
   # and only run the tests, so none of them compiles anything.
   build:
     name: Build for testing
+    needs: plan
+    if: needs.plan.outputs.count != '0'
     runs-on: macos-15
     timeout-minutes: 30
     env:
@@ -63,20 +106,21 @@ jobs:
           if-no-files-found: error
 
   ui-tests:
-    name: UI tests (${{ matrix.device }}, ${{ matrix.shard }}/4)
-    needs: build
+    name: UI tests (${{ matrix.device }}, ${{ matrix.shard }}/${{ needs.plan.outputs.count }})
+    needs: [plan, build]
     runs-on: macos-15
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         device: [iPad] # add iPhone here to test it too
-        # The suite is split over jobs that run at the same time, by the
-        # duration of each test class in the latest run. Keep SHARDS in step
-        # with this list.
-        shard: [1, 2, 3, 4]
+        # The tests are split over jobs that run at the same time (up to 4,
+        # fewer for a few tests), by the duration of each test class in the
+        # latest run.
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     env:
-      SHARDS: 4
+      SHARDS: ${{ needs.plan.outputs.count }}
+      TEST_CLASSES: ${{ needs.plan.outputs.classes }}
       # Simulators each job runs at the same time (clones of one device)
       WORKERS: 2
 
@@ -190,6 +234,13 @@ jobs:
     if: always() && needs.ui-tests.result != 'skipped'
     runs-on: ubuntu-latest
     steps:
+      # Only some classes may have run: the others keep their last timing
+      - uses: actions/cache/restore@v4
+        with:
+          path: ui-test-timings.json
+          key: ui-test-timings-${{ github.run_id }}
+          restore-keys: ui-test-timings-
+
       - uses: actions/download-artifact@v4
         with:
           pattern: timings-*
@@ -203,15 +254,20 @@ jobs:
           import json, os
           from pathlib import Path
           merged = {}
+          if Path("ui-test-timings.json").is_file():
+              merged = json.loads(Path("ui-test-timings.json").read_text())
+          found = False
           for part in sorted(Path("timings").glob("*.json")):
               try:
-                  merged.update(json.loads(part.read_text()))
+                  new = json.loads(part.read_text())
+                  merged.update(new)
+                  found = found or bool(new)
               except ValueError:
                   pass
           Path("ui-test-timings.json").write_text(json.dumps(merged, indent=1, sort_keys=True))
           print(json.dumps(merged, indent=1, sort_keys=True))
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-              out.write(f"found={'true' if merged else 'false'}\n")
+              out.write(f"found={'true' if found else 'false'}\n")
           PY
 
       - uses: actions/cache/save@v4
@@ -223,8 +279,10 @@ jobs:
   # Publishes the screenshots to the `ci-screenshots` branch and shows them
   # in a single PR comment that is updated on every run.
   comment:
-    needs: ui-tests
-    if: always() && github.event.pull_request.head.repo.full_name == github.repository
+    needs: [plan, ui-tests]
+    if: >-
+      always() && needs.plan.result == 'success' && needs.plan.outputs.count != '0' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write

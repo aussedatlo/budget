@@ -50,8 +50,9 @@ To add a screen, call `snapshot("NN-name")` in a test. The number sets the order
 
 How the CI keeps the run short:
 
-- One job builds the app and the tests (`build-for-testing`). The 4 test jobs download that build and only run the tests (`test-without-building`).
-- The test classes are split over the 4 jobs by how long each class took in the latest run (`.github/scripts/shard_tests.py`), or by number of tests when no timings are saved yet.
+- Only the tests a pull request can break run: `.github/scripts/impacted_tests.py` maps each app file to the test files that use its screens. Shared code, models, the app setup and the test helpers run every test; README-only changes run none, and no macOS runner starts. Add the `all-tests` label to run everything.
+- One job builds the app and the tests (`build-for-testing`). The test jobs (up to 4, fewer when few tests run) download that build and only run the tests (`test-without-building`).
+- The test classes are split over the jobs by how long each class took in the latest run (`.github/scripts/shard_tests.py`), or by number of tests when no timings are saved yet.
 - Each job runs 2 iPad simulators at the same time (parallel testing on clones of one device). The device is booted while the build downloads, so the slow first boot is out of the way.
 - A failing test is tried once more before it counts as failed.
 

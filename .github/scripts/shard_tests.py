@@ -7,8 +7,11 @@ about the same time: by the durations of a previous run when a timings
 file is given (see test_timings.py), otherwise by the number of tests.
 
 Usage: shard_tests.py <tests-dir> <shard> <shards> [timings.json]   (shards count from 1)
+With $TEST_CLASSES set (space separated, see impacted_tests.py), only
+those classes are split; "all" or unset means every class.
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -27,6 +30,10 @@ for source in sorted(tests_dir.glob("*.swift")):
             current = declared.group(1)
         elif current and re.match(r"\s*func\s+test\w*\s*\(", line):
             classes[current] = classes.get(current, 0) + 1
+
+only = os.environ.get("TEST_CLASSES", "all").split()
+if only and only != ["all"]:
+    classes = {name: tests for name, tests in classes.items() if name in only}
 
 # Seconds per class from a previous run. A class it doesn't know (a new
 # one) is guessed from its number of tests at the average time per test.
