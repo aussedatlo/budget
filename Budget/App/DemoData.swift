@@ -34,7 +34,7 @@ enum DemoData {
 
     /// Sent between processes by the UI tests to get the demo data back as at
     /// launch, which is much faster than launching the app again for every test.
-    static let resetSignal = "com.example.budget.demo-reset"
+    static let resetSignal = "com.aussedatlo.budget.demo-reset"
     static let resetRequested = Notification.Name("demo-reset-requested")
 
     /// Stores replaced when starting over. A sheet still sliding away keeps

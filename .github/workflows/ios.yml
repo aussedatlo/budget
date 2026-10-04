@@ -126,7 +126,7 @@ jobs:
           APP_ID="$(pb Entitlements:application-identifier)"
           BUNDLE_ID="${APP_ID#"$TEAM_ID".}"
           if [[ "$BUNDLE_ID" == *"*"* ]]; then
-            BUNDLE_ID="${BUNDLE_ID_FOR_WILDCARD:-com.example.budget}"
+            BUNDLE_ID="${BUNDLE_ID_FOR_WILDCARD:-com.aussedatlo.budget}"
           fi
 
           if pb ProvisionsAllDevices > /dev/null; then

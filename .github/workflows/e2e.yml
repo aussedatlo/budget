@@ -161,11 +161,11 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$RUNNER_TEMP/build/Products/Debug-iphonesimulator/Budget.app"
           for attempt in 1 2 3; do
-            xcrun simctl launch "$UDID" com.example.budget -demo-data && break
+            xcrun simctl launch "$UDID" com.aussedatlo.budget -demo-data && break
             echo "Launch $attempt failed, waiting"; sleep 15
           done
           sleep 10
-          xcrun simctl terminate "$UDID" com.example.budget || true
+          xcrun simctl terminate "$UDID" com.aussedatlo.budget || true
           # Clean, consistent status bar for screenshots
           xcrun simctl status_bar "$UDID" override --time 9:41 \
             --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4

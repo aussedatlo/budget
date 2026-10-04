@@ -69,13 +69,23 @@ Free-account limits: 3 sideloaded apps at once, 10 App IDs per week.
 
 ## Signing in GitHub Actions (paid account)
 
-You need a paid Apple Developer account. The workflow reads the team ID, bundle ID and export method (App Store / Ad Hoc / Development / Enterprise) **from the provisioning profile**, so you only provide a certificate and a profile.
+You need a paid Apple Developer account. The app's bundle ID is `com.aussedatlo.budget` (set in `project.yml`). The workflow reads the team ID, bundle ID and export method (App Store / Ad Hoc / Development / Enterprise) **from the provisioning profile**, so you only provide a certificate and a profile.
 
 1. In the Apple Developer portal:
-   - Create an App ID, e.g. `com.yourname.budget`.
+   - Create an App ID (Identifiers → App IDs) with the bundle ID `com.aussedatlo.budget`. It needs no extra capability.
    - Create a certificate: **Apple Distribution** for App Store/TestFlight/Ad Hoc, or **Apple Development** for development builds.
    - Create a provisioning profile for that App ID and certificate. For Ad Hoc and Development profiles, include your iPhone's UDID.
-2. Export the certificate and its private key from Keychain Access as a `.p12` file with a password.
+2. Export the certificate and its private key from Keychain Access as a `.p12` file with a password. Without a Mac, make the key, the request and the `.p12` with `openssl`:
+
+   ```sh
+   openssl genrsa -out budget.key 2048
+   openssl req -new -key budget.key -out budget.csr -subj "/CN=Budget/C=FR"
+   # Upload budget.csr when creating the certificate, download distribution.cer, then:
+   openssl x509 -inform DER -in distribution.cer -out distribution.pem
+   openssl pkcs12 -export -legacy -inkey budget.key -in distribution.pem -out cert.p12
+   ```
+
+   Keep `budget.key` and `cert.p12` out of the repository.
 3. Add these **repository secrets** (Settings → Secrets and variables → Actions):
 
    | Secret | Value |
@@ -96,6 +106,15 @@ If the secrets are missing, the signing steps are skipped and you only get the u
 
 - **Ad Hoc / Development profile**: install the `.ipa` on a registered device with Apple Configurator, Xcode (Devices window), or a tool like `ideviceinstaller`.
 - **App Store profile**: distribute via TestFlight (see the optional ASC secrets above).
+
+### TestFlight
+
+1. In [App Store Connect](https://appstoreconnect.apple.com), create the app (Apps → +) with the bundle ID `com.aussedatlo.budget`.
+2. Create an API key (Users and Access → Integrations → App Store Connect API) with the **App Manager** role, and add `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_PRIVATE_KEY` as repository secrets.
+3. Use an **App Store** provisioning profile for `BUILD_PROVISION_PROFILE_BASE64`.
+4. Push a `v*` tag. Once Apple has processed the build (a few minutes), it shows up in the TestFlight app for the internal testers of the app. Builds last 90 days.
+
+The app installed from TestFlight is not the one installed with SideStore: it starts empty, and the data of the other one stays where it is.
 
 ## Credits
 

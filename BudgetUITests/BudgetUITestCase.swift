@@ -46,7 +46,7 @@ class BudgetUITestCase: XCTestCase {
     private func resetDemoData() -> Bool {
         Self.resets += 1
         // Same name as `DemoData.resetSignal` in the app
-        let signal = CFNotificationName("com.example.budget.demo-reset" as CFString)
+        let signal = CFNotificationName("com.aussedatlo.budget.demo-reset" as CFString)
         CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), signal, nil, nil, true)
 
         let counter = app.staticTexts["demo-resets"]
