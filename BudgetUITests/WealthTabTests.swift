@@ -27,6 +27,15 @@ final class WealthOverviewTests: BudgetUITestCase {
         screenshot("04-wealth")
     }
 
+    func testAGrowingSeedlingNextToTheTotal() {
+        given("the demo data")
+        then("a seedling grows and sways next to Investments value") {
+            let seedling = app.descendants(matching: .any)["seedling"].firstMatch
+            expect(seedling, timeout: 10)
+            XCTAssertLessThanOrEqual(seedling.frame.maxX, text("Investments value").frame.minX)
+        }
+    }
+
     func testSwitchToNetWorth() {
         when("I tap the bank button next to Investments value") {
             tap(button("Show net worth"))

@@ -28,7 +28,7 @@ enum Theme {
         Color(light: 0x5E9EA0, dark: 0x82C0C2),
     ]
 
-    /// What's left of the month, in the jar and the income bar.
+    /// What's left of the month, in the income bar.
     static let left = series[2]
 
     /// Money lent to others: a calm blue, apart from the home loan's rose.
