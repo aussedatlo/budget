@@ -17,9 +17,10 @@ struct SnapshotButton: View {
 }
 
 /// The month's snapshot of everything at once: income, recurring charges,
-/// investments, the home loan and money lent. Everything is pre-filled with
+/// investments and the home loan. Everything is pre-filled with
 /// the current values, to check them and fix what moved before saving.
 /// When months were skipped since the last snapshot, it asks which one to do.
+/// Money lent is kept up to date on the Income tab: only its repayments show here.
 struct SnapshotView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -45,7 +46,6 @@ struct SnapshotView: View {
     @State private var chargeDrafts: [PersistentIdentifier: Double?] = [:]
     @State private var drafts: [PersistentIdentifier: SnapshotDraft] = [:]
     @State private var loanDrafts: [PersistentIdentifier: LoanDraft] = [:]
-    @State private var lendingDrafts: [PersistentIdentifier: Double?] = [:]
     /// Repayments and planned savings switched off for this snapshot only.
     @State private var skippedRepayments: Set<PersistentIdentifier> = []
     @State private var skippedSavings: Set<PersistentIdentifier> = []
@@ -127,19 +127,6 @@ struct SnapshotView: View {
                         if let latest = loan.latest {
                             lastRecorded("\(latest.remaining.currency) left to repay, home \(latest.homeValue.currency)",
                                          on: latest.date)
-                        }
-                    }
-                }
-                ForEach(lendings) { lending in
-                    Section {
-                        NumberField(title: "Left to repay", value: lendingBinding(for: lending))
-                    } header: {
-                        itemHeader(lending.emoji, "Lent to \(lending.name)", edited: isEdited(lending))
-                    } footer: {
-                        if let latest = lending.latest {
-                            lastRecorded("\(latest.remaining.currency) left to repay", on: latest.date)
-                        } else {
-                            lastRecorded("\(lending.lent.currency) lent", on: lending.date)
                         }
                     }
                 }
@@ -312,7 +299,7 @@ struct SnapshotView: View {
     private var summaryFooter: String {
         var text = "Everything is pre-filled with your current values. Check them, fix what moved, then save. What you changed shows in color."
         if !isCurrentMonth {
-            text += " Investments, the home loan and money lent start from their latest values: set them to what they were in \(month.monthName)."
+            text += " Investments and the home loan start from their latest values: set them to what they were in \(month.monthName)."
             text += " Income and charges changed here are saved in this past month only: the tabs keep your current state."
         }
         if let previous {
@@ -352,10 +339,6 @@ struct SnapshotView: View {
         loanDrafts[loan.persistentModelID] ?? LoanDraft(from: loan.latest, loan: loan)
     }
 
-    private func lendingRemaining(of lending: Lending) -> Double? {
-        lendingDrafts[lending.persistentModelID] ?? Optional(lending.remaining)
-    }
-
     private func sourceBinding(for source: IncomeSource) -> Binding<SourceDraft> {
         Binding(
             get: { sourceDraft(of: source) },
@@ -384,13 +367,6 @@ struct SnapshotView: View {
         )
     }
 
-    private func lendingBinding(for lending: Lending) -> Binding<Double?> {
-        Binding(
-            get: { lendingRemaining(of: lending) },
-            set: { lendingDrafts[lending.persistentModelID] = .some($0) }
-        )
-    }
-
     // MARK: - What was changed
 
     private func isEdited(_ investment: Investment) -> Bool {
@@ -402,11 +378,6 @@ struct SnapshotView: View {
         guard let draft = loanDrafts[loan.persistentModelID] else { return false }
         let base = LoanDraft(from: loan.latest, loan: loan)
         return draft.remaining.differs(from: base.remaining) || draft.homeValue.differs(from: base.homeValue)
-    }
-
-    private func isEdited(_ lending: Lending) -> Bool {
-        guard let remaining = lendingDrafts[lending.persistentModelID] else { return false }
-        return remaining.differs(from: lending.remaining)
     }
 
     private func isEdited(_ charge: FixedCharge) -> Bool {
@@ -426,7 +397,6 @@ struct SnapshotView: View {
             || !skippedSavings.isEmpty
             || investments.contains { isEdited($0) }
             || loans.contains { isEdited($0) }
-            || lendings.contains { isEdited($0) }
             || charges.contains { isEdited($0) }
             || sources.contains { isEdited($0) }
     }
@@ -444,8 +414,7 @@ struct SnapshotView: View {
 
     /// What `lending` repays this month: never more than what is left.
     private func repayment(of lending: Lending) -> Double {
-        let owed = max(lendingRemaining(of: lending) ?? lending.remaining, 0)
-        return min(lending.monthlyRepayment, owed)
+        min(lending.monthlyRepayment, lending.remaining)
     }
 
     private var repayments: Double {
@@ -478,7 +447,7 @@ struct SnapshotView: View {
             let draft = loanDraft(of: loan)
             total += (draft.homeValue ?? 0) - (draft.remaining ?? 0)
         }
-        for lending in lendings { total += max(lendingRemaining(of: lending) ?? lending.remaining, 0) }
+        for lending in lendings { total += lending.remaining }
         return total
     }
 
@@ -518,17 +487,6 @@ struct SnapshotView: View {
         }
 
         // Values of the month, replacing the ones already recorded that month
-        for lending in lendings {
-            guard let owed = lendingRemaining(of: lending) else { continue }
-            let existing = lending.entry(inMonthOf: date)
-            let entry = existing ?? LendingSnapshot()
-            entry.date = date
-            entry.remaining = max(owed, 0)
-            if existing == nil {
-                context.insert(entry)
-                lending.history.append(entry)
-            }
-        }
         for investment in investments {
             var draft = investmentDraft(of: investment)
             guard draft.isValid else { continue }
