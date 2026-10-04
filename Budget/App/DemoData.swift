@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 /// Sample data used by the UI tests (launch argument `-demo-data`).
 /// Stored in memory only: it never touches the user's real data.
@@ -16,16 +17,47 @@ enum DemoData {
 
     /// Settings that tests expect at their default value. Not passed as
     /// launch arguments: those would override what the app saves during the test.
-    static let resetKeys = ["includeHome", "netWorthHigh", "investmentsHigh"]
+    static let resetKeys = ["includeHome", "netWorthHigh", "investmentsHigh", "hiddenInvestments"]
 
     static func makeContainer(for schema: Schema) -> ModelContainer {
         for key in resetKeys { UserDefaults.standard.removeObject(forKey: key) }
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        // A name of its own, so a store made to start over shares nothing with the one before
+        let configuration = ModelConfiguration(UUID().uuidString, schema: schema, isStoredInMemoryOnly: true)
         let container = try! ModelContainer(for: schema, configurations: configuration)
         let context = ModelContext(container)
         seed(context)
         try? context.save()
         return container
+    }
+
+    // MARK: - Starting over
+
+    /// Sent between processes by the UI tests to get the demo data back as at
+    /// launch, which is much faster than launching the app again for every test.
+    static let resetSignal = "com.example.budget.demo-reset"
+    static let resetRequested = Notification.Name("demo-reset-requested")
+
+    /// Stores replaced when starting over. A sheet still sliding away keeps
+    /// showing their models, and reading a model whose store is gone crashes
+    /// the app, so they are kept until the app quits.
+    private static var retired: [ModelContainer] = []
+
+    static func retire(_ container: ModelContainer) {
+        retired.append(container)
+    }
+
+    /// Passes the tests' signal on inside the app. Debug builds only.
+    static func listenForResets() {
+        #if DEBUG
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(), nil,
+            { _, _, _, _, _ in
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: DemoData.resetRequested, object: nil)
+                }
+            },
+            resetSignal as CFString, nil, .deliverImmediately)
+        #endif
     }
 
     private static func seed(_ context: ModelContext) {
@@ -152,5 +184,30 @@ enum DemoData {
     private static func add(_ snapshot: ValueSnapshot, to investment: Investment, _ context: ModelContext) {
         context.insert(snapshot)
         investment.history.append(snapshot)
+    }
+}
+
+extension View {
+    /// With the demo data, runs `reset` when the UI tests ask to start over, and
+    /// tells them how many times it did: they wait for `count` to go up.
+    @ViewBuilder
+    func demoResets(_ count: Int, perform reset: @escaping () -> Void) -> some View {
+        #if DEBUG
+        if DemoData.isEnabled {
+            onReceive(NotificationCenter.default.publisher(for: DemoData.resetRequested)) { _ in reset() }
+                .overlay(alignment: .topLeading) {
+                    // Invisible, read by the tests
+                    Text("\(count)")
+                        .font(.system(size: 1))
+                        .foregroundStyle(.clear)
+                        .accessibilityIdentifier("demo-resets")
+                        .allowsHitTesting(false)
+                }
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
     }
 }

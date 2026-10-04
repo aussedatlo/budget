@@ -46,6 +46,9 @@ struct SnapshotView: View {
     @State private var drafts: [PersistentIdentifier: SnapshotDraft] = [:]
     @State private var loanDrafts: [PersistentIdentifier: LoanDraft] = [:]
     @State private var lendingDrafts: [PersistentIdentifier: Double?] = [:]
+    /// Repayments and planned savings switched off for this snapshot only.
+    @State private var skippedRepayments: Set<PersistentIdentifier> = []
+    @State private var skippedSavings: Set<PersistentIdentifier> = []
 
     /// Money lent that isn't fully repaid yet.
     private var lendings: [Lending] { allLendings.filter { !$0.isSettled } }
@@ -102,6 +105,7 @@ struct SnapshotView: View {
                 }
                 incomeSection
                 chargesSection
+                savingsSection
                 ForEach(investments) { investment in
                     Section {
                         SnapshotFields(draft: draftBinding(for: investment), showsDate: false, showsUnitsToggle: false)
@@ -206,8 +210,10 @@ struct SnapshotView: View {
                         .accessibilityIdentifier("snapshot-income-\(source.title)")
                 }
             }
-            if repayments > 0 {
-                LabeledContent("Repaid to you", value: repayments.currency)
+            ForEach(lendings.filter { repayment(of: $0) > 0 }) { lending in
+                switchRow("Repaid by \(lending.name)", amount: repayment(of: lending),
+                          isOn: inclusion(of: lending.persistentModelID, in: $skippedRepayments),
+                          identifier: "snapshot-repayment-toggle-\(lending.name)")
             }
         } header: {
             totalHeader("Income", income)
@@ -226,13 +232,54 @@ struct SnapshotView: View {
                             .foregroundStyle(isEdited(charge) ? Theme.accent : Theme.ink)
                     }
                 }
-                if savings > 0 {
-                    LabeledContent("Monthly savings", value: savings.currency)
-                }
             } header: {
                 totalHeader("Recurring charges", chargesTotal)
             }
         }
+    }
+
+    @ViewBuilder
+    private var savingsSection: some View {
+        let planned = investments.filter { $0.monthlyContribution > 0 }
+        if !planned.isEmpty {
+            Section {
+                ForEach(planned) { investment in
+                    switchRow(investment.name, amount: investment.monthlyContribution,
+                              isOn: inclusion(of: investment.persistentModelID, in: $skippedSavings),
+                              identifier: "snapshot-saving-toggle-\(investment.name)")
+                }
+            } header: {
+                totalHeader("Monthly savings", savings)
+            } footer: {
+                Text("Switch off what wasn't paid or saved this month. It only changes this snapshot.")
+            }
+        }
+    }
+
+    /// A repayment or a planned saving, counted in this snapshot or not.
+    private func switchRow(_ title: String, amount: Double, isOn: Binding<Bool>, identifier: String) -> some View {
+        HStack(spacing: 10) {
+            Toggle(title, isOn: isOn)
+                .labelsHidden()
+                .tint(Theme.accent)
+                .accessibilityIdentifier(identifier)
+            Text(title)
+                .foregroundStyle(isOn.wrappedValue ? Theme.ink : Theme.accent)
+            Spacer()
+            Text(amount.currency)
+                .strikethrough(!isOn.wrappedValue)
+                .foregroundStyle(Theme.softInk)
+        }
+    }
+
+    /// On while `id` isn't in `skipped`.
+    private func inclusion(of id: PersistentIdentifier, in skipped: Binding<Set<PersistentIdentifier>>) -> Binding<Bool> {
+        Binding(
+            get: { !skipped.wrappedValue.contains(id) },
+            set: { isOn in
+                if isOn { skipped.wrappedValue.remove(id) } else { skipped.wrappedValue.insert(id) }
+            }
+        )
     }
 
     private func totalHeader(_ title: String, _ total: Double) -> some View {
@@ -386,6 +433,8 @@ struct SnapshotView: View {
     /// Something was changed and would be lost on Cancel.
     private var hasChanges: Bool {
         !note.isEmpty
+            || !skippedRepayments.isEmpty
+            || !skippedSavings.isEmpty
             || investments.contains { isEdited($0) }
             || loans.contains { isEdited($0) }
             || lendings.contains { isEdited($0) }
@@ -404,11 +453,16 @@ struct SnapshotView: View {
         return total
     }
 
+    /// What `lending` repays this month: never more than what is left.
+    private func repayment(of lending: Lending) -> Double {
+        let owed = max(lendingRemaining(of: lending) ?? lending.remaining, 0)
+        return min(lending.monthlyRepayment, owed)
+    }
+
     private var repayments: Double {
         var total = 0.0
-        for lending in lendings {
-            let owed = max(lendingRemaining(of: lending) ?? lending.remaining, 0)
-            total += min(lending.monthlyRepayment, owed)
+        for lending in lendings where !skippedRepayments.contains(lending.persistentModelID) {
+            total += repayment(of: lending)
         }
         return total
     }
@@ -421,7 +475,11 @@ struct SnapshotView: View {
         return total
     }
 
-    private var savings: Double { investments.reduce(0) { $0 + $1.monthlyContribution } }
+    private var savings: Double {
+        investments
+            .filter { !skippedSavings.contains($0.persistentModelID) }
+            .reduce(0) { $0 + $1.monthlyContribution }
+    }
     private var left: Double { income - chargesTotal - savings }
 
     private var netWorth: Double {
@@ -457,9 +515,8 @@ struct SnapshotView: View {
             }
         }
         var repaid = 0.0
-        for lending in lendings {
-            let owed = max(lendingRemaining(of: lending) ?? lending.remaining, 0)
-            let amount = min(lending.monthlyRepayment, owed)
+        for lending in lendings where !skippedRepayments.contains(lending.persistentModelID) {
+            let amount = repayment(of: lending)
             guard amount > 0 else { continue }
             repaid += amount
             incomeLines.append(SnapshotLine(title: "Repaid by \(lending.name)", amount: amount))
