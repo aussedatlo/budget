@@ -121,8 +121,6 @@ jobs:
     env:
       SHARDS: ${{ needs.plan.outputs.count }}
       TEST_CLASSES: ${{ needs.plan.outputs.classes }}
-      # Simulators each job runs at the same time (clones of one device)
-      WORKERS: 2
 
     steps:
       - uses: actions/checkout@v4
@@ -152,16 +150,15 @@ jobs:
           XCTESTRUN="$(ls "$RUNNER_TEMP"/build/Products/*.xctestrun | head -n 1)"
           echo "XCTESTRUN=$XCTESTRUN" >> "$GITHUB_ENV"
 
-      # The tests run on clones of this simulator, which can only be cloned
-      # once shut down. Booting it once already did the slow first-boot work.
-      - name: Wait for the simulator, then shut it down for cloning
+      # One simulator per job: a standard macOS runner is too small for two
+      # (clones fail to boot and every test gets slower).
+      - name: Wait for the simulator
         run: |
+          set -euo pipefail
           xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl shutdown "$UDID"
-
-      # Clean, consistent status bar for screenshots, on every clone as it boots
-      - name: Override the status bar of the simulators
-        run: nohup .github/scripts/override_status_bar.sh > "$RUNNER_TEMP/status_bar.log" 2>&1 &
+          # Clean, consistent status bar for screenshots
+          xcrun simctl status_bar "$UDID" override --time 9:41 \
+            --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4
 
       - name: Run UI tests
         run: |
@@ -172,7 +169,7 @@ jobs:
             -destination "id=$UDID" \
             $ONLY \
             -resultBundlePath "$RUNNER_TEMP/UITests.xcresult" \
-            -parallel-testing-enabled YES -parallel-testing-worker-count "$WORKERS" \
+            -parallel-testing-enabled NO \
             -retry-tests-on-failure -test-iterations 2 \
             -quiet
 
