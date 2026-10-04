@@ -8,19 +8,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ui-tests:
-    name: UI tests (${{ matrix.device }}, ${{ matrix.shard }}/4)
+  # Builds the app and the tests once. The test jobs download the result
+  # and only run the tests, so none of them compiles anything.
+  build:
+    name: Build for testing
     runs-on: macos-15
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        device: [iPad] # add iPhone here to test it too
-        # Every test launches the app again, so the suite is split over
-        # jobs that run at the same time. Keep SHARDS in step with this list.
-        shard: [1, 2, 3, 4]
+    timeout-minutes: 30
     env:
-      SHARDS: 4
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -34,26 +30,106 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
-      - name: Boot ${{ matrix.device }} simulator
+      # Building for the same simulator model the tests use keeps it to one
+      # architecture.
+      - name: Build for testing
+        run: |
+          set -euo pipefail
+          UDID="$(xcrun simctl list devices available -j | python3 .github/scripts/pick_simulator.py iPad)"
+          xcodebuild build-for-testing -project Budget.xcodeproj -scheme Budget \
+            -destination "id=$UDID" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -quiet
+          # tar keeps the executable bits that the artifact upload would drop
+          mkdir -p "$RUNNER_TEMP/build"
+          tar -C "$RUNNER_TEMP/DerivedData/Build" -czf "$RUNNER_TEMP/build/Products.tar.gz" Products
+
+      # How long each test class took in the latest run, to split the tests
+      # by duration (saved by the `timings` job below).
+      - uses: actions/cache/restore@v4
+        with:
+          path: ui-test-timings.json
+          key: ui-test-timings-${{ github.run_id }}
+          restore-keys: ui-test-timings-
+
+      - name: Keep the timings with the build
+        run: cp ui-test-timings.json "$RUNNER_TEMP/build/" 2>/dev/null || echo '{}' > "$RUNNER_TEMP/build/ui-test-timings.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-tests-build
+          path: ${{ runner.temp }}/build
+          retention-days: 1
+          if-no-files-found: error
+
+  ui-tests:
+    name: UI tests (${{ matrix.device }}, ${{ matrix.shard }}/4)
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPad] # add iPhone here to test it too
+        # The suite is split over jobs that run at the same time, by the
+        # duration of each test class in the latest run. Keep SHARDS in step
+        # with this list.
+        shard: [1, 2, 3, 4]
+    env:
+      SHARDS: 4
+      # Simulators each job runs at the same time (clones of one device)
+      WORKERS: 2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # The first boot of a simulator is the slowest, so it starts now and
+      # finishes while the build is downloaded.
+      - name: Start booting the ${{ matrix.device }} simulator
         run: |
           set -euo pipefail
           UDID="$(xcrun simctl list devices available -j | python3 .github/scripts/pick_simulator.py "${{ matrix.device }}")"
           xcrun simctl boot "$UDID"
-          xcrun simctl bootstatus "$UDID" -b
-          # Clean, consistent status bar for screenshots
-          xcrun simctl status_bar "$UDID" override --time 9:41 \
-            --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4
           echo "UDID=$UDID" >> "$GITHUB_ENV"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-tests-build
+          path: ${{ runner.temp }}/build
+
+      - name: Unpack the build
+        run: |
+          set -euo pipefail
+          tar -C "$RUNNER_TEMP/build" -xzf "$RUNNER_TEMP/build/Products.tar.gz"
+          XCTESTRUN="$(ls "$RUNNER_TEMP"/build/Products/*.xctestrun | head -n 1)"
+          echo "XCTESTRUN=$XCTESTRUN" >> "$GITHUB_ENV"
+
+      # The tests run on clones of this simulator, which can only be cloned
+      # once shut down. Booting it once already did the slow first-boot work.
+      - name: Wait for the simulator, then shut it down for cloning
+        run: |
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl shutdown "$UDID"
+
+      # Clean, consistent status bar for screenshots, on every clone as it boots
+      - name: Override the status bar of the simulators
+        run: nohup .github/scripts/override_status_bar.sh > "$RUNNER_TEMP/status_bar.log" 2>&1 &
 
       - name: Run UI tests
         run: |
           set -o pipefail
-          ONLY="$(python3 .github/scripts/shard_tests.py BudgetUITests "${{ matrix.shard }}" "$SHARDS")"
-          xcodebuild test -project Budget.xcodeproj -scheme Budget \
+          ONLY="$(python3 .github/scripts/shard_tests.py BudgetUITests "${{ matrix.shard }}" "$SHARDS" "$RUNNER_TEMP/build/ui-test-timings.json")"
+          # A failing test is tried once more before it counts as failed
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN" \
             -destination "id=$UDID" \
             $ONLY \
             -resultBundlePath "$RUNNER_TEMP/UITests.xcresult" \
-            -parallel-testing-enabled NO \
+            -parallel-testing-enabled YES -parallel-testing-worker-count "$WORKERS" \
+            -retry-tests-on-failure -test-iterations 2 \
             -quiet
 
       - name: List failures
@@ -69,17 +145,20 @@ jobs:
               print(f"::error title={name}::{text}")
           '
 
-      - name: Collect screenshots
+      - name: Collect screenshots and timings
         if: always()
         run: |
           set -euo pipefail
           OUT="$RUNNER_TEMP/screenshots/${{ matrix.device }}"
-          mkdir -p "$OUT"
+          mkdir -p "$OUT" "$RUNNER_TEMP/timings"
           if [ -d "$RUNNER_TEMP/UITests.xcresult" ]; then
             xcrun xcresulttool export attachments \
               --path "$RUNNER_TEMP/UITests.xcresult" \
               --output-path "$RUNNER_TEMP/attachments"
             python3 .github/scripts/collect_screenshots.py "$RUNNER_TEMP/attachments" "$OUT"
+            xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/UITests.xcresult" --format json |
+              python3 .github/scripts/test_timings.py > "$RUNNER_TEMP/timings/${{ matrix.shard }}.json" ||
+              echo "::warning::Could not read the test timings"
           fi
 
       - name: Upload screenshots
@@ -89,12 +168,57 @@ jobs:
           name: screenshots-${{ matrix.device }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/screenshots
 
+      - name: Upload timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: timings-${{ matrix.device }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/timings
+          retention-days: 1
+          if-no-files-found: ignore
+
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: xcresult-${{ matrix.device }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/UITests.xcresult
+
+  # Keeps how long each test class took, for the next run to split the tests.
+  timings:
+    needs: ui-tests
+    if: always() && needs.ui-tests.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: timings-*
+          merge-multiple: true
+          path: timings
+
+      - name: Merge the timings of every job
+        id: merge
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          merged = {}
+          for part in sorted(Path("timings").glob("*.json")):
+              try:
+                  merged.update(json.loads(part.read_text()))
+              except ValueError:
+                  pass
+          Path("ui-test-timings.json").write_text(json.dumps(merged, indent=1, sort_keys=True))
+          print(json.dumps(merged, indent=1, sort_keys=True))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"found={'true' if merged else 'false'}\n")
+          PY
+
+      - uses: actions/cache/save@v4
+        if: steps.merge.outputs.found == 'true'
+        with:
+          path: ui-test-timings.json
+          key: ui-test-timings-${{ github.run_id }}
 
   # Publishes the screenshots to the `ci-screenshots` branch and shows them
   # in a single PR comment that is updated on every run.

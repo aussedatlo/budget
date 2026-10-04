@@ -48,6 +48,13 @@ CI pushes the screenshots to the `ci-screenshots` branch and posts them in a PR 
 
 To add a screen, call `snapshot("NN-name")` in a test. The number sets the order.
 
+How the CI keeps the run short:
+
+- One job builds the app and the tests (`build-for-testing`). The 4 test jobs download that build and only run the tests (`test-without-building`).
+- The test classes are split over the 4 jobs by how long each class took in the latest run (`.github/scripts/shard_tests.py`), or by number of tests when no timings are saved yet.
+- Each job runs 2 iPad simulators at the same time (parallel testing on clones of one device). The device is booted while the build downloads, so the slow first boot is out of the way.
+- A failing test is tried once more before it counts as failed.
+
 ## Installing with a free Apple ID (SideStore)
 
 The iOS build runs only when a `v*` tag is pushed (or when started by hand from the Actions tab). It builds an **unsigned** `Budget-unsigned.ipa`, which needs no secrets. You can download it from the workflow run's artifacts, and it is also attached to the tag's GitHub release, which gives a stable link you can open from the phone.
