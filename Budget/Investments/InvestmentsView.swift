@@ -125,17 +125,16 @@ struct InvestmentsView: View {
     private var header: some View {
         let total = showsNetWorth ? netWorth : value
         return VStack(alignment: .leading, spacing: 12) {
-            if hasNetWorthExtras {
-                Picker("Show", selection: $includeHome.animation(.snappy)) {
-                    Text("Investments").tag(false)
-                    Text("Net worth").tag(true)
-                }
-                .pickerStyle(.segmented)
-            }
             VStack(alignment: .leading, spacing: 2) {
-                Text(showsNetWorth ? "Net worth" : "Investments value")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.softInk)
+                HStack {
+                    Text(showsNetWorth ? "Net worth" : "Investments value")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.softInk)
+                    Spacer()
+                    if hasNetWorthExtras {
+                        NetWorthButton(isOn: $includeHome)
+                    }
+                }
                 Text(total.currency)
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .monospacedDigit()
@@ -222,6 +221,30 @@ final class HiddenInvestments {
     func toggle(_ investment: Investment) {
         if contains(investment) { ids.remove(investment.persistentModelID) } else { ids.insert(investment.persistentModelID) }
         UserDefaults.standard.set(try? JSONEncoder().encode(ids), forKey: Self.key)
+    }
+}
+
+/// The bank next to the header title: adds the home and money lent to the total, or takes them out.
+private struct NetWorthButton: View {
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button {
+            withAnimation(.snappy) { isOn.toggle() }
+        } label: {
+            Image(systemName: isOn ? "building.columns.fill" : "building.columns")
+                .font(.subheadline)
+                .foregroundStyle(isOn ? Theme.accent : Theme.softInk)
+                .frame(width: 48, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // Keep the tap area without making the header taller
+        .padding(.vertical, -12)
+        .padding(.trailing, -14)
+        .accessibilityLabel(isOn ? "Show investments only" : "Show net worth")
+        .accessibilityIdentifier("net-worth-toggle")
+        .sensoryFeedback(.selection, trigger: isOn)
     }
 }
 

@@ -28,10 +28,12 @@ final class WealthOverviewTests: BudgetUITestCase {
     }
 
     func testSwitchToNetWorth() {
-        when("I choose Net worth") {
-            button("Net worth").tap()
+        when("I tap the bank button next to Investments value") {
+            tap(button("Show net worth"))
         }
         then("the header shows net worth with what it's made of") {
+            expect(text("Net worth"))
+            expect(button("Show investments only"))
             expect(text(containing: "Home equity €"))
             expect(text(containing: "Money lent €"))
             expect(text(containing: "Investments €"))
@@ -41,6 +43,20 @@ final class WealthOverviewTests: BudgetUITestCase {
             XCTAssertTrue(isAbove(text("Apartment"), text("Bitcoin")))
         }
         screenshot("05-net-worth")
+    }
+
+    func testSwitchBackToInvestments() {
+        given("net worth is shown") {
+            tap(button("Show net worth"))
+            expect(text("Net worth"))
+        }
+        when("I tap the filled bank button") {
+            tap(button("Show investments only"))
+        }
+        then("the header shows Investments value and the bank button is outlined again") {
+            expect(text("Investments value"))
+            expect(button("Show net worth"))
+        }
     }
 
     private var total: XCUIElement { app.staticTexts["wealth-total"] }
@@ -257,7 +273,7 @@ final class HomeLoanTests: BudgetUITestCase {
     override func setUp() {
         super.setUp()
         openTab("Wealth")
-        button("Net worth").tap()
+        tap(button("Show net worth"))
     }
 
     private func openApartment() {
