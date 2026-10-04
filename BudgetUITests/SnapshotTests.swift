@@ -49,7 +49,11 @@ final class SnapshotFormTests: BudgetUITestCase {
         and("each income line has its switch and amount") {
             XCTAssertEqual(field("snapshot-income-Salary").value as? String, "2500")
             XCTAssertEqual(toggle("snapshot-income-toggle-Tutoring").value as? String, "0")
-            expect(text("Repaid to you"))
+        }
+        and("each repayment of money lent has its switch, switched on") {
+            let lucas = toggle("snapshot-repayment-toggle-Lucas")
+            XCTAssertTrue(scrollUntilVisible(lucas))
+            XCTAssertEqual(lucas.value as? String, "1")
         }
         screenshot("07-snapshot")
         and("each charge shows its amount, largest first") {
@@ -58,6 +62,12 @@ final class SnapshotFormTests: BudgetUITestCase {
             XCTAssertEqual(rent.value as? String, "850")
             XCTAssertTrue(scrollUntilVisible(field("snapshot-charge-Electricity")))
             XCTAssertTrue(isAbove(rent, field("snapshot-charge-Electricity")))
+        }
+        and("Monthly savings lists each planned saving with its switch, switched on") {
+            let gold = toggle("snapshot-saving-toggle-Gold coins")
+            XCTAssertTrue(scrollUntilVisible(gold))
+            XCTAssertEqual(gold.value as? String, "1")
+            XCTAssertTrue(toggle("snapshot-saving-toggle-Savings account").exists)
         }
         and("each investment, the home loan and each money lent has its own section") {
             XCTAssertTrue(scrollUntilVisible(header("MSCI World")))
@@ -114,6 +124,86 @@ final class SnapshotFormTests: BudgetUITestCase {
         then("no question is asked and the month can't be changed") {
             XCTAssertEqual(app.alerts.count, 0)
             XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Month'")).count, 0)
+        }
+    }
+}
+
+/// Feature: Snapshot form, repayments and savings left out this month.
+final class SnapshotSwitchesTests: BudgetUITestCase {
+    private let lucas = "snapshot-repayment-toggle-Lucas"
+    private let goldCoins = "snapshot-saving-toggle-Gold coins"
+
+    func testLeaveOutARepaymentThisMonth() {
+        given("Lucas repays 250 € a month and 1,609.02 € is left each month") {
+            openSnapshot()
+            expect(text("€1,609.02"))
+        }
+        when("I switch off Repaid by Lucas") {
+            flip(toggle(lucas))
+        }
+        then("what is left each month goes down by 250 €") {
+            scrollToTop()
+            expect(text("€1,359.02"))
+        }
+        when("I save") {
+            save()
+            expectNo(screen("Snapshot"))
+        }
+        then("the snapshot has no Repaid by Lucas line") {
+            openTab("Trends")
+            let current = monthName(monthsAgo: 0)
+            tap(text(current))
+            expect(screen(current))
+            XCTAssertTrue(scrollUntilVisible(text("Salary")))
+            XCTAssertFalse(text("Repaid by Lucas").exists)
+            button("Done").tap()
+        }
+        and("the next snapshot starts with Repaid by Lucas switched on again") {
+            openSnapshot()
+            XCTAssertTrue(scrollUntilVisible(toggle(lucas)))
+            XCTAssertEqual(toggle(lucas).value as? String, "1")
+        }
+    }
+
+    func testLeaveOutAMonthlySavingThisMonth() {
+        given("Gold coins saves 300 € a month") {
+            openSnapshot()
+        }
+        when("I switch off Gold coins under Monthly savings") {
+            flip(toggle(goldCoins))
+        }
+        then("what is left each month goes up by 300 €") {
+            scrollToTop()
+            expect(text("€1,909.02"))
+        }
+        when("I save") {
+            save()
+            expectNo(screen("Snapshot"))
+        }
+        then("the snapshot's savings are 200 €") {
+            openTab("Trends")
+            let current = monthName(monthsAgo: 0)
+            tap(text(current))
+            expect(screen(current))
+            expect(anything(containing: "€200.00"))
+            button("Done").tap()
+        }
+        and("the savings plan on the Budget tab still sets 300 € aside for Gold coins") {
+            openTab("Budget")
+            expect(text("€1,609.02"))
+            XCTAssertTrue(scrollUntilVisible(text("Gold coins")))
+            expect(text("€300.00"))
+        }
+    }
+
+    func testSwitchingOffARepaymentCountsAsAChange() {
+        when("I switch off Repaid by Lucas and cancel") {
+            openSnapshot()
+            flip(toggle(lucas))
+            cancel()
+        }
+        then("I am asked before losing it") {
+            expect(button("Discard changes"))
         }
     }
 }
