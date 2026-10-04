@@ -171,9 +171,10 @@ struct IncomeView: View {
     }
 }
 
-/// An income line with a switch: off when it doesn't come in this month.
+/// An income line: tap it to edit it, or to switch it off in the months it
+/// doesn't come in.
 private struct IncomeSourceCard: View {
-    @Bindable var source: IncomeSource
+    let source: IncomeSource
     /// Month of the last snapshot it was counted in, if before this month.
     let lastCounted: Date?
     let edit: () -> Void
@@ -185,33 +186,28 @@ private struct IncomeSourceCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: edit) {
-                HStack(spacing: 12) {
-                    EmojiBubble(emoji: source.emoji, color: Theme.mint)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(source.title)
-                            .font(.headline)
-                            .foregroundStyle(Theme.ink)
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(Theme.softInk)
-                    }
-                    Spacer()
-                    Text(source.amount.currency)
+        Button(action: edit) {
+            HStack(spacing: 12) {
+                EmojiBubble(emoji: source.emoji, color: Theme.mint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(source.title)
                         .font(.headline)
-                        .monospacedDigit()
-                        .foregroundStyle(source.isActive ? Theme.ink : Theme.softInk)
-                        .strikethrough(!source.isActive)
+                        .foregroundStyle(Theme.ink)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(Theme.softInk)
+                        .accessibilityIdentifier("income-status-\(source.title)")
                 }
-                .contentShape(Rectangle())
+                Spacer()
+                Text(source.amount.currency)
+                    .font(.headline)
+                    .monospacedDigit()
+                    .foregroundStyle(source.isActive ? Theme.ink : Theme.softInk)
+                    .strikethrough(!source.isActive)
             }
-            .buttonStyle(SquishyButtonStyle())
-            Toggle(source.title, isOn: $source.isActive.animation(.snappy))
-                .labelsHidden()
-                .tint(Theme.accent)
-                .accessibilityIdentifier("income-toggle-\(source.title)")
+            .contentShape(Rectangle())
         }
+        .buttonStyle(SquishyButtonStyle())
         .opacity(source.isActive ? 1 : 0.7)
         .card(padding: 12)
     }

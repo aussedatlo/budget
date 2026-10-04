@@ -55,7 +55,7 @@ final class LaunchTests: BudgetUITestCase {
             openTab("Income")
             expect(text("Salary"), timeout: 10)
             expect(text("€2,500.00"))
-            XCTAssertEqual(toggle("income-toggle-Salary").value as? String, "1")
+            XCTAssertEqual(incomeStatus("Salary").label, "Counted this month")
         }
         when("the app starts again") {
             launch(demoData: false)

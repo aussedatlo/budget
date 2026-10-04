@@ -27,20 +27,25 @@ final class MonthlyIncomeTests: BudgetUITestCase {
     }
 
     func testSwitchOnIncomeThatOnlyComesInSomeMonths() {
-        let tutoring = toggle("income-toggle-Tutoring")
+        let tutoring = incomeStatus("Tutoring")
         given("Tutoring 150 € is switched off") {
             XCTAssertTrue(scrollUntilVisible(tutoring))
-            XCTAssertEqual(tutoring.value as? String, "0")
-            expect(text("Not this month"))
+            XCTAssertEqual(tutoring.label, "Not this month")
         }
-        when("I switch Tutoring on") {
-            tutoring.tap()
+        when("I switch Tutoring on in its form") {
+            tap(text("Tutoring"))
+            expect(screen("Edit income"))
+            flip(toggle("Counted this month"))
+            save()
+            expectNo(screen("Edit income"))
         }
         then("it is counted this month") {
-            XCTAssertEqual(tutoring.value as? String, "1")
+            XCTAssertTrue(scrollUntilVisible(tutoring))
+            XCTAssertEqual(tutoring.label, "Counted this month")
             expectNo(text("Not this month"))
         }
         and("the monthly income goes up by 150 €") {
+            scrollToTop()
             expect(text("€3,300.00"))
         }
         and("so does the income on the Budget tab") {
@@ -51,13 +56,26 @@ final class MonthlyIncomeTests: BudgetUITestCase {
     }
 
     func testSwitchOffIncomeForThisMonth() {
-        when("I switch Freelance off") {
-            tap(toggle("income-toggle-Freelance"))
+        when("I switch Freelance off in its form") {
+            tap(text("Freelance"))
+            expect(screen("Edit income"))
+            flip(toggle("Counted this month"))
+            save()
+            expectNo(screen("Edit income"))
         }
         then("it stays listed, but isn't counted") {
             expect(text("Freelance"))
-            XCTAssertEqual(toggle("income-toggle-Freelance").value as? String, "0")
+            XCTAssertTrue(incomeStatus("Freelance").label.hasPrefix("Not this month"))
             expect(text("€2,750.00"))
+        }
+    }
+
+    func testIncomeLinesHaveNoSwitch() {
+        given("the demo data")
+        then("the income lines show whether they are counted, without a switch") {
+            expect(incomeStatus("Salary"))
+            XCTAssertEqual(incomeStatus("Salary").label, "Counted this month")
+            XCTAssertFalse(app.switches.firstMatch.exists)
         }
     }
 
@@ -93,10 +111,10 @@ final class IncomeLinesTests: BudgetUITestCase {
             type("300", into: field("income-amount"))
             save()
         }
-        then("Bonus is listed last, switched on") {
+        then("Bonus is listed last, counted this month") {
             XCTAssertTrue(scrollUntilVisible(text("Bonus")))
             XCTAssertTrue(isAbove(text("Tutoring"), text("Bonus")))
-            XCTAssertEqual(toggle("income-toggle-Bonus").value as? String, "1")
+            XCTAssertEqual(incomeStatus("Bonus").label, "Counted this month")
         }
         and("the monthly income goes up by 300 €") {
             scrollToTop()
@@ -111,10 +129,11 @@ final class IncomeLinesTests: BudgetUITestCase {
             type("100", into: field("income-amount"))
             flip(toggle("Counted this month"))
             save()
+            expectNo(screen("New income"))
         }
         then("it is listed but not counted") {
             XCTAssertTrue(scrollUntilVisible(text("Gift")))
-            XCTAssertEqual(toggle("income-toggle-Gift").value as? String, "0")
+            XCTAssertEqual(incomeStatus("Gift").label, "Not this month")
             scrollToTop()
             expect(text("€3,150.00"))
         }
