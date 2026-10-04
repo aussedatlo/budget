@@ -26,6 +26,15 @@ final class MonthlyIncomeTests: BudgetUITestCase {
         screenshot("02-income")
     }
 
+    func testAPiggyBankNextToTheMonthlyIncome() {
+        given("the demo data")
+        then("a piggy bank bounces gently next to Monthly income") {
+            let piggy = app.descendants(matching: .any)["piggy-bank"].firstMatch
+            expect(piggy, timeout: 10)
+            XCTAssertLessThanOrEqual(piggy.frame.maxX, text("Monthly income").frame.minX)
+        }
+    }
+
     func testSwitchOnIncomeThatOnlyComesInSomeMonths() {
         let tutoring = incomeStatus("Tutoring")
         given("Tutoring 150 € is switched off") {

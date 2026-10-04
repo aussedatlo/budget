@@ -14,6 +14,8 @@ struct IncomeView: View {
     @State private var editing: IncomeSource?
     @State private var deleting: IncomeSource?
     @State private var showingRepaid = false
+    /// Goes up with the monthly income: a coin drops into the piggy bank.
+    @State private var coinDrops = 0
 
     private var totals: IncomeTotals { IncomeTotals(sources: sources, lendings: lendings) }
     private var owed: Double { lendings.reduce(0) { $0 + $1.remaining } }
@@ -52,23 +54,30 @@ struct IncomeView: View {
                 withAnimation(.snappy) { context.delete(source) }
             }
             .sensoryFeedback(.success, trigger: sources.count + lendings.count) { old, new in new > old }
+            .onChange(of: totals.total) { old, new in
+                if new > old + 0.01 { coinDrops += 1 }
+            }
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Monthly income")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.softInk)
-                Text(totals.total.currency)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .contentTransition(.numericText(value: totals.total))
-                    .animation(.snappy, value: totals.total)
+            HStack(alignment: .center, spacing: 18) {
+                PiggyBankView(coins: coinDrops)
+                    .frame(width: 100)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Monthly income")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.softInk)
+                    Text(totals.total.currency)
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText(value: totals.total))
+                        .animation(.snappy, value: totals.total)
+                }
             }
             if totals.repayments > 0 {
                 FlowChips {
