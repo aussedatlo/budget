@@ -17,7 +17,7 @@ enum DemoData {
 
     /// Settings that tests expect at their default value. Not passed as
     /// launch arguments: those would override what the app saves during the test.
-    static let resetKeys = ["includeHome", "netWorthHigh", "investmentsHigh"]
+    static let resetKeys = ["includeHome", "netWorthHigh", "investmentsHigh", "hiddenInvestments"]
 
     static func makeContainer(for schema: Schema) -> ModelContainer {
         for key in resetKeys { UserDefaults.standard.removeObject(forKey: key) }

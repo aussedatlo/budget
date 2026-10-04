@@ -42,6 +42,42 @@ final class WealthOverviewTests: BudgetUITestCase {
         }
         screenshot("05-net-worth")
     }
+
+    private var total: XCUIElement { app.staticTexts["wealth-total"] }
+
+    func testHideAnInvestmentFromTheTotal() {
+        given("the demo data")
+        expect(total, timeout: 10)
+        let before = total.label
+        when("I tap the eye on Bitcoin") {
+            tap(button("Hide Bitcoin"))
+        }
+        then("Bitcoin stays listed with a crossed-out eye") {
+            expect(button("Show Bitcoin"))
+            expect(text("Bitcoin"))
+        }
+        and("the total leaves Bitcoin out and a chip says 1 hidden") {
+            expect(text("1 hidden"))
+            XCTAssertNotEqual(total.label, before)
+        }
+    }
+
+    func testShowAHiddenInvestmentAgain() {
+        expect(total, timeout: 10)
+        let before = total.label
+        given("Bitcoin is hidden") {
+            tap(button("Hide Bitcoin"))
+            expect(text("1 hidden"))
+        }
+        when("I tap its crossed-out eye") {
+            tap(button("Show Bitcoin"))
+        }
+        then("Bitcoin counts in the total again and the hidden chip goes away") {
+            expectNo(text("1 hidden"))
+            expect(button("Hide Bitcoin"))
+            XCTAssertEqual(total.label, before)
+        }
+    }
 }
 
 /// Feature: Investments.

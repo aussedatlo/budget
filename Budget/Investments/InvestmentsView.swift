@@ -18,15 +18,27 @@ struct InvestmentsView: View {
     @AppStorage("investmentsHigh") private var investmentsHigh: Double = 0
     /// Off: investments only. On: net worth, including the home, its loan and money lent.
     @AppStorage("includeHome") private var includeHome = false
+    /// Investments left out of the totals for a while, kept in settings rather than in the stored data.
+    @AppStorage("hiddenInvestments") private var hiddenData = Data()
 
-    private var value: Double { investments.reduce(0) { $0 + $1.currentValue } }
-    private var invested: Double { investments.reduce(0) { $0 + $1.investedAmount } }
+    private var hidden: Set<PersistentIdentifier> {
+        (try? JSONDecoder().decode(Set<PersistentIdentifier>.self, from: hiddenData)) ?? []
+    }
+    private func isHidden(_ investment: Investment) -> Bool { hidden.contains(investment.persistentModelID) }
+    private var counted: [Investment] { investments.filter { !isHidden($0) } }
+    private var hiddenCount: Int { investments.count - counted.count }
+
+    private var value: Double { counted.reduce(0) { $0 + $1.currentValue } }
+    private var invested: Double { counted.reduce(0) { $0 + $1.investedAmount } }
     private var gain: Double { value - invested }
     private var homeEquity: Double { loans.reduce(0) { $0 + $1.equity } }
     /// Money lent that hasn't come back yet (detail on the Income tab).
     private var owed: Double { lendings.reduce(0) { $0 + $1.remaining } }
     /// Investments + the part of the home that is ours + money owed to us.
     private var netWorth: Double { value + homeEquity + owed }
+    /// Highs follow everything owned, so hiding or showing an investment never sets one off.
+    private var fullValue: Double { investments.reduce(0) { $0 + $1.currentValue } }
+    private var fullNetWorth: Double { fullValue + homeEquity + owed }
     private var hasNetWorthExtras: Bool { !loans.isEmpty || owed > 0 }
     private var showsNetWorth: Bool { includeHome && hasNetWorthExtras }
     private var showsHome: Bool { showsNetWorth && !loans.isEmpty }
@@ -51,9 +63,10 @@ struct InvestmentsView: View {
                         }
                         ForEach(investments) { investment in
                             NavigationLink(value: investment) {
-                                InvestmentCard(investment: investment)
+                                InvestmentCard(investment: investment, isHidden: isHidden(investment))
                             }
                             .buttonStyle(SquishyButtonStyle())
+                            .overlay(alignment: .trailing) { eyeButton(for: investment) }
                             .contextMenu {
                                 Button("Edit", systemImage: "pencil") { editing = investment }
                                 Button("Delete", systemImage: "trash", role: .destructive) {
@@ -93,14 +106,14 @@ struct InvestmentsView: View {
             .overlay { ConfettiView(trigger: confetti).ignoresSafeArea() }
             .sensoryFeedback(.success, trigger: confetti)
             .onAppear {
-                if netWorthHigh == 0 { netWorthHigh = netWorth }
-                if investmentsHigh == 0 { investmentsHigh = value }
+                if netWorthHigh == 0 { netWorthHigh = fullNetWorth }
+                if investmentsHigh == 0 { investmentsHigh = fullValue }
             }
             // A small celebration only for a new all-time high of what's shown
-            .onChange(of: netWorth) { old, new in
+            .onChange(of: fullNetWorth) { old, new in
                 netWorthHigh = celebrateIfNewHigh(old: old, new: new, high: netWorthHigh, shown: showsNetWorth)
             }
-            .onChange(of: value) { old, new in
+            .onChange(of: fullValue) { old, new in
                 investmentsHigh = celebrateIfNewHigh(old: old, new: new, high: investmentsHigh, shown: !showsNetWorth)
             }
         }
@@ -111,6 +124,26 @@ struct InvestmentsView: View {
         guard new > old + 0.01 else { return high }
         if shown && high > 0 && new > high + 0.01 { confetti += 1 }
         return max(high, new)
+    }
+
+    /// The eye on each card: hides the investment from the totals, or shows it again.
+    private func eyeButton(for investment: Investment) -> some View {
+        let hiddenNow = isHidden(investment)
+        return Button {
+            var ids = hidden
+            if hiddenNow { ids.remove(investment.persistentModelID) } else { ids.insert(investment.persistentModelID) }
+            withAnimation(.snappy) { hiddenData = (try? JSONEncoder().encode(ids)) ?? Data() }
+        } label: {
+            Image(systemName: hiddenNow ? "eye.slash" : "eye")
+                .font(.subheadline)
+                .foregroundStyle(hiddenNow ? Theme.accent : Theme.softInk)
+                .frame(width: 48, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(hiddenNow ? "Show \(investment.name)" : "Hide \(investment.name)")
+        .accessibilityIdentifier("investment-eye-\(investment.name)")
+        .sensoryFeedback(.selection, trigger: hiddenNow)
     }
 
     private var header: some View {
@@ -135,6 +168,7 @@ struct InvestmentsView: View {
                     .minimumScaleFactor(0.6)
                     .contentTransition(.numericText(value: total))
                     .animation(.snappy, value: total)
+                    .accessibilityIdentifier("wealth-total")
             }
             FlowChips {
                 if showsNetWorth {
@@ -149,6 +183,9 @@ struct InvestmentsView: View {
                         text: invested > 0 ? "\(gain.signedCurrency) · \((gain / invested).signedPercent)" : gain.signedCurrency,
                         color: Theme.gain(gain)
                     )
+                }
+                if hiddenCount > 0 {
+                    Chip(text: "\(hiddenCount) hidden", color: Theme.softInk)
                 }
             }
         }
@@ -192,10 +229,13 @@ struct FlowChips<Content: View>: View {
 
 private struct InvestmentCard: View {
     let investment: Investment
+    /// Left out of the totals: dimmed, still listed.
+    var isHidden = false
 
     var body: some View {
         HStack(spacing: 12) {
             EmojiBubble(emoji: investment.displayEmoji, color: investment.kind.color)
+                .opacity(isHidden ? 0.45 : 1)
             VStack(alignment: .leading, spacing: 2) {
                 Text(investment.name)
                     .font(.headline)
@@ -204,6 +244,7 @@ private struct InvestmentCard: View {
                     .font(.caption)
                     .foregroundStyle(Theme.softInk)
             }
+            .opacity(isHidden ? 0.45 : 1)
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 Text(investment.currentValue.currency)
@@ -216,6 +257,9 @@ private struct InvestmentCard: View {
                     background: Theme.gain(investment.gain).opacity(0.12)
                 )
             }
+            .opacity(isHidden ? 0.45 : 1)
+            // Room for the eye button laid over the card
+            Color.clear.frame(width: 24)
         }
         .card(padding: 12)
         .contentShape(Rectangle())
