@@ -152,10 +152,20 @@ jobs:
 
       # One simulator per job: a standard macOS runner is too small for two
       # (clones fail to boot and every test gets slower).
-      - name: Wait for the simulator
+      # Right after booting, the simulator is still busy and the first app
+      # launches time out ("Failed to get background assertion"), so the app
+      # is installed and opened once (on the demo data) before the tests.
+      - name: Wait for the simulator and open the app once
         run: |
           set -euo pipefail
           xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$RUNNER_TEMP/build/Products/Debug-iphonesimulator/Budget.app"
+          for attempt in 1 2 3; do
+            xcrun simctl launch "$UDID" com.example.budget -demo-data && break
+            echo "Launch $attempt failed, waiting"; sleep 15
+          done
+          sleep 10
+          xcrun simctl terminate "$UDID" com.example.budget || true
           # Clean, consistent status bar for screenshots
           xcrun simctl status_bar "$UDID" override --time 9:41 \
             --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4
