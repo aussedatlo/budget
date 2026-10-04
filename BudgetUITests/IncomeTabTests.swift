@@ -26,12 +26,12 @@ final class MonthlyIncomeTests: BudgetUITestCase {
         screenshot("02-income")
     }
 
-    func testAPiggyBankNextToTheMonthlyIncome() {
+    func testAMoneyBagNextToTheMonthlyIncome() {
         given("the demo data")
-        then("a piggy bank bounces gently next to Monthly income") {
-            let piggy = app.descendants(matching: .any)["piggy-bank"].firstMatch
-            expect(piggy, timeout: 10)
-            XCTAssertLessThanOrEqual(piggy.frame.maxX, text("Monthly income").frame.minX)
+        then("a money bag bounces gently next to Monthly income") {
+            let bag = app.descendants(matching: .any)["money-bag"].firstMatch
+            expect(bag, timeout: 10)
+            XCTAssertLessThanOrEqual(bag.frame.maxX, text("Monthly income").frame.minX)
         }
     }
 

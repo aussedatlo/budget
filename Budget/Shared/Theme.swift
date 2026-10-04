@@ -34,12 +34,6 @@ enum Theme {
     /// Money lent to others: a calm blue, apart from the home loan's rose.
     static let lent = Color(light: 0x6B8CB8, dark: 0x8FAEDA)
 
-    /// The piggy bank on the Income tab, and the coins dropping in.
-    static let piggy = Color(light: 0xF4C2CE, dark: 0xD98C9E)
-    static let piggyDark = Color(light: 0xE79BAE, dark: 0xB86F81)
-    static let coin = Color(light: 0xF0C75E, dark: 0xE8C066)
-    static let coinEdge = Color(light: 0xC99A2E, dark: 0xB8902F)
-
     static let positive = Color(light: 0x3B8A66, dark: 0x7CC5A1)
     static let negative = Color(light: 0xBF4E63, dark: 0xF08A9C)
 

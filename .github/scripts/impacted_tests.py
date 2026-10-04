@@ -24,7 +24,7 @@ TESTS_FOR = {
     "Budget/Monthly/*": ["BudgetTabTests", "SnapshotTests"],
     "Budget/Shared/JarView.swift": ["BudgetTabTests"],
     "Budget/Shared/ConfettiView.swift": ["WealthTabTests"],
-    "Budget/Shared/PiggyBankView.swift": ["IncomeTabTests"],
+    "Budget/Shared/Mascots.swift": ["IncomeTabTests"],
     "Budget/Income/IncomeView.swift": ["IncomeTabTests", "MoneyLentTests", "BudgetTabTests",
                                        "SettingsAndLaunchTests"],
     "Budget/Income/LendingViews.swift": ["MoneyLentTests", "IncomeTabTests", "SnapshotTests", "WealthTabTests"],

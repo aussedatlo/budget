@@ -14,7 +14,7 @@ struct IncomeView: View {
     @State private var editing: IncomeSource?
     @State private var deleting: IncomeSource?
     @State private var showingRepaid = false
-    /// Goes up with the monthly income: a coin drops into the piggy bank.
+    /// Goes up with the monthly income: a coin drops into the money bag.
     @State private var coinDrops = 0
 
     private var totals: IncomeTotals { IncomeTotals(sources: sources, lendings: lendings) }
@@ -63,7 +63,7 @@ struct IncomeView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 18) {
-                PiggyBankView(coins: coinDrops)
+                MoneyBagView(coins: coinDrops)
                     .frame(width: 100)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Monthly income")
