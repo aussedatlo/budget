@@ -71,6 +71,8 @@ struct SnapshotFields: View {
     @Binding var draft: SnapshotDraft
     var showsDate = true
     var showsUnitsToggle = true
+    /// Off in the monthly snapshot, which works it out from the previous values.
+    var showsInvested = true
 
     var body: some View {
         if showsDate {
@@ -87,11 +89,13 @@ struct SnapshotFields: View {
         } else {
             NumberField(title: "Value", value: $draft.value, identifier: "snapshot-value")
         }
-        NumberField(title: "Invested so far", value: $draft.invested, identifier: "snapshot-invested")
-        if draft.plannedAddition > 0 {
-            Text("Includes \(draft.plannedAddition.signedCurrency) from the savings plan. Change it if this month was different.")
-                .font(.footnote)
-                .foregroundStyle(Theme.softInk)
+        if showsInvested {
+            NumberField(title: "Invested so far", value: $draft.invested, identifier: "snapshot-invested")
+            if draft.plannedAddition > 0 {
+                Text("Includes \(draft.plannedAddition.signedCurrency) from the savings plan. Change it if this month was different.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.softInk)
+            }
         }
     }
 }

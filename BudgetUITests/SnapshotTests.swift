@@ -56,26 +56,34 @@ final class SnapshotFormTests: BudgetUITestCase {
             XCTAssertEqual(lucas.value as? String, "1")
         }
         screenshot("07-snapshot")
-        and("each charge shows its amount, largest first") {
-            let rent = field("snapshot-charge-Rent")
-            XCTAssertTrue(scrollUntilVisible(rent))
-            XCTAssertEqual(rent.value as? String, "850")
-            XCTAssertTrue(scrollUntilVisible(field("snapshot-charge-Electricity")))
-            XCTAssertTrue(isAbove(rent, field("snapshot-charge-Electricity")))
-        }
         and("Monthly savings lists each planned saving with its switch, switched on") {
             let gold = toggle("snapshot-saving-toggle-Gold coins")
             XCTAssertTrue(scrollUntilVisible(gold))
             XCTAssertEqual(gold.value as? String, "1")
             XCTAssertTrue(toggle("snapshot-saving-toggle-Savings account").exists)
         }
-        and("each investment, the home loan and each money lent has its own section") {
+        and("each charge shows its amount, largest first, under Monthly savings") {
+            let rent = field("snapshot-charge-Rent")
+            XCTAssertTrue(scrollUntilVisible(rent))
+            XCTAssertEqual(rent.value as? String, "850")
+            XCTAssertTrue(isAbove(toggle("snapshot-saving-toggle-Savings account"), rent))
+            XCTAssertTrue(scrollUntilVisible(field("snapshot-charge-Electricity")))
+            XCTAssertTrue(isAbove(rent, field("snapshot-charge-Electricity")))
+        }
+        and("each investment and the home loan has its own section") {
             XCTAssertTrue(scrollUntilVisible(header("MSCI World")))
             XCTAssertTrue(scrollUntilVisible(header("Apartment")))
-            XCTAssertTrue(scrollUntilVisible(header("Lent to Lucas")))
         }
         and("each of those sections says when it was last recorded") {
             expect(text(containing: "Last recorded: "))
+        }
+    }
+
+    func testInvestedSoFarIsNotAskedInTheSnapshot() {
+        then("no investment section has an Invested so far field") {
+            XCTAssertTrue(scrollUntilVisible(header("MSCI World")))
+            XCTAssertTrue(scrollUntilVisible(header("Gold coins")))
+            XCTAssertFalse(field("snapshot-invested").exists)
         }
     }
 
@@ -196,6 +204,42 @@ final class SnapshotSwitchesTests: BudgetUITestCase {
         }
     }
 
+    func testInvestedSoFarAddsTheMonthsSavingToThePreviousValues() {
+        given("Gold coins saves 300 € a month and had 4,292 € invested last month") {
+            openSnapshot()
+        }
+        when("I save the snapshot") {
+            save()
+            expectNo(screen("Snapshot"))
+        }
+        then("Gold coins shows 4,592 € invested so far") {
+            openGoldCoins()
+            expect(text(containing: "Invested €4,592.00"))
+        }
+    }
+
+    func testASavingSwitchedOffAddsNothingToInvestedSoFar() {
+        given("Gold coins had 4,292 € invested last month") {
+            openSnapshot()
+        }
+        when("I switch off Gold coins under Monthly savings and save") {
+            flip(toggle(goldCoins))
+            save()
+            expectNo(screen("Snapshot"))
+        }
+        then("Gold coins shows 4,292 € invested so far") {
+            openGoldCoins()
+            expect(text(containing: "Invested €4,292.00"))
+        }
+    }
+
+    private func openGoldCoins() {
+        openTab("Wealth")
+        XCTAssertTrue(scrollUntilVisible(text("Gold coins")))
+        tap(text("Gold coins"))
+        expect(screen("Gold coins"))
+    }
+
     func testSwitchingOffARepaymentCountsAsAChange() {
         when("I switch off Repaid by Lucas and cancel") {
             openSnapshot()
@@ -208,22 +252,16 @@ final class SnapshotSwitchesTests: BudgetUITestCase {
     }
 }
 
-/// Feature: Snapshot form, money fully repaid.
+/// Feature: Snapshot form, money lent.
 final class SnapshotMoneyLentTests: BudgetUITestCase {
-    func testMoneyFullyRepaidIsLeftOut() {
-        given("money lent to Emma is fully repaid") {
-            openTab("Income")
-            tap(text("Emma"))
-            tap(button("Update what's left"))
-            replace(field("lending-remaining"), with: "0")
-            save()
-            goBack()
-        }
+    func testMoneyLentIsNotAskedInTheSnapshot() {
         when("I open the snapshot") {
             openSnapshot()
         }
-        then("it has a section for Lucas but none for Emma") {
-            XCTAssertTrue(scrollUntilVisible(header("Lent to Lucas")))
+        then("Repaid by Lucas is there but money lent has no section of its own") {
+            XCTAssertTrue(scrollUntilVisible(toggle("snapshot-repayment-toggle-Lucas")))
+            XCTAssertTrue(scrollUntilVisible(header("Apartment")))
+            XCTAssertFalse(header("Lent to Lucas").exists)
             XCTAssertFalse(header("Lent to Emma").exists)
         }
     }

@@ -96,12 +96,25 @@ final class Investment {
     var gain: Double { currentValue - investedAmount }
     var gainRatio: Double { investedAmount > 0 ? gain / investedAmount : 0 }
 
-    /// "Invested so far" expected at `date` from the latest snapshot plus
-    /// the savings plan for each month since.
-    func plannedInvested(at date: Date) -> Double? {
-        guard let latest else { return nil }
-        let months = Calendar.current.monthsBetween(latest.date, date)
-        return latest.invested + monthlyContribution * Double(months)
+    /// "Invested so far" for the snapshot of `date`'s month: the amount
+    /// recorded before that month plus the savings plan for each month since,
+    /// this month's saving left out when it's switched off. Retaking a month
+    /// starts again from the month before, so the saving isn't added twice,
+    /// but an amount corrected by hand on the Wealth tab that month is kept.
+    func investedForSnapshot(at date: Date, savingIncluded: Bool) -> Double {
+        let calendar = Calendar.current
+        let month = calendar.monthInterval(for: date).start
+        let existing = entry(inMonthOf: date)
+        guard let previous = history.filter({ $0.date < month }).max(by: { $0.date < $1.date }) else {
+            return existing?.invested ?? latest?.invested ?? 0
+        }
+        let months = calendar.monthsBetween(previous.date, date)
+        let withSaving = previous.invested + monthlyContribution * Double(months)
+        let withoutSaving = withSaving - monthlyContribution
+        if let existing, abs(existing.invested - withSaving) > 0.005, abs(existing.invested - withoutSaving) > 0.005 {
+            return existing.invested
+        }
+        return savingIncluded ? withSaving : withoutSaving
     }
 }
 
