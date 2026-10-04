@@ -150,6 +150,12 @@ class BudgetUITestCase: XCTestCase {
         app.switches[identifier].firstMatch
     }
 
+    /// The line under an income on the Income tab: "Counted this month" or
+    /// "Not this month", maybe followed by when it was last counted.
+    func incomeStatus(_ income: String) -> XCUIElement {
+        app.staticTexts["income-status-\(income)"].firstMatch
+    }
+
     func screen(_ title: String) -> XCUIElement {
         app.navigationBars[title].firstMatch
     }

@@ -249,9 +249,9 @@ final class SavingASnapshotTests: BudgetUITestCase {
         }
         and("Tutoring is switched on in the Income tab") {
             openTab("Income")
-            let tutoring = toggle("income-toggle-Tutoring")
+            let tutoring = incomeStatus("Tutoring")
             XCTAssertTrue(scrollUntilVisible(tutoring))
-            XCTAssertEqual(tutoring.value as? String, "1")
+            XCTAssertEqual(tutoring.label, "Counted this month")
         }
         and("the month is listed on the Trends tab") {
             openTab("Trends")
