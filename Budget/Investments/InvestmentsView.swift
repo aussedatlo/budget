@@ -19,12 +19,11 @@ struct InvestmentsView: View {
     /// Off: investments only. On: net worth, including the home, its loan and money lent.
     @AppStorage("includeHome") private var includeHome = false
     /// Investments left out of the totals for a while, kept in settings rather than in the stored data.
-    @AppStorage("hiddenInvestments") private var hiddenData = Data()
+    @AppStorage(HiddenInvestments.key) private var hiddenData = Data()
 
-    private var hidden: Set<PersistentIdentifier> {
-        (try? JSONDecoder().decode(Set<PersistentIdentifier>.self, from: hiddenData)) ?? []
+    private func isHidden(_ investment: Investment) -> Bool {
+        HiddenInvestments.ids(in: hiddenData).contains(investment.persistentModelID)
     }
-    private func isHidden(_ investment: Investment) -> Bool { hidden.contains(investment.persistentModelID) }
     private var counted: [Investment] { investments.filter { !isHidden($0) } }
     private var hiddenCount: Int { investments.count - counted.count }
 
@@ -63,10 +62,10 @@ struct InvestmentsView: View {
                         }
                         ForEach(investments) { investment in
                             NavigationLink(value: investment) {
-                                InvestmentCard(investment: investment, isHidden: isHidden(investment))
+                                InvestmentCard(investment: investment)
                             }
                             .buttonStyle(SquishyButtonStyle())
-                            .overlay(alignment: .trailing) { eyeButton(for: investment) }
+                            .overlay(alignment: .trailing) { EyeButton(investment: investment) }
                             .contextMenu {
                                 Button("Edit", systemImage: "pencil") { editing = investment }
                                 Button("Delete", systemImage: "trash", role: .destructive) {
@@ -124,26 +123,6 @@ struct InvestmentsView: View {
         guard new > old + 0.01 else { return high }
         if shown && high > 0 && new > high + 0.01 { confetti += 1 }
         return max(high, new)
-    }
-
-    /// The eye on each card: hides the investment from the totals, or shows it again.
-    private func eyeButton(for investment: Investment) -> some View {
-        let hiddenNow = isHidden(investment)
-        return Button {
-            var ids = hidden
-            if hiddenNow { ids.remove(investment.persistentModelID) } else { ids.insert(investment.persistentModelID) }
-            withAnimation(.snappy) { hiddenData = (try? JSONEncoder().encode(ids)) ?? Data() }
-        } label: {
-            Image(systemName: hiddenNow ? "eye.slash" : "eye")
-                .font(.subheadline)
-                .foregroundStyle(hiddenNow ? Theme.accent : Theme.softInk)
-                .frame(width: 48, height: 44)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(hiddenNow ? "Show \(investment.name)" : "Hide \(investment.name)")
-        .accessibilityIdentifier("investment-eye-\(investment.name)")
-        .sensoryFeedback(.selection, trigger: hiddenNow)
     }
 
     private var header: some View {
@@ -227,10 +206,51 @@ struct FlowChips<Content: View>: View {
     }
 }
 
+/// Investments left out of the Wealth totals, kept in settings as encoded ids.
+enum HiddenInvestments {
+    static let key = "hiddenInvestments"
+
+    static func ids(in data: Data) -> Set<PersistentIdentifier> {
+        (try? JSONDecoder().decode(Set<PersistentIdentifier>.self, from: data)) ?? []
+    }
+
+    static func data(for ids: Set<PersistentIdentifier>) -> Data {
+        (try? JSONEncoder().encode(ids)) ?? Data()
+    }
+}
+
+/// The eye on each card: hides the investment from the totals, or shows it again.
+/// Reads the setting itself so it updates on its own.
+private struct EyeButton: View {
+    let investment: Investment
+    @AppStorage(HiddenInvestments.key) private var hiddenData = Data()
+
+    var body: some View {
+        let ids = HiddenInvestments.ids(in: hiddenData)
+        let isHidden = ids.contains(investment.persistentModelID)
+        Button {
+            var next = ids
+            if isHidden { next.remove(investment.persistentModelID) } else { next.insert(investment.persistentModelID) }
+            withAnimation(.snappy) { hiddenData = HiddenInvestments.data(for: next) }
+        } label: {
+            Image(systemName: isHidden ? "eye.slash" : "eye")
+                .font(.subheadline)
+                .foregroundStyle(isHidden ? Theme.accent : Theme.softInk)
+                .frame(width: 48, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isHidden ? "Show \(investment.name)" : "Hide \(investment.name)")
+        .accessibilityIdentifier("investment-eye-\(investment.name)")
+        .sensoryFeedback(.selection, trigger: isHidden)
+    }
+}
+
 private struct InvestmentCard: View {
     let investment: Investment
+    @AppStorage(HiddenInvestments.key) private var hiddenData = Data()
     /// Left out of the totals: dimmed, still listed.
-    var isHidden = false
+    private var isHidden: Bool { HiddenInvestments.ids(in: hiddenData).contains(investment.persistentModelID) }
 
     var body: some View {
         HStack(spacing: 12) {
