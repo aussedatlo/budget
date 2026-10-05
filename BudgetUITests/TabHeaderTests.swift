@@ -8,7 +8,7 @@ final class TabHeaderTests: BudgetUITestCase {
 
     func testTheSameHeaderOnEveryTab() {
         given("the demo data")
-        for (tab, icon, title) in [("Budget", "flying-banknotes", "Left after savings"),
+        for (tab, icon, title) in [("Budget", "budget-banknote", "Left after savings"),
                                    ("Income", "money-bag", "Monthly income"),
                                    ("Wealth", "seedling", "Investments value")] {
             when("I open \(tab)") {
