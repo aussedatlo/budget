@@ -86,7 +86,7 @@ You need a paid Apple Developer account. The workflow reads the team ID, bundle 
 
    Optional:
    - Repository **variable** `BUNDLE_ID`: only needed with a wildcard profile.
-   - `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY` (contents of the `.p8`): an App Store Connect API key. With it, `v*` tags on an App Store profile upload to TestFlight automatically.
+   - `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY` (contents of the `.p8`): an App Store Connect API key. With it, `v*` tags on an App Store profile upload to TestFlight automatically. To try any branch on TestFlight without releasing, run **iOS build** by hand (Actions → iOS build → Run workflow), pick the branch and tick **Upload to TestFlight**.
 
 4. Push a tag such as `v1.0.0`. The run produces a signed `Budget-<n>.ipa` workflow artifact and attaches the `.ipa` to the GitHub release. The build number is the workflow run number.
 

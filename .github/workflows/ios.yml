@@ -5,6 +5,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      testflight:
+        description: Upload to TestFlight (needs an App Store profile and the ASC secrets)
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -237,7 +242,7 @@ jobs:
           steps.signing.outputs.enabled == 'true' &&
           env.EXPORT_METHOD == 'app-store-connect' &&
           env.ASC_KEY_ID != '' &&
-          startsWith(github.ref, 'refs/tags/v')
+          (startsWith(github.ref, 'refs/tags/v') || inputs.testflight)
         env:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
