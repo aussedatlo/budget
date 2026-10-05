@@ -44,7 +44,9 @@ open Budget.xcodeproj
 
 Every pull request runs the UI tests in `BudgetUITests/` on an iPad simulator, split over 4 jobs that run at the same time. The tests launch the app with `-demo-data`, which loads sample data into memory and never touches real data. The app is launched once: before each test it is asked to start over with new sample data (debug builds only), which is much faster than launching it again. Each test is one scenario of the Gherkin plan (Given / When / Then steps, one file per tab). Only the main screens are screenshotted, plus the screen of any failing test.
 
-CI pushes the screenshots to the `ci-screenshots` branch and posts them in a PR comment, which is updated on every run. They are also available as workflow artifacts. Pushes to `main` and tags don't run these tests.
+The tests freeze animations, so after them the first job opens the app again with `-demo-data -demo-animate -demo-tab <tab>` and records a few seconds of the Budget, Income and Wealth tabs, turned into GIFs.
+
+CI pushes the screenshots and GIFs to the `ci-screenshots` branch and posts them in a PR comment, which is updated on every run. They are also available as workflow artifacts. Pushes to `main` and tags don't run these tests.
 
 To add a screen, call `snapshot("NN-name")` in a test. The number sets the order.
 

@@ -183,6 +183,40 @@ jobs:
             -retry-tests-on-failure -test-iterations 2 \
             -quiet
 
+      # A few seconds of each animated mascot, posted as GIFs in the PR
+      # comment. The tests freeze the animations, so the app is opened again
+      # on the demo data with `-demo-animate`, straight on each tab.
+      - name: Record the animations
+        if: always() && matrix.shard == 1
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/recordings/${{ matrix.device }}"
+          mkdir -p "$OUT"
+          for item in monthly:01-budget income:02-income investments:04-wealth; do
+            tab="${item%%:*}"; name="${item#*:}"
+            xcrun simctl terminate "$UDID" com.example.budget || true
+            xcrun simctl launch "$UDID" com.example.budget -demo-data -demo-animate -demo-tab "$tab"
+            sleep 3
+            # One figure 8 of the flying banknotes takes 7 seconds
+            xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$OUT/$name.mp4" &
+            recorder=$!
+            sleep 7
+            kill -INT "$recorder"
+            wait "$recorder" || true
+          done
+          xcrun simctl terminate "$UDID" com.example.budget || true
+          ls -la "$OUT"
+
+      - name: Upload recordings
+        if: always() && matrix.shard == 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: recordings-${{ matrix.device }}
+          path: ${{ runner.temp }}/recordings
+          retention-days: 1
+          if-no-files-found: ignore
+
       - name: List failures
         if: failure()
         run: |
@@ -309,6 +343,31 @@ jobs:
           pattern: screenshots-*
           merge-multiple: true
           path: ${{ runner.temp }}/screenshots
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: recordings-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/recordings
+
+      # GitHub plays GIFs in comments, not videos
+      - name: Turn the recordings into GIFs
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          videos=("$RUNNER_TEMP"/recordings/*/*.mp4)
+          [ ${#videos[@]} -gt 0 ] || exit 0
+          command -v ffmpeg > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null; }
+          for video in "${videos[@]}"; do
+            device="$(basename "$(dirname "$video")")"
+            mkdir -p "$RUNNER_TEMP/screenshots/$device"
+            ffmpeg -loglevel error -y -i "$video" \
+              -vf "fps=12,scale=360:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" \
+              -loop 0 "$RUNNER_TEMP/screenshots/$device/$(basename "${video%.mp4}").gif"
+          done
+          ls -la "$RUNNER_TEMP"/screenshots/*/*.gif
 
       - name: Push screenshots to the ${{ env.BRANCH }} branch
         run: |

@@ -25,6 +25,15 @@ for device_dir in sorted(root.iterdir(), reverse=True):  # iPhone before iPad
         continue
     device = device_dir.name
     images = sorted(device_dir.glob("*.png"))
+    gifs = sorted(device_dir.glob("*.gif"))
+    if gifs:
+        lines.append(f"<details open><summary><b>{device}</b> animations</summary>\n")
+        lines.append("<table>\n<tr>")
+        for gif in gifs:
+            url = f"{base_url}/{device}/{gif.name}?raw=true"
+            label = gif.stem.split("-", 1)[-1].replace("-", " ")
+            lines.append(f'<td align="center"><img src="{url}" width="240" alt="{gif.stem}"><br><sub>{label}</sub></td>')
+        lines.append("</tr>\n</table>\n</details>\n")
     lines.append(f"<details open><summary><b>{device}</b> ({len(images)} screens)</summary>\n")
     if not images:
         lines.append("_No screenshots (the tests probably failed to build or launch)._")

@@ -9,6 +9,17 @@ enum DemoData {
         ProcessInfo.processInfo.arguments.contains("-demo-data")
     }
 
+    /// Animations are frozen on the demo data so XCTest can wait for the app
+    /// to be idle, unless `-demo-animate` is passed (CI records them as GIFs).
+    static var pausesAnimations: Bool {
+        isEnabled && !ProcessInfo.processInfo.arguments.contains("-demo-animate")
+    }
+
+    /// Tab shown at launch on the demo data (`-demo-tab income`), to record it.
+    static var startTab: String? {
+        isEnabled ? UserDefaults.standard.string(forKey: "demo-tab") : nil
+    }
+
     /// Months skipped before the current one (`-demo-missed-months 2`), to test
     /// catching up: their snapshots and the current month's are left out.
     static var missedMonths: Int {
