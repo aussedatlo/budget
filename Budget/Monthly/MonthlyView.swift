@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 /// Monthly income (from the Income tab) minus recurring charges: what's left each month,
-/// next to banknotes with wings flying a figure 8.
+/// next to a floating banknote of the app's currency.
 struct MonthlyView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \FixedCharge.amount, order: .reverse) private var charges: [FixedCharge]
@@ -81,13 +81,13 @@ struct MonthlyView: View {
         }
     }
 
-    // MARK: - Header with the flying banknotes
+    // MARK: - Header with the banknote
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 18) {
-                FlyingBanknotesView()
-                    .frame(width: 110)
+                BanknoteView(hasLeft: left > 0)
+                    .frame(width: 140)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(left >= 0 ? (savings > 0 ? "Left after savings" : "Left this month") : "Over budget")
                         .font(.subheadline)
