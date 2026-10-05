@@ -72,61 +72,45 @@ struct MoneyBagView: View {
     }
 }
 
-/// Banknotes with wings flying a figure 8 tilted across their box,
-/// facing where they go.
-struct FlyingBanknotesView: View {
-    /// Tilt of the figure 8, in radians.
-    private static let tilt = -0.45
+/// A banknote of the app's currency floating next to what's left of the
+/// month, swaying gently. Greyed out when over budget.
+struct BanknoteView: View {
+    /// Whether some of the income is still left this month.
+    var hasLeft = true
+
+    /// 💶 for euros, 💷 pounds, 💴 yen, 💵 for anything else.
+    static var note: String {
+        switch AppSettings.currencyCode {
+        case "EUR": "💶"
+        case "GBP": "💷"
+        case "JPY": "💴"
+        default: "💵"
+        }
+    }
 
     var body: some View {
         // Frozen during UI tests so XCTest can wait for the app to be idle
         TimelineView(.animation(paused: DemoData.pausesAnimations)) { timeline in
-            banknotes(time: timeline.date.timeIntervalSinceReferenceDate)
+            GeometryReader { geometry in
+                note(time: timeline.date.timeIntervalSinceReferenceDate, width: geometry.size.width)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+            }
         }
         .aspectRatio(1, contentMode: .fit)
+        .saturation(hasLeft ? 1 : 0.2)
         .accessibilityElement()
-        .accessibilityLabel("Flying banknotes")
-        .accessibilityIdentifier("flying-banknotes")
+        .accessibilityLabel("Banknote")
+        // Not "banknote": that's the Income tab's symbol, which UI tests find too
+        .accessibilityIdentifier("budget-banknote")
     }
 
-    /// Where the 8 is at `angle`, from -1 to 1 on both axes, tilted.
-    private static func point(_ angle: Double) -> (x: Double, y: Double) {
-        let x = sin(angle)
-        let y = sin(angle * 2) * 0.55
-        return (x * cos(tilt) - y * sin(tilt), x * sin(tilt) + y * cos(tilt))
-    }
-
-    /// The banknotes where they are at `time`.
-    private func banknotes(time: Double) -> some View {
-        // One figure 8 every 7 seconds
-        let angle: Double = time * 2 * .pi / 7
-        let here = Self.point(angle)
-        let next = Self.point(angle + 0.05)
-        let dx: Double = next.x - here.x
-        let dy: Double = next.y - here.y
-        // Faces where it's going, squeezing flat while it turns around
-        // (never thinner than a third, so they don't turn into a sliver)
-        let turn: Double = min(max(dx * 60, -1), 1)
-        let facing = CGFloat(turn >= 0 ? max(turn, 0.35) : min(turn, -0.35))
-        // Nose down while going down
-        let slope: Double = dy / max(abs(dx), 0.01)
-        let pitch: Double = min(max(slope, -1), 1) * 18
-        // Wings beating: a quick squeeze up and down
-        let flap = CGFloat(1 + sin(time * 2 * .pi * 3) * 0.08)
-        let across = CGFloat(here.x)
-        let upDown = CGFloat(here.y)
-        return GeometryReader { geometry in
-            let width: CGFloat = geometry.size.width
-            let height: CGFloat = geometry.size.height
-            let side: CGFloat = width * 0.75
-            Moji("💸", size: side)
-                .scaleEffect(x: 1, y: flap)
-                .rotationEffect(.degrees(pitch))
-                .scaleEffect(x: facing, y: 1)
-                // The loop may reach a little past the box, over the card's padding
-                .position(x: width / 2 + width * 0.22 * across,
-                          y: height / 2 + height * 0.2 * upDown)
-        }
+    /// Floats up and down every 3 seconds and sways every 4.
+    private func note(time: Double, width: CGFloat) -> some View {
+        let wave: Double = sin(time * 2 * .pi / 3)
+        let sway: Double = sin(time * 2 * .pi / 4) * 6
+        return Moji(Self.note, size: width * 0.8)
+            .rotationEffect(.degrees(sway))
+            .offset(y: width * 0.06 * CGFloat(wave))
     }
 }
 

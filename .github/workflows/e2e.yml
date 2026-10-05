@@ -196,9 +196,9 @@ jobs:
           for item in monthly:01-budget income:02-income investments:04-wealth; do
             tab="${item%%:*}"; name="${item#*:}"
             xcrun simctl terminate "$UDID" com.example.budget || true
-            xcrun simctl launch "$UDID" com.example.budget -demo-data -demo-animate -demo-tab "$tab"
+            # In euros, like the tests
+            xcrun simctl launch "$UDID" com.example.budget -demo-data -demo-animate -currencyCode EUR -demo-tab "$tab"
             sleep 3
-            # One figure 8 of the flying banknotes takes 7 seconds
             xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$OUT/$name.mp4" &
             recorder=$!
             sleep 7
