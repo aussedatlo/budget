@@ -45,7 +45,16 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             APP_VERSION="${GITHUB_REF_NAME#v}"
           else
-            APP_VERSION="$(sed -n 's/.*MARKETING_VERSION: *"\(.*\)"/\1/p' project.yml)"
+            # Same version as the latest release tag, so a manual build sits
+            # with that release in TestFlight. Apple allows only digits in the
+            # version: builds of it are told apart by the build number.
+            LATEST_TAG="$(git ls-remote --tags --refs origin 'v*' | sed 's|.*refs/tags/||' |
+              grep -E '^v[0-9]+(\.[0-9]+){0,2}$' | sort -V | tail -n 1)"
+            if [ -n "$LATEST_TAG" ]; then
+              APP_VERSION="${LATEST_TAG#v}"
+            else
+              APP_VERSION="$(sed -n 's/.*MARKETING_VERSION: *"\(.*\)"/\1/p' project.yml)"
+            fi
           fi
           echo "App version: $APP_VERSION (build ${{ github.run_number }})"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
