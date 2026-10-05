@@ -123,19 +123,19 @@ struct CompositionBar: View {
     }
 
     private func legendItem(_ part: BarPart) -> some View {
-        HStack(spacing: 6) {
+        let label = Text(part.label).foregroundStyle(Theme.softInk)
+        let amount = Text(amountText(for: part))
+            .fontWeight(.semibold)
+            .monospacedDigit()
+            .foregroundStyle(part.isWarning ? Theme.negative : Theme.ink)
+        return HStack(spacing: 6) {
             Circle()
                 .fill(part.isWarning ? Theme.negative : part.color)
                 .frame(width: 8, height: 8)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(part.label)
-                    .font(.caption)
-                    .foregroundStyle(Theme.softInk)
-                Text(amountText(for: part))
-                    .font(.caption.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(part.isWarning ? Theme.negative : Theme.ink)
-            }
+            // One text, so a legend named like an income line ("Salary") is
+            // never read as that line's own text
+            Text("\(label)\n\(amount)")
+                .font(.caption)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(part.label) \(amountText(for: part))")
