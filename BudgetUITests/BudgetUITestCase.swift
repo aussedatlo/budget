@@ -300,54 +300,93 @@ class BudgetUITestCase: XCTestCase {
     @discardableResult
     func scrollUntilVisible(_ element: XCUIElement, maxSwipes: Int = 25) -> Bool {
         _ = element.waitForExistence(timeout: 2)
-        for _ in 0...maxSwipes {
-            let area = visibleArea()
-            guard element.exists, !element.frame.isEmpty else {
+        // Where the element was at the last look: it's only tapped once it
+        // stays put, not while a tab, a page or a drag is still moving it.
+        var lastFrame: CGRect?
+        for _ in 0...(maxSwipes + 1) {
+            let screen = layout()
+            let area = visibleArea(in: screen)
+            let frame = element.exists ? element.frame : .zero
+            guard !frame.isEmpty else {
                 drag(in: area, up: true)
                 continue
             }
-            let frame = element.frame
-            if isInABar(frame) { return element.isHittable }
+            if isInABar(frame, in: screen) { return element.isHittable }
             if frame.minY < area.minY - 1 && frame.maxY < area.maxY {
                 drag(in: area, up: false)
             } else if frame.maxY > area.maxY + 1 && frame.minY > area.minY {
                 drag(in: area, up: true)
-            } else {
+            } else if frame == lastFrame {
                 return true
+            } else {
+                lastFrame = frame
+                Thread.sleep(forTimeInterval: 0.2)
             }
         }
         return false
     }
 
+    /// Where the lists, bars and keyboard are on screen.
+    private struct Layout {
+        var screen = CGRect.zero
+        var lists: [CGRect] = []
+        var navigationBars: [CGRect] = []
+        var bars: [CGRect] = []
+        var keyboard: CGRect?
+    }
+
+    /// Reads the whole screen in one go: asking for each list or bar on its
+    /// own takes a round trip to the app every time, which made every tap
+    /// take seconds.
+    private func layout() -> Layout {
+        var layout = Layout()
+        guard let root = try? app.snapshot() else {
+            layout.screen = app.frame
+            return layout
+        }
+        layout.screen = root.frame
+        var nodes = [root]
+        while let node = nodes.popLast() {
+            switch node.elementType {
+            case .collectionView, .scrollView, .table:
+                layout.lists.append(node.frame)
+            case .navigationBar:
+                layout.navigationBars.append(node.frame)
+                layout.bars.append(node.frame)
+            case .tabBar, .toolbar:
+                layout.bars.append(node.frame)
+            case .keyboard:
+                if layout.keyboard == nil { layout.keyboard = node.frame }
+            default:
+                break
+            }
+            nodes.append(contentsOf: node.children)
+        }
+        return layout
+    }
+
     /// Bar buttons don't scroll.
-    private func isInABar(_ frame: CGRect) -> Bool {
+    private func isInABar(_ frame: CGRect, in layout: Layout) -> Bool {
         let center = CGPoint(x: frame.midX, y: frame.midY)
-        let bars = app.navigationBars.allElementsBoundByIndex + app.tabBars.allElementsBoundByIndex
-            + app.toolbars.allElementsBoundByIndex
-        return bars.contains { $0.exists && $0.frame.contains(center) }
+        return layout.bars.contains { $0.contains(center) }
     }
 
     /// The part of the frontmost list or form that isn't covered.
-    private func visibleArea() -> CGRect {
-        let screen = app.frame
+    private func visibleArea(in layout: Layout) -> CGRect {
+        let screen = layout.screen
         // The frontmost list is the smallest tall one: a sheet's form is
         // narrower than the tab behind it.
-        let lists = (app.collectionViews.allElementsBoundByIndex
-                     + app.scrollViews.allElementsBoundByIndex
-                     + app.tables.allElementsBoundByIndex)
-            .map(\.frame)
+        let lists = layout.lists
             .filter { $0.width >= screen.width * 0.4 && $0.height >= screen.height * 0.3 }
         var area = (lists.min { $0.width * $0.height < $1.width * $1.height } ?? screen).intersection(screen)
         var top = area.minY
-        for bar in app.navigationBars.allElementsBoundByIndex where bar.exists {
-            let frame = bar.frame
+        for frame in layout.navigationBars {
             if frame.minX < area.maxX, frame.maxX > area.minX, frame.minY < area.midY, frame.maxY > top {
                 top = frame.maxY
             }
         }
         var bottom = area.maxY
-        let keyboard = app.keyboards.firstMatch
-        if keyboard.exists { bottom = min(bottom, keyboard.frame.minY) }
+        if let keyboard = layout.keyboard { bottom = min(bottom, keyboard.minY) }
         area = CGRect(x: area.minX, y: top, width: area.width, height: max(bottom - top, 1))
         return area
     }
