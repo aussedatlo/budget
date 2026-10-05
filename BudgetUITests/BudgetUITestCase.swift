@@ -300,7 +300,10 @@ class BudgetUITestCase: XCTestCase {
     @discardableResult
     func scrollUntilVisible(_ element: XCUIElement, maxSwipes: Int = 25) -> Bool {
         _ = element.waitForExistence(timeout: 2)
-        for _ in 0...maxSwipes {
+        // Where the element was at the last look: it's only tapped once it
+        // stays put, not while a tab, a page or a drag is still moving it.
+        var lastFrame: CGRect?
+        for _ in 0...(maxSwipes + 1) {
             let screen = layout()
             let area = visibleArea(in: screen)
             let frame = element.exists ? element.frame : .zero
@@ -313,8 +316,11 @@ class BudgetUITestCase: XCTestCase {
                 drag(in: area, up: false)
             } else if frame.maxY > area.maxY + 1 && frame.minY > area.minY {
                 drag(in: area, up: true)
-            } else {
+            } else if frame == lastFrame {
                 return true
+            } else {
+                lastFrame = frame
+                Thread.sleep(forTimeInterval: 0.2)
             }
         }
         return false
