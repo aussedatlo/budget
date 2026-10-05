@@ -61,33 +61,28 @@ struct IncomeView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 18) {
-                MoneyBagView(coins: coinDrops)
-                    .frame(width: 100)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Monthly income")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.softInk)
-                    Text(totals.total.currency)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .contentTransition(.numericText(value: totals.total))
-                        .animation(.snappy, value: totals.total)
-                }
-            }
-            if totals.repayments > 0 {
-                FlowChips {
-                    Chip(text: "Income \(totals.sources.currency)")
-                    Chip(text: "Repaid to you \(totals.repayments.currency)")
-                }
-            }
+        TabHeader(
+            title: "Monthly income",
+            value: totals.total,
+            bar: totals.total > 0 ? CompositionBar(parts: barParts) : nil
+        ) {
+            MoneyBagView(coins: coinDrops)
+        } accessory: {
+        } caption: {
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .card()
+    }
+
+    /// One color per income line counted this month, then money lent being paid back.
+    private var barParts: [BarPart] {
+        let counted = sources.filter { $0.isActive && $0.amount > 0 }
+        var parts = counted.enumerated().map { index, source in
+            BarPart(label: source.title, amount: source.amount,
+                    color: Theme.incomeColors[index % Theme.incomeColors.count])
+        }
+        if totals.repayments > 0 {
+            parts.append(BarPart(label: "Money lent", amount: totals.repayments, color: Theme.lent))
+        }
+        return parts
     }
 
     @ViewBuilder

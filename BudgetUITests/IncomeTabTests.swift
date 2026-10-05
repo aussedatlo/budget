@@ -15,9 +15,10 @@ final class MonthlyIncomeTests: BudgetUITestCase {
             expect(text("Monthly income"))
             expect(text("€3,150.00"))
         }
-        and("the chips show the income lines and what is repaid to me") {
-            expect(text("Income €2,900.00"))
-            expect(text("Repaid to you €250.00"))
+        and("the bar shows Salary, Freelance and Money lent €250.00") {
+            expect(legend("Salary"))
+            expect(legend("Freelance"))
+            XCTAssertTrue(legend("Money lent").label.contains("€250.00"))
         }
         and("the income lines are listed oldest first") {
             XCTAssertTrue(isAbove(text("Salary"), text("Freelance")))

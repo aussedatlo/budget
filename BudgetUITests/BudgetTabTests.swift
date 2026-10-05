@@ -21,9 +21,9 @@ final class MonthlyBudgetTests: BudgetUITestCase {
             XCTAssertTrue(button("open-income").label.contains("€3,150.00"))
         }
         and("the bar splits income into charges, savings and what is left") {
-            expect(text("Charges"))
-            expect(text("Savings"))
-            expect(text("Left"))
+            expect(legend("Charges"))
+            expect(legend("Savings"))
+            expect(legend("Left"))
         }
         screenshot("01-budget")
     }

@@ -32,7 +32,8 @@ final class MoneyLentTests: BudgetUITestCase {
         }
         and("nothing from Emma counts as income") {
             scrollToTop()
-            expect(text("Repaid to you €250.00"))
+            expect(legend("Money lent"))
+            XCTAssertTrue(legend("Money lent").label.contains("€250.00"))
         }
     }
 
@@ -41,9 +42,10 @@ final class MoneyLentTests: BudgetUITestCase {
             updateWhatIsLeft(for: "Lucas", to: "100")
             goBack()
         }
-        then("what is repaid to me counts 100 € for Lucas") {
+        then("Money lent in the Income bar counts 100 € for Lucas") {
             scrollToTop()
-            expect(text("Repaid to you €100.00"))
+            expect(legend("Money lent"))
+            XCTAssertTrue(legend("Money lent").label.contains("€100.00"))
         }
     }
 

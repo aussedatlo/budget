@@ -123,6 +123,12 @@ class BudgetUITestCase: XCTestCase {
             .matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", part, part)).firstMatch
     }
 
+    /// A part in the legend of the bar under a tab's header, read as
+    /// its label then its amount and share: "Salary €2,500.00 · 79%".
+    func legend(_ label: String) -> XCUIElement {
+        app.descendants(matching: .any)["legend-\(label)"].firstMatch
+    }
+
     /// Section headers can be shown in capitals.
     func header(_ label: String) -> XCUIElement {
         app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", label)).firstMatch

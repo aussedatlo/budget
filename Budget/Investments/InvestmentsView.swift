@@ -124,51 +124,55 @@ struct InvestmentsView: View {
 
     private var header: some View {
         let total = showsNetWorth ? netWorth : value
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 18) {
-                GrowingSeedlingView(pops: confetti)
-                    .frame(width: 100)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text(showsNetWorth ? "Net worth" : "Investments value")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.softInk)
-                        Spacer()
-                        if hasNetWorthExtras {
-                            NetWorthButton(isOn: $includeHome)
-                        }
-                    }
-                    Text(total.currency)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .contentTransition(.numericText(value: total))
-                        .animation(.snappy, value: total)
-                        .accessibilityIdentifier("wealth-total")
-                }
+        return TabHeader(
+            title: showsNetWorth ? "Net worth" : "Investments value",
+            value: total,
+            valueIdentifier: "wealth-total",
+            bar: barParts.isEmpty ? nil : CompositionBar(parts: barParts)
+        ) {
+            GrowingSeedlingView(pops: confetti)
+        } accessory: {
+            if hasNetWorthExtras {
+                NetWorthButton(isOn: $includeHome)
             }
-            FlowChips {
-                if showsNetWorth {
-                    Chip(text: "Investments \(value.currency)")
-                    if !loans.isEmpty { Chip(text: "Home equity \(homeEquity.currency)") }
-                    if owed > 0 { Chip(text: "Money lent \(owed.currency)") }
-                } else if !investments.isEmpty {
-                    Chip(text: "Invested \(invested.currency)")
-                }
+        } caption: {
+            HStack(spacing: 4) {
                 if !investments.isEmpty {
-                    Chip(
-                        text: invested > 0 ? "\(gain.signedCurrency) · \((gain / invested).signedPercent)" : gain.signedCurrency,
-                        color: Theme.gain(gain)
-                    )
+                    Text("Invested \(invested.currency)")
+                    Text("·")
+                    Text(invested > 0 ? "\(gain.signedCurrency) · \((gain / invested).signedPercent)" : gain.signedCurrency)
+                        .foregroundStyle(Theme.gain(gain))
+                        .monospacedDigit()
                 }
                 if hiddenCount > 0 {
-                    Chip(text: "\(hiddenCount) hidden", color: Theme.softInk)
+                    if !investments.isEmpty { Text("·") }
+                    Text("\(hiddenCount) hidden")
                 }
             }
         }
-        .card()
+    }
+
+    /// One color per type of investment counted, largest first, then the
+    /// home and money lent when net worth is shown.
+    private var barParts: [BarPart] {
+        var byKind: [InvestmentKind: Double] = [:]
+        for investment in counted where investment.currentValue > 0 {
+            byKind[investment.kind, default: 0] += investment.currentValue
+        }
+        let kinds = byKind.keys.sorted { byKind[$0, default: 0] > byKind[$1, default: 0] }
+        var parts: [BarPart] = kinds.map { kind in
+            BarPart(label: kind.rawValue, amount: byKind[kind, default: 0], color: kind.barColor)
+        }
+        if showsNetWorth {
+            if !loans.isEmpty {
+                parts.append(BarPart(label: "Home equity", amount: max(homeEquity, 0), color: Theme.accent,
+                                     shown: homeEquity, isWarning: homeEquity < 0))
+            }
+            if owed > 0 {
+                parts.append(BarPart(label: "Money lent", amount: owed, color: Theme.lent))
+            }
+        }
+        return parts
     }
 
     private var emptyState: some View {
