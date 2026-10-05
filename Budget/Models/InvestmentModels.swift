@@ -39,6 +39,21 @@ enum InvestmentKind: String, CaseIterable, Identifiable {
         case .other: Theme.lavender
         }
     }
+
+    /// Its part of the Wealth bar: stronger than `color`, apart from the
+    /// home's rose and money lent's blue.
+    var barColor: Color {
+        switch self {
+        case .stock: Theme.series[4]
+        case .etf: Theme.series[2]
+        case .fund: Theme.series[5]
+        case .crypto: Color(light: 0xD08A4E, dark: 0xE8A673)
+        case .metal: Theme.series[3]
+        case .savings: Color(light: 0xD9A0AE, dark: 0xE8B7C3)
+        case .realEstate: Color(light: 0xA67B5B, dark: 0xC79B7B)
+        case .other: Color(light: 0x9A97A3, dark: 0xB5B2BE)
+        }
+    }
 }
 
 /// A position (ETF, gold coins, crypto, savings account...).

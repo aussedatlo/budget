@@ -43,9 +43,9 @@ final class WealthOverviewTests: BudgetUITestCase {
         then("the header shows net worth with what it's made of") {
             expect(text("Net worth"))
             expect(button("Show investments only"))
-            expect(text(containing: "Home equity €"))
-            expect(text(containing: "Money lent €"))
-            expect(text(containing: "Investments €"))
+            expect(legend("ETF"))
+            expect(legend("Home equity"))
+            expect(legend("Money lent"))
         }
         and("the home loan is listed above the investments") {
             expect(text("Apartment"))
@@ -81,7 +81,7 @@ final class WealthOverviewTests: BudgetUITestCase {
             expect(button("Show Bitcoin"))
             expect(text("Bitcoin"))
         }
-        and("the total leaves Bitcoin out and a chip says 1 hidden") {
+        and("the total leaves Bitcoin out and the header says 1 hidden") {
             expect(text("1 hidden"))
             XCTAssertNotEqual(total.label, before)
         }
@@ -97,7 +97,7 @@ final class WealthOverviewTests: BudgetUITestCase {
         when("I tap its crossed-out eye") {
             tap(button("Show Bitcoin"))
         }
-        then("Bitcoin counts in the total again and the hidden chip goes away") {
+        then("Bitcoin counts in the total again and 1 hidden goes away") {
             expectNo(text("1 hidden"))
             expect(button("Hide Bitcoin"))
             XCTAssertEqual(total.label, before)
@@ -404,7 +404,7 @@ final class HomeLoanTests: BudgetUITestCase {
             expectNo(screen("Edit loan"))
             if screen("Apartment").exists { goBack() }
             expectNo(text("Apartment"))
-            XCTAssertFalse(text(containing: "Home equity").exists)
+            XCTAssertFalse(legend("Home equity").exists)
         }
     }
 }

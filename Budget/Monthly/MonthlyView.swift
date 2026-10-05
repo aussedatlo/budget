@@ -84,40 +84,30 @@ struct MonthlyView: View {
     // MARK: - Header with the flying banknotes
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 18) {
-                FlyingBanknotesView()
-                    .frame(width: 110)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(left >= 0 ? (savings > 0 ? "Left after savings" : "Left this month") : "Over budget")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.softInk)
-                    Text(abs(left).currency)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(left >= 0 ? Theme.ink : Theme.negative)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .contentTransition(.numericText(value: left))
-                        .animation(.snappy, value: left)
-                    Button { tab = .income } label: {
-                        HStack(spacing: 2) {
-                            Text(income > 0 ? "of \(income.currency) income" : "Add your income in the Income tab.")
-                            Image(systemName: "chevron.right")
-                                .font(.caption2.bold())
-                        }
-                        .font(.footnote)
-                        .foregroundStyle(Theme.softInk)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("open-income")
+        TabHeader(
+            title: left >= 0 ? (savings > 0 ? "Left after savings" : "Left this month") : "Over budget",
+            value: abs(left),
+            valueColor: left >= 0 ? Theme.ink : Theme.negative,
+            bar: income > 0 || total > 0 ? CompositionBar(parts: [
+                BarPart(label: "Charges", amount: total, color: Theme.accent),
+                BarPart(label: "Savings", amount: savings, color: Theme.series[1]),
+                BarPart(label: left < 0 ? "Over" : "Left", amount: max(left, 0), color: Theme.left.opacity(0.35),
+                        shown: left, isWarning: left < 0),
+            ], total: income) : nil
+        ) {
+            FlyingBanknotesView()
+        } accessory: {
+        } caption: {
+            Button { tab = .income } label: {
+                HStack(spacing: 2) {
+                    Text(income > 0 ? "of \(income.currency) income" : "Add your income in the Income tab.")
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.bold())
                 }
             }
-            if income > 0 || total > 0 {
-                IncomeBar(income: income, charges: total, savings: savings)
-            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("open-income")
         }
-        .card()
     }
 
     @ViewBuilder

@@ -34,6 +34,9 @@ enum Theme {
     /// Money lent to others: a calm blue, apart from the home loan's rose.
     static let lent = Color(light: 0x6B8CB8, dark: 0x8FAEDA)
 
+    /// Income lines in the Income bar: the chart colors without money lent's blue.
+    static let incomeColors: [Color] = [series[0], series[2], series[3], series[4], series[5]]
+
     static let positive = Color(light: 0x3B8A66, dark: 0x7CC5A1)
     static let negative = Color(light: 0xBF4E63, dark: 0xF08A9C)
 
