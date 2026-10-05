@@ -18,7 +18,7 @@ struct MoneyBagView: View {
     var body: some View {
         KeyframeAnimator(initialValue: Drop(), trigger: coins) { drop in
             // Frozen during UI tests so XCTest can wait for the app to be idle
-            TimelineView(.animation(paused: DemoData.isEnabled)) { timeline in
+            TimelineView(.animation(paused: DemoData.pausesAnimations)) { timeline in
                 bag(time: timeline.date.timeIntervalSinceReferenceDate, drop: drop)
             }
         } keyframes: { _ in
@@ -80,7 +80,7 @@ struct FlyingBanknotesView: View {
 
     var body: some View {
         // Frozen during UI tests so XCTest can wait for the app to be idle
-        TimelineView(.animation(paused: DemoData.isEnabled)) { timeline in
+        TimelineView(.animation(paused: DemoData.pausesAnimations)) { timeline in
             banknotes(time: timeline.date.timeIntervalSinceReferenceDate)
         }
         .aspectRatio(1, contentMode: .fit)
@@ -139,7 +139,7 @@ struct GrowingSeedlingView: View {
     var body: some View {
         KeyframeAnimator(initialValue: 1.0, trigger: pops) { pop in
             // Frozen during UI tests so XCTest can wait for the app to be idle
-            TimelineView(.animation(paused: DemoData.isEnabled)) { timeline in
+            TimelineView(.animation(paused: DemoData.pausesAnimations)) { timeline in
                 seedling(time: timeline.date.timeIntervalSinceReferenceDate, pop: pop)
             }
         } keyframes: { _ in

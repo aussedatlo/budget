@@ -76,9 +76,9 @@ struct BudgetApp: App {
 }
 
 struct ContentView: View {
-    enum Tab: Hashable { case monthly, income, investments, stats }
+    enum Tab: String, Hashable { case monthly, income, investments, stats }
 
-    @State private var selection: Tab = .monthly
+    @State private var selection: Tab = DemoData.startTab.flatMap { Tab(rawValue: $0) } ?? .monthly
     @State private var showingSettings = false
     @State private var showingSnapshot = false
     // Re-render everything when the display currency changes.
