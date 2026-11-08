@@ -257,7 +257,7 @@ fun LoanValueForm(loan: Loan, snapshotId: Long?, nav: Nav) {
     val snapshot = loan.history.firstOrNull { it.id == snapshotId }
     val base = snapshot ?: loan.latest
     var date by remember { mutableStateOf(snapshot?.date ?: BudgetCalendar.now()) }
-    var remaining by remember { mutableStateOf(base?.remaining ?: loan.borrowed) }
+    var remaining by remember { mutableStateOf<Double?>(base?.remaining ?: loan.borrowed) }
     var homeValue by remember { mutableStateOf(base?.homeValue) }
     var note by remember { mutableStateOf(snapshot?.note ?: "") }
 

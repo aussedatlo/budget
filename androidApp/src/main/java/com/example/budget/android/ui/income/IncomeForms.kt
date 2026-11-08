@@ -141,7 +141,7 @@ fun LendingForm(lending: Lending?, nav: Nav) {
 fun LendingValueForm(lending: Lending, snapshotId: Long?, nav: Nav) {
     val snapshot = lending.history.firstOrNull { it.id == snapshotId }
     var date by remember { mutableStateOf(snapshot?.date ?: BudgetCalendar.now()) }
-    var remaining by remember { mutableStateOf(snapshot?.remaining ?: lending.remaining) }
+    var remaining by remember { mutableStateOf<Double?>(snapshot?.remaining ?: lending.remaining) }
     var note by remember { mutableStateOf(snapshot?.note ?: "") }
 
     FormSheet(

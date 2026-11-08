@@ -11,6 +11,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -223,7 +227,7 @@ fun SnapshotDetailSheet(state: BudgetState, snapshot: Snapshot, nav: Nav) {
     val p = palette
     val wealth = Trends.summaries(state).firstOrNull { it.snapshot.id == snapshot.id }?.wealth
         ?: Wealth.pointAt(snapshot.endOfMonth, state.investments, state.loans, state.lendings)
-    var asking by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var asking by remember { mutableStateOf(false) }
 
     FormSheet(title = snapshot.date.monthName(), onDismiss = nav::dismiss, saveLabel = "Done", onSave = nav::dismiss, cancelLabel = null) {
         if (snapshot.note.isNotEmpty()) FormSection("Note") { Text(snapshot.note, color = p.ink) }
