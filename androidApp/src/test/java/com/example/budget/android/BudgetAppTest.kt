@@ -89,19 +89,19 @@ class BudgetAppTest {
     }
 
     @Test fun editACharge() {
-        rule.onNodeWithTag("charge-Rent").performClick()
+        rule.onNodeWithTag("charge-Rent").performScrollTo().performClick()
         rule.onNodeWithTag("sheet-title").assertTextContains("Edit charge")
         rule.onNodeWithTag("charge-amount").performTextReplacement("900")
         rule.onNodeWithTag("save").performClick()
         waitFor("€900.00")
-        rule.onNodeWithTag("charge-Rent").assertTextContains("€900.00", substring = true)
+        rule.onNodeWithTag("charge-Rent").performScrollTo().assertTextContains("€900.00", substring = true)
     }
 
     @Test fun cancelAChange() {
-        rule.onNodeWithTag("charge-Rent").performClick()
+        rule.onNodeWithTag("charge-Rent").performScrollTo().performClick()
         rule.onNodeWithTag("charge-amount").performTextReplacement("999")
         rule.onNodeWithTag("cancel").performClick()
-        rule.onNodeWithTag("charge-Rent").assertTextContains("€850.00", substring = true)
+        rule.onNodeWithTag("charge-Rent").performScrollTo().assertTextContains("€850.00", substring = true)
     }
 
     @Test fun deleteAChargeFromItsForm() {
