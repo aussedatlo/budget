@@ -98,7 +98,7 @@ object Wealth {
         val dates = investments.flatMap { i -> i.history.map { it.date } } +
             loans.flatMap { l -> l.history.map { it.date } } +
             lendings.flatMap { l -> listOf(l.date) + l.history.map { it.date } }
-        val days = dates.map { BudgetCalendar.startOfDay(it) }.toSortedSet()
+        val days = dates.map { BudgetCalendar.startOfDay(it) }.distinct().sorted()
         return days.map { day ->
             pointAt(BudgetCalendar.endOfDay(day), investments, loans, lendings).copy(date = day)
         }

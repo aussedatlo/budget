@@ -105,7 +105,7 @@ data class HistoryPoint(val date: Instant, val value: Double, val invested: Doub
 object History {
     /** One point per day with a snapshot; each position counts with its latest snapshot on that day. */
     fun points(investments: List<Investment>): List<HistoryPoint> {
-        val days = investments.flatMap { i -> i.history.map { BudgetCalendar.startOfDay(it.date) } }.toSortedSet()
+        val days = investments.flatMap { i -> i.history.map { BudgetCalendar.startOfDay(it.date) } }.distinct().sorted()
         return days.map { day ->
             val endOfDay = BudgetCalendar.endOfDay(day)
             val snapshots = investments.mapNotNull { it.snapshotAt(endOfDay) }
