@@ -22,6 +22,7 @@ import com.example.budget.android.ui.CompositionBar
 import com.example.budget.android.ui.ConfirmDelete
 import com.example.budget.android.ui.HintCard
 import com.example.budget.android.ui.ItemRow
+import com.example.budget.android.ui.LocalMoney
 import com.example.budget.android.ui.Mascot
 import com.example.budget.android.ui.Nav
 import com.example.budget.android.ui.PillButton
@@ -32,11 +33,10 @@ import com.example.budget.android.ui.Tab
 import com.example.budget.android.ui.TabHeader
 import com.example.budget.android.ui.TabScreen
 import com.example.budget.android.ui.TappableCard
-import com.example.budget.android.ui.LocalMoney
 import com.example.budget.android.ui.currency
 import com.example.budget.android.ui.theme.palette
 import com.example.budget.core.BudgetState
-import com.example.budget.core.FixedCharge
+import com.example.budget.core.charges.FixedCharge
 
 /**
  * Monthly income (from the Income tab) minus recurring charges and planned

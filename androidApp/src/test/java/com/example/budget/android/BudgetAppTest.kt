@@ -15,9 +15,10 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import com.example.budget.android.ui.BudgetApp
 import com.example.budget.android.ui.theme.BudgetTheme
-import com.example.budget.core.FixedCharge
+import com.example.budget.core.charges.FixedCharge
 import com.example.budget.core.data.BudgetStore
 import com.example.budget.core.data.DatabaseFactory
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -25,7 +26,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.util.Locale
 
 /**
  * The Budget scenarios of the iOS UI tests, on the same demo data, run on

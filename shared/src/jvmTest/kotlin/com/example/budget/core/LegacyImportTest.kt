@@ -1,9 +1,11 @@
 package com.example.budget.core
 
+import com.example.budget.core.charges.ChargeCategory
 import com.example.budget.core.data.BudgetRepository
 import com.example.budget.core.data.DatabaseFactory
 import com.example.budget.core.data.LegacyImport
 import com.example.budget.core.data.LegacyRows
+import com.example.budget.core.wealth.InvestmentKind
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

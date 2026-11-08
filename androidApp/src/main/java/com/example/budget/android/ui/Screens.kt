@@ -37,7 +37,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.budget.android.ui.theme.palette
 import com.example.budget.core.BudgetState
-import com.example.budget.core.Snapshot
+import com.example.budget.core.snapshots.Snapshot
 
 /** A tab's screen: large title, toolbar actions, and a scrolling column of cards. */
 @Composable

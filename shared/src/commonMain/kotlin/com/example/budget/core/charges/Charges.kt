@@ -1,4 +1,6 @@
-package com.example.budget.core
+package com.example.budget.core.charges
+
+import com.example.budget.core.Tint
 
 enum class ChargeCategory(val raw: String, val label: String, val emoji: String, val tint: Tint) {
     HOUSING("housing", "Housing", "🏠", Tint.PEACH),

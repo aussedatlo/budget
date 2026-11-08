@@ -15,13 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.example.budget.android.ui.theme.palette
 import com.example.budget.core.BudgetCalendar
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Instant
 
 /** A date, picked in a calendar. The time of day is kept. */
 @Composable

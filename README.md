@@ -25,15 +25,21 @@ The design is calm: neutral cards, one dusty-rose accent, an [OpenMoji](https://
 Both apps share one core written in Kotlin Multiplatform (`shared/`): the data model, every calculation (budget, wealth, trends, savings), the snapshot logic, the database and the sample data of the tests. Each platform keeps a native UI on top of it.
 
 ```
-shared/        Kotlin Multiplatform core, used by both apps
-  commonMain     models, calculations, BudgetRepository, SnapshotRequest, DemoData
-  sqldelight     the database schema (SQLDelight, SQLite on both platforms)
+shared/        Kotlin Multiplatform core, used by both apps, one package per feature:
+  charges/       recurring charges
+  income/        income lines and money lent
+  wealth/        investments, home loans, net worth, savings
+  snapshots/     monthly snapshots, trends, SnapshotRequest (what a snapshot saves)
+  data/          BudgetRepository, the database setup and the SwiftData import
+                 (each feature has its model and calculations, its *.sq tables
+                 in sqldelight/ under the same package, and its *Data class
+                 that reads and writes them)
   commonTest     calculation tests;  jvmTest: repository and data import tests
 Budget/        iOS app (SwiftUI); links the core as BudgetCore.framework
 androidApp/    Android app (Jetpack Compose, Material 3); Robolectric UI tests
 ```
 
-- **One source of truth.** `BudgetRepository` holds the whole state (`BudgetState`) and saves every change in a transaction. Android observes it as a `StateFlow`, iOS through `BudgetModel` (`Budget/Models`), an `@Observable` store passed to the views in the environment.
+- **One source of truth.** `BudgetRepository` holds the whole state (`BudgetState`) and runs every change in a transaction, including the ones that span features such as taking a snapshot. Each feature's own `*Data` class does its reads and writes. Android observes it as a `StateFlow`, iOS through `BudgetModel` (`Budget/Models`), an `@Observable` store passed to the views in the environment.
 - **Same numbers everywhere.** The screens only display: totals, what's left, net worth and what a snapshot saves are worked out by the core, and tested once (`./gradlew :shared:jvmTest`).
 - **Moving from SwiftData.** Versions before the shared core kept the data in SwiftData. At the first launch of this version, the iOS app reads the old store (without changing it) and imports everything into the shared database, once (`LegacyStore.swift`, `LegacyImport.kt`). Positions left out of the Wealth totals show again once after the move.
 

@@ -33,11 +33,11 @@ import com.example.budget.android.ui.income.SwitchRow
 import com.example.budget.android.ui.signedCurrency
 import com.example.budget.android.ui.theme.palette
 import com.example.budget.core.BudgetCalendar
-import com.example.budget.core.Investment
-import com.example.budget.core.InvestmentKind
-import com.example.budget.core.Loan
-import com.example.budget.core.LoanSnapshot
-import com.example.budget.core.ValueSnapshot
+import com.example.budget.core.wealth.Investment
+import com.example.budget.core.wealth.InvestmentKind
+import com.example.budget.core.wealth.Loan
+import com.example.budget.core.wealth.LoanSnapshot
+import com.example.budget.core.wealth.ValueSnapshot
 import kotlin.time.Instant
 
 /** What a position is worth at a date, as typed in a form. */

@@ -3,26 +3,34 @@ package com.example.budget.core.data
 import app.cash.sqldelight.db.SqlDriver
 import com.example.budget.core.BudgetCalendar
 import com.example.budget.core.BudgetState
-import com.example.budget.core.ChargeCategory
-import com.example.budget.core.FixedCharge
-import com.example.budget.core.IncomeSource
-import com.example.budget.core.Investment
-import com.example.budget.core.InvestmentKind
-import com.example.budget.core.Lending
-import com.example.budget.core.LendingSnapshot
-import com.example.budget.core.Loan
-import com.example.budget.core.LoanSnapshot
-import com.example.budget.core.Snapshot
-import com.example.budget.core.SnapshotLine
-import com.example.budget.core.ValueSnapshot
+import com.example.budget.core.charges.ChargesData
+import com.example.budget.core.charges.FixedCharge
 import com.example.budget.core.db.BudgetDatabase
+import com.example.budget.core.income.IncomeData
+import com.example.budget.core.income.IncomeSource
+import com.example.budget.core.income.Lending
+import com.example.budget.core.income.LendingSnapshot
+import com.example.budget.core.income.LendingsData
+import com.example.budget.core.snapshots.Snapshot
+import com.example.budget.core.snapshots.SnapshotRequest
+import com.example.budget.core.snapshots.SnapshotsData
+import com.example.budget.core.wealth.Investment
+import com.example.budget.core.wealth.InvestmentsData
+import com.example.budget.core.wealth.Loan
+import com.example.budget.core.wealth.LoanSnapshot
+import com.example.budget.core.wealth.LoansData
+import com.example.budget.core.wealth.ValueSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.time.Instant
 
 /**
  * The one way in and out of the database, for both apps.
+ *
+ * Each feature reads and writes its own tables (`ChargesData`, `IncomeData`,
+ * `LendingsData`, `InvestmentsData`, `LoansData`, `SnapshotsData`); this class
+ * holds the state of everything and runs every change in a transaction,
+ * including the ones that span features, like taking a snapshot.
  *
  * Every call is synchronous (the data is small) and runs in a transaction.
  * After each change, [state] holds everything again, and listeners are told:
@@ -30,6 +38,13 @@ import kotlin.time.Instant
  */
 class BudgetRepository(private val driver: SqlDriver) {
     private val db = BudgetDatabase(driver)
+    // Each feature's reads and writes; the repository holds the state and the transactions
+    private val charges = ChargesData(db)
+    private val income = IncomeData(db)
+    private val lendings = LendingsData(db)
+    private val investments = InvestmentsData(db)
+    private val loans = LoansData(db)
+    private val snapshots = SnapshotsData(db)
     private val _state = MutableStateFlow(load())
     private val listeners = mutableListOf<(BudgetState) -> Unit>()
 
@@ -50,140 +65,59 @@ class BudgetRepository(private val driver: SqlDriver) {
     // MARK: - Recurring charges
 
     /** Adds the charge when its id is 0, else updates it. Returns its id. */
-    fun saveCharge(charge: FixedCharge): Long = write {
-        if (charge.id == 0L) {
-            db.chargesQueries.insert(charge.title, charge.amount, charge.category.raw, charge.dayOfMonth.toLong(), charge.emoji)
-            lastId()
-        } else {
-            db.chargesQueries.update(charge.title, charge.amount, charge.category.raw, charge.dayOfMonth.toLong(), charge.emoji, charge.id)
-            charge.id
-        }
-    }
+    fun saveCharge(charge: FixedCharge): Long = write { charges.save(charge) }
 
-    fun deleteCharge(id: Long): Unit = write { db.chargesQueries.delete(id) }
+    fun deleteCharge(id: Long): Unit = write { charges.delete(id) }
 
     // MARK: - Income
 
-    fun saveIncomeSource(source: IncomeSource): Long = write {
-        if (source.id == 0L) {
-            db.incomeQueries.insert(source.title, source.amount, source.emoji, source.isActive.toLong(), source.createdAt.millis)
-            lastId()
-        } else {
-            db.incomeQueries.update(source.title, source.amount, source.emoji, source.isActive.toLong(), source.createdAt.millis, source.id)
-            source.id
-        }
-    }
+    /** Adds the income line when its id is 0, else updates it. Returns its id. */
+    fun saveIncomeSource(source: IncomeSource): Long = write { income.save(source) }
 
-    fun deleteIncomeSource(id: Long): Unit = write { db.incomeQueries.delete(id) }
+    fun deleteIncomeSource(id: Long): Unit = write { income.delete(id) }
 
-    /** Saves the lending itself; its history is left as it is. */
-    fun saveLending(lending: Lending): Long = write {
-        if (lending.id == 0L) {
-            db.lendingsQueries.insert(lending.name, lending.emoji, lending.lent, lending.date.millis, lending.monthlyRepayment, lending.note)
-            val id = lastId()
-            lending.history.forEach { insertLendingSnapshot(id, it) }
-            id
-        } else {
-            db.lendingsQueries.update(lending.name, lending.emoji, lending.lent, lending.date.millis, lending.monthlyRepayment, lending.note, lending.id)
-            lending.id
-        }
-    }
+    /** Saves the lending itself; its history is left as it is (a new one is added with its own). */
+    fun saveLending(lending: Lending): Long = write { lendings.save(lending) }
 
-    fun deleteLending(id: Long): Unit = write {
-        db.lendingsQueries.deleteSnapshotsOf(id)
-        db.lendingsQueries.delete(id)
-    }
+    fun deleteLending(id: Long): Unit = write { lendings.delete(id) }
 
-    fun saveLendingSnapshot(lendingId: Long, snapshot: LendingSnapshot): Long = write {
-        if (snapshot.id == 0L) {
-            insertLendingSnapshot(lendingId, snapshot)
-        } else {
-            db.lendingsQueries.updateSnapshot(snapshot.date.millis, snapshot.remaining, snapshot.note, snapshot.id)
-            snapshot.id
-        }
-    }
+    fun saveLendingSnapshot(lendingId: Long, snapshot: LendingSnapshot): Long =
+        write { lendings.saveSnapshot(lendingId, snapshot) }
 
-    fun deleteLendingSnapshot(id: Long): Unit = write { db.lendingsQueries.deleteSnapshot(id) }
+    fun deleteLendingSnapshot(id: Long): Unit = write { lendings.deleteSnapshot(id) }
 
     // MARK: - Investments
 
-    /** Saves the investment itself; its history is left as it is (new ones are added with theirs). */
-    fun saveInvestment(investment: Investment): Long = write {
-        if (investment.id == 0L) {
-            db.investmentsQueries.insert(
-                investment.name, investment.ticker, investment.kind.raw, investment.emoji,
-                investment.createdAt.millis, investment.monthlyContribution,
-            )
-            val id = lastId()
-            investment.history.forEach { insertValueSnapshot(id, it) }
-            id
-        } else {
-            db.investmentsQueries.update(
-                investment.name, investment.ticker, investment.kind.raw, investment.emoji,
-                investment.createdAt.millis, investment.monthlyContribution, investment.id,
-            )
-            investment.id
-        }
-    }
+    /** Saves the investment itself; its history is left as it is (a new one is added with its own). */
+    fun saveInvestment(investment: Investment): Long = write { investments.save(investment) }
 
-    fun deleteInvestment(id: Long): Unit = write {
-        db.investmentsQueries.deleteSnapshotsOf(id)
-        db.investmentsQueries.delete(id)
-    }
+    fun deleteInvestment(id: Long): Unit = write { investments.delete(id) }
 
     /** The savings plan: how much goes to each investment every month (missing ids keep theirs). */
     fun saveSavingsPlan(contributions: Map<Long, Double>): Unit = write {
-        contributions.forEach { (id, amount) -> db.investmentsQueries.updateContribution(maxOf(amount, 0.0), id) }
+        contributions.forEach { (id, amount) -> investments.updateContribution(id, amount) }
     }
 
-    fun saveValueSnapshot(investmentId: Long, snapshot: ValueSnapshot): Long = write {
-        if (snapshot.id == 0L) {
-            insertValueSnapshot(investmentId, snapshot)
-        } else {
-            db.investmentsQueries.updateSnapshot(
-                snapshot.date.millis, snapshot.value, snapshot.invested, snapshot.quantity, snapshot.unitPrice,
-                snapshot.note, snapshot.id,
-            )
-            snapshot.id
-        }
-    }
+    fun saveValueSnapshot(investmentId: Long, snapshot: ValueSnapshot): Long =
+        write { investments.saveSnapshot(investmentId, snapshot) }
 
-    fun deleteValueSnapshot(id: Long): Unit = write { db.investmentsQueries.deleteSnapshot(id) }
+    fun deleteValueSnapshot(id: Long): Unit = write { investments.deleteSnapshot(id) }
 
     // MARK: - Home loan
 
-    fun saveLoan(loan: Loan): Long = write {
-        if (loan.id == 0L) {
-            db.loansQueries.insert(loan.name, loan.emoji, loan.borrowed, loan.createdAt.millis)
-            val id = lastId()
-            loan.history.forEach { insertLoanSnapshot(id, it) }
-            id
-        } else {
-            db.loansQueries.update(loan.name, loan.emoji, loan.borrowed, loan.createdAt.millis, loan.id)
-            loan.id
-        }
-    }
+    /** Saves the loan itself; its history is left as it is (a new one is added with its own). */
+    fun saveLoan(loan: Loan): Long = write { loans.save(loan) }
 
-    fun deleteLoan(id: Long): Unit = write {
-        db.loansQueries.deleteSnapshotsOf(id)
-        db.loansQueries.delete(id)
-    }
+    fun deleteLoan(id: Long): Unit = write { loans.delete(id) }
 
-    fun saveLoanSnapshot(loanId: Long, snapshot: LoanSnapshot): Long = write {
-        if (snapshot.id == 0L) {
-            insertLoanSnapshot(loanId, snapshot)
-        } else {
-            db.loansQueries.updateSnapshot(snapshot.date.millis, snapshot.remaining, snapshot.homeValue, snapshot.note, snapshot.id)
-            snapshot.id
-        }
-    }
+    fun saveLoanSnapshot(loanId: Long, snapshot: LoanSnapshot): Long = write { loans.saveSnapshot(loanId, snapshot) }
 
-    fun deleteLoanSnapshot(id: Long): Unit = write { db.loansQueries.deleteSnapshot(id) }
+    fun deleteLoanSnapshot(id: Long): Unit = write { loans.deleteSnapshot(id) }
 
-    // MARK: - Snapshots
+    // MARK: - Snapshots (they span every feature)
 
     /** Adds the snapshot when its id is 0, else replaces it (lines included). */
-    fun saveSnapshot(snapshot: Snapshot): Long = write { upsertSnapshot(snapshot) }
+    fun saveSnapshot(snapshot: Snapshot): Long = write { snapshots.save(snapshot) }
 
     /**
      * Deletes a snapshot and, when `withValues`, the values recorded in its
@@ -194,12 +128,11 @@ class BudgetRepository(private val driver: SqlDriver) {
         if (withValues && snapshot != null) {
             val from = BudgetCalendar.startOfMonth(snapshot.date).millis
             val to = BudgetCalendar.endOfMonth(snapshot.date).millis + 999
-            db.investmentsQueries.deleteSnapshotsInRange(from, to)
-            db.loansQueries.deleteSnapshotsInRange(from, to)
-            db.lendingsQueries.deleteSnapshotsInRange(from, to)
+            investments.deleteSnapshotsInRange(from, to)
+            loans.deleteSnapshotsInRange(from, to)
+            lendings.deleteSnapshotsInRange(from, to)
         }
-        db.snapshotsQueries.deleteLinesOf(id)
-        db.snapshotsQueries.delete(id)
+        snapshots.delete(id)
     }
 
     /**
@@ -214,46 +147,36 @@ class BudgetRepository(private val driver: SqlDriver) {
         val date = plan.date
 
         if (plan.isCurrentMonth) {
-            for (entry in request.incomeSources) {
-                db.incomeQueries.updateAmount(maxOf(entry.amount, 0.0), entry.isActive.toLong(), entry.id)
-            }
-            for (entry in request.charges) {
-                db.chargesQueries.updateAmount(maxOf(entry.amount, 0.0), entry.id)
-            }
+            request.incomeSources.forEach { income.updateAmount(it.id, it.amount, it.isActive) }
+            request.charges.forEach { charges.updateAmount(it.id, it.amount) }
         }
 
         for (entry in request.investments) {
             val investment = state.investment(entry.id) ?: continue
             val existing = investment.entryInMonthOf(date)
-            val snapshot = ValueSnapshot(
-                id = existing?.id ?: 0,
-                date = date,
-                value = entry.value,
-                invested = investment.investedForSnapshot(date, savingIncluded = entry.id !in request.skippedSavings),
-                quantity = entry.quantity,
-                unitPrice = entry.unitPrice,
-                note = existing?.note ?: "",
+            investments.saveSnapshot(
+                investment.id,
+                ValueSnapshot(
+                    id = existing?.id ?: 0,
+                    date = date,
+                    value = entry.value,
+                    invested = investment.investedForSnapshot(date, savingIncluded = entry.id !in request.skippedSavings),
+                    quantity = entry.quantity,
+                    unitPrice = entry.unitPrice,
+                    note = existing?.note ?: "",
+                ),
             )
-            if (existing == null) {
-                insertValueSnapshot(investment.id, snapshot)
-            } else {
-                db.investmentsQueries.updateSnapshot(
-                    date.millis, snapshot.value, snapshot.invested, snapshot.quantity, snapshot.unitPrice,
-                    snapshot.note, existing.id,
-                )
-            }
         }
         for (entry in request.loans) {
             val loan = state.loan(entry.id) ?: continue
             val existing = loan.entryInMonthOf(date)
-            if (existing == null) {
-                insertLoanSnapshot(loan.id, LoanSnapshot(date = date, remaining = entry.remaining, homeValue = entry.homeValue))
-            } else {
-                db.loansQueries.updateSnapshot(date.millis, entry.remaining, entry.homeValue, existing.note, existing.id)
-            }
+            loans.saveSnapshot(
+                loan.id,
+                LoanSnapshot(existing?.id ?: 0, date, entry.remaining, entry.homeValue, existing?.note ?: ""),
+            )
         }
 
-        upsertSnapshot(
+        snapshots.save(
             Snapshot(
                 id = plan.replaces?.id ?: 0,
                 date = date,
@@ -275,12 +198,12 @@ class BudgetRepository(private val driver: SqlDriver) {
 
     /** Removes everything. */
     fun deleteAll(): Unit = write {
-        db.chargesQueries.deleteAll()
-        db.incomeQueries.deleteAll()
-        db.lendingsQueries.deleteAll()
-        db.investmentsQueries.deleteAll()
-        db.loansQueries.deleteAll()
-        db.snapshotsQueries.deleteAll()
+        charges.deleteAll()
+        income.deleteAll()
+        lendings.deleteAll()
+        investments.deleteAll()
+        loans.deleteAll()
+        snapshots.deleteAll()
     }
 
     /** Adds everything in `state` (ids are ignored: new ones are given). */
@@ -290,83 +213,29 @@ class BudgetRepository(private val driver: SqlDriver) {
 
     fun setMeta(key: String, value: String) = db.metaQueries.put(key, value)
 
-    /** Runs `block` (calls to [importer]) in one transaction, and tells listeners once at the end. */
+    /** Runs `block` in one transaction, and tells listeners once at the end. */
     internal fun <T> batch(block: () -> T): T = write(block)
 
     internal fun insertAllNow(state: BudgetState) {
-        state.charges.forEach {
-            db.chargesQueries.insert(it.title, it.amount, it.category.raw, it.dayOfMonth.toLong(), it.emoji)
-        }
-        state.incomeSources.forEach {
-            db.incomeQueries.insert(it.title, it.amount, it.emoji, it.isActive.toLong(), it.createdAt.millis)
-        }
-        state.lendings.forEach { lending ->
-            db.lendingsQueries.insert(lending.name, lending.emoji, lending.lent, lending.date.millis, lending.monthlyRepayment, lending.note)
-            val id = lastId()
-            lending.history.forEach { insertLendingSnapshot(id, it) }
-        }
-        state.investments.forEach { investment ->
-            db.investmentsQueries.insert(
-                investment.name, investment.ticker, investment.kind.raw, investment.emoji,
-                investment.createdAt.millis, investment.monthlyContribution,
-            )
-            val id = lastId()
-            investment.history.forEach { insertValueSnapshot(id, it) }
-        }
-        state.loans.forEach { loan ->
-            db.loansQueries.insert(loan.name, loan.emoji, loan.borrowed, loan.createdAt.millis)
-            val id = lastId()
-            loan.history.forEach { insertLoanSnapshot(id, it) }
-        }
-        state.snapshots.forEach { upsertSnapshot(it.copy(id = 0)) }
+        state.charges.forEach { charges.save(it.copy(id = 0)) }
+        state.incomeSources.forEach { income.save(it.copy(id = 0)) }
+        state.lendings.forEach { lendings.save(it.copy(id = 0)) }
+        state.investments.forEach { investments.save(it.copy(id = 0)) }
+        state.loans.forEach { loans.save(it.copy(id = 0)) }
+        state.snapshots.forEach { snapshots.save(it.copy(id = 0)) }
     }
 
     // MARK: - Reading
 
     /** Reads everything from the database. */
-    fun load(): BudgetState {
-        val lendingHistory = db.lendingsQueries.selectAllSnapshots().executeAsList().groupBy({ it.lending_id }) {
-            LendingSnapshot(it.id, it.date.instant, it.remaining, it.note)
-        }
-        val valueHistory = db.investmentsQueries.selectAllSnapshots().executeAsList().groupBy({ it.investment_id }) {
-            ValueSnapshot(it.id, it.date.instant, it.value_, it.invested, it.quantity, it.unit_price, it.note)
-        }
-        val loanHistory = db.loansQueries.selectAllSnapshots().executeAsList().groupBy({ it.loan_id }) {
-            LoanSnapshot(it.id, it.date.instant, it.remaining, it.home_value, it.note)
-        }
-        val lines = db.snapshotsQueries.selectAllLines().executeAsList().groupBy { it.snapshot_id }
-
-        return BudgetState(
-            charges = db.chargesQueries.selectAll().executeAsList().map {
-                FixedCharge(it.id, it.title, it.amount, ChargeCategory.fromRaw(it.category), it.day_of_month.toInt(), it.emoji)
-            },
-            incomeSources = db.incomeQueries.selectAll().executeAsList().map {
-                IncomeSource(it.id, it.title, it.amount, it.emoji, it.is_active != 0L, it.created_at.instant)
-            },
-            lendings = db.lendingsQueries.selectAll().executeAsList().map {
-                Lending(it.id, it.name, it.emoji, it.lent, it.date.instant, it.monthly_repayment, it.note,
-                    lendingHistory[it.id].orEmpty())
-            },
-            investments = db.investmentsQueries.selectAll().executeAsList().map {
-                Investment(it.id, it.name, it.ticker, InvestmentKind.fromRaw(it.kind), it.emoji, it.created_at.instant,
-                    it.monthly_contribution, valueHistory[it.id].orEmpty())
-            },
-            loans = db.loansQueries.selectAll().executeAsList().map {
-                Loan(it.id, it.name, it.emoji, it.borrowed, it.created_at.instant, loanHistory[it.id].orEmpty())
-            },
-            snapshots = db.snapshotsQueries.selectAll().executeAsList().map { row ->
-                val own = lines[row.id].orEmpty()
-                Snapshot(
-                    row.id, row.date.instant, row.note, row.main_income, row.other_income, row.repayments,
-                    row.charges, row.savings,
-                    chargeLines = own.filter { it.kind == CHARGE }.map { SnapshotLine(it.title, it.amount, it.category) },
-                    incomeLines = own.filter { it.kind == INCOME }.map { SnapshotLine(it.title, it.amount, it.category) },
-                )
-            },
-        )
-    }
-
-    // MARK: - Helpers
+    fun load(): BudgetState = BudgetState(
+        charges = charges.load(),
+        incomeSources = income.load(),
+        lendings = lendings.load(),
+        investments = investments.load(),
+        loans = loans.load(),
+        snapshots = snapshots.load(),
+    )
 
     private fun <T> write(block: () -> T): T {
         val result = db.transactionWithResult { block() }
@@ -375,55 +244,9 @@ class BudgetRepository(private val driver: SqlDriver) {
         listeners.toList().forEach { it(state) }
         return result
     }
-
-    private fun lastId(): Long = db.metaQueries.lastId().executeAsOne()
-
-    private fun insertLendingSnapshot(lendingId: Long, snapshot: LendingSnapshot): Long {
-        db.lendingsQueries.insertSnapshot(lendingId, snapshot.date.millis, snapshot.remaining, snapshot.note)
-        return lastId()
-    }
-
-    private fun insertValueSnapshot(investmentId: Long, snapshot: ValueSnapshot): Long {
-        db.investmentsQueries.insertSnapshot(
-            investmentId, snapshot.date.millis, snapshot.value, snapshot.invested, snapshot.quantity,
-            snapshot.unitPrice, snapshot.note,
-        )
-        return lastId()
-    }
-
-    private fun insertLoanSnapshot(loanId: Long, snapshot: LoanSnapshot): Long {
-        db.loansQueries.insertSnapshot(loanId, snapshot.date.millis, snapshot.remaining, snapshot.homeValue, snapshot.note)
-        return lastId()
-    }
-
-    private fun upsertSnapshot(snapshot: Snapshot): Long {
-        val q = db.snapshotsQueries
-        val id = if (snapshot.id == 0L) {
-            q.insert(snapshot.date.millis, snapshot.note, snapshot.mainIncome, snapshot.otherIncome, snapshot.repayments,
-                snapshot.charges, snapshot.savings)
-            lastId()
-        } else {
-            q.update(snapshot.date.millis, snapshot.note, snapshot.mainIncome, snapshot.otherIncome, snapshot.repayments,
-                snapshot.charges, snapshot.savings, snapshot.id)
-            q.deleteLinesOf(snapshot.id)
-            snapshot.id
-        }
-        snapshot.chargeLines.forEachIndexed { i, line -> q.insertLine(id, CHARGE, i.toLong(), line.title, line.amount, line.category) }
-        snapshot.incomeLines.forEachIndexed { i, line -> q.insertLine(id, INCOME, i.toLong(), line.title, line.amount, line.category) }
-        return id
-    }
-
-    private companion object {
-        const val CHARGE = "charge"
-        const val INCOME = "income"
-    }
 }
 
 /** Stops a listener added with [BudgetRepository.addListener]. */
 class Subscription internal constructor(private val onCancel: () -> Unit) {
     fun cancel() = onCancel()
 }
-
-internal val Instant.millis: Long get() = toEpochMilliseconds()
-internal val Long.instant: Instant get() = Instant.fromEpochMilliseconds(this)
-private fun Boolean.toLong(): Long = if (this) 1L else 0L

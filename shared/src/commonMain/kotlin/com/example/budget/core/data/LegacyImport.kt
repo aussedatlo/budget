@@ -2,25 +2,25 @@ package com.example.budget.core.data
 
 import com.example.budget.core.BudgetCalendar
 import com.example.budget.core.BudgetState
-import com.example.budget.core.ChargeCategory
-import com.example.budget.core.FixedCharge
-import com.example.budget.core.IncomeSource
-import com.example.budget.core.Investment
-import com.example.budget.core.InvestmentKind
-import com.example.budget.core.Lending
-import com.example.budget.core.LendingSnapshot
-import com.example.budget.core.Loan
-import com.example.budget.core.LoanSnapshot
-import com.example.budget.core.Snapshot
-import com.example.budget.core.SnapshotLine
-import com.example.budget.core.ValueSnapshot
+import com.example.budget.core.charges.ChargeCategory
+import com.example.budget.core.charges.FixedCharge
+import com.example.budget.core.income.IncomeSource
+import com.example.budget.core.income.Lending
+import com.example.budget.core.income.LendingSnapshot
+import com.example.budget.core.snapshots.Snapshot
+import com.example.budget.core.snapshots.SnapshotLine
+import com.example.budget.core.wealth.Investment
+import com.example.budget.core.wealth.InvestmentKind
+import com.example.budget.core.wealth.Loan
+import com.example.budget.core.wealth.LoanSnapshot
+import com.example.budget.core.wealth.ValueSnapshot
+import kotlin.time.Instant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
-import kotlin.time.Instant
 
 /**
  * The rows of the store of the iOS versions before the shared core

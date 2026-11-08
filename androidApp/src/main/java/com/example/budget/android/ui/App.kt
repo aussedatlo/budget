@@ -43,6 +43,8 @@ import com.example.budget.android.ui.wealth.ValueForm
 import com.example.budget.android.ui.wealth.WealthScreen
 import com.example.budget.core.BudgetState
 import com.example.budget.core.data.BudgetRepository
+import com.example.budget.core.snapshots.Trends
+import com.example.budget.core.wealth.Wealth
 
 enum class Tab(val label: String, val emoji: String) {
     Budget("Budget", "👛"),

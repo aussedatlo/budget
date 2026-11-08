@@ -1,12 +1,19 @@
 package com.example.budget.core
 
+import com.example.budget.core.charges.ChargeCategory
+import com.example.budget.core.charges.FixedCharge
 import com.example.budget.core.data.BudgetRepository
 import com.example.budget.core.data.BudgetStore
 import com.example.budget.core.data.DatabaseFactory
-import com.example.budget.core.data.SnapshotRequest
-import com.example.budget.core.data.ChargeEntry
-import com.example.budget.core.data.InvestmentEntry
-import com.example.budget.core.data.SourceEntry
+import com.example.budget.core.income.IncomeSource
+import com.example.budget.core.income.Lending
+import com.example.budget.core.snapshots.ChargeEntry
+import com.example.budget.core.snapshots.InvestmentEntry
+import com.example.budget.core.snapshots.SnapshotLine
+import com.example.budget.core.snapshots.SnapshotRequest
+import com.example.budget.core.snapshots.SourceEntry
+import com.example.budget.core.wealth.Investment
+import com.example.budget.core.wealth.ValueSnapshot
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

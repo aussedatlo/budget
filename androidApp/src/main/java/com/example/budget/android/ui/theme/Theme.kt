@@ -8,9 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import com.example.budget.core.ChargeCategory
-import com.example.budget.core.InvestmentKind
 import com.example.budget.core.Tint
+import com.example.budget.core.charges.ChargeCategory
+import com.example.budget.core.wealth.InvestmentKind
 
 /**
  * The calm palette of the iOS app: neutral background, white cards, one

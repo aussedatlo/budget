@@ -47,8 +47,8 @@ import com.example.budget.android.ui.signedCurrency
 import com.example.budget.android.ui.signedPercent
 import com.example.budget.android.ui.theme.palette
 import com.example.budget.core.BudgetState
-import com.example.budget.core.Investment
-import com.example.budget.core.Loan
+import com.example.budget.core.wealth.Investment
+import com.example.budget.core.wealth.Loan
 
 /** What each position is worth, the home loan, and the net worth. */
 @Composable

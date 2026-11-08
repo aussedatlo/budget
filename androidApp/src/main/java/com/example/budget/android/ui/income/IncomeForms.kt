@@ -28,9 +28,9 @@ import com.example.budget.android.ui.TextInput
 import com.example.budget.android.ui.dayText
 import com.example.budget.android.ui.theme.palette
 import com.example.budget.core.BudgetCalendar
-import com.example.budget.core.IncomeSource
-import com.example.budget.core.Lending
-import com.example.budget.core.LendingSnapshot
+import com.example.budget.core.income.IncomeSource
+import com.example.budget.core.income.Lending
+import com.example.budget.core.income.LendingSnapshot
 
 @Composable
 fun IncomeSourceForm(source: IncomeSource?, nav: Nav) {

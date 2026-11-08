@@ -42,13 +42,13 @@ import com.example.budget.android.ui.wealth.ValueDraft
 import com.example.budget.android.ui.wealth.ValueFields
 import com.example.budget.core.BudgetCalendar
 import com.example.budget.core.BudgetState
-import com.example.budget.core.Snapshot
-import com.example.budget.core.data.SnapshotPlan
-import com.example.budget.core.data.SnapshotRequest
-import com.example.budget.core.data.ChargeEntry
-import com.example.budget.core.data.InvestmentEntry
-import com.example.budget.core.data.LoanEntry
-import com.example.budget.core.data.SourceEntry
+import com.example.budget.core.snapshots.ChargeEntry
+import com.example.budget.core.snapshots.InvestmentEntry
+import com.example.budget.core.snapshots.LoanEntry
+import com.example.budget.core.snapshots.Snapshot
+import com.example.budget.core.snapshots.SnapshotPlan
+import com.example.budget.core.snapshots.SnapshotRequest
+import com.example.budget.core.snapshots.SourceEntry
 import kotlin.math.abs
 
 /**

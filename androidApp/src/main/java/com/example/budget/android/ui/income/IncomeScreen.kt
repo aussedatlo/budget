@@ -49,8 +49,8 @@ import com.example.budget.android.ui.monthName
 import com.example.budget.android.ui.theme.palette
 import com.example.budget.core.BudgetCalendar
 import com.example.budget.core.BudgetState
-import com.example.budget.core.IncomeSource
-import com.example.budget.core.Lending
+import com.example.budget.core.income.IncomeSource
+import com.example.budget.core.income.Lending
 import kotlin.time.Instant
 
 /** Everything that comes in each month: income lines that can be switched on and off, and money lent being paid back. */

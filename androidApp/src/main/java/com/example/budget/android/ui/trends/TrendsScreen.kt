@@ -44,12 +44,12 @@ import com.example.budget.android.ui.signedCurrency
 import com.example.budget.android.ui.theme.palette
 import com.example.budget.core.BudgetCalendar
 import com.example.budget.core.BudgetState
-import com.example.budget.core.ChargeCategory
-import com.example.budget.core.History
-import com.example.budget.core.Savings
-import com.example.budget.core.Snapshot
-import com.example.budget.core.Trends
-import com.example.budget.core.Wealth
+import com.example.budget.core.charges.ChargeCategory
+import com.example.budget.core.snapshots.Snapshot
+import com.example.budget.core.snapshots.Trends
+import com.example.budget.core.wealth.History
+import com.example.budget.core.wealth.Savings
+import com.example.budget.core.wealth.Wealth
 import kotlin.time.Instant
 
 /** How everything moved over time: net worth, investments, the monthly budget and savings. */

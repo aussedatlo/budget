@@ -1,5 +1,15 @@
 package com.example.budget.core
 
+import com.example.budget.core.charges.FixedCharge
+import com.example.budget.core.income.IncomeSource
+import com.example.budget.core.income.IncomeTotals
+import com.example.budget.core.income.Lending
+import com.example.budget.core.snapshots.Snapshot
+import com.example.budget.core.wealth.Investment
+import com.example.budget.core.wealth.Loan
+import com.example.budget.core.wealth.Wealth
+import com.example.budget.core.wealth.WealthPoint
+
 /** Everything the app holds, sorted the way the screens list it. */
 data class BudgetState(
     /** Largest first. */

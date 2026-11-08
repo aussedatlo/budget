@@ -1,12 +1,10 @@
-package com.example.budget.core.data
+package com.example.budget.core.snapshots
 
 import com.example.budget.core.BudgetCalendar
 import com.example.budget.core.BudgetState
-import com.example.budget.core.Lending
-import com.example.budget.core.Snapshot
-import com.example.budget.core.SnapshotLine
-import com.example.budget.core.Wealth
-import com.example.budget.core.WealthPoint
+import com.example.budget.core.income.Lending
+import com.example.budget.core.wealth.Wealth
+import com.example.budget.core.wealth.WealthPoint
 import kotlin.time.Instant
 
 /**

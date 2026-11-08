@@ -26,8 +26,8 @@ import com.example.budget.android.ui.LabeledRow
 import com.example.budget.android.ui.Nav
 import com.example.budget.android.ui.TextInput
 import com.example.budget.android.ui.theme.palette
-import com.example.budget.core.ChargeCategory
-import com.example.budget.core.FixedCharge
+import com.example.budget.core.charges.ChargeCategory
+import com.example.budget.core.charges.FixedCharge
 
 @Composable
 fun ChargeForm(charge: FixedCharge?, nav: Nav) {

@@ -1,5 +1,6 @@
-package com.example.budget.core
+package com.example.budget.core.wealth
 
+import com.example.budget.core.BudgetCalendar
 import kotlin.time.Instant
 
 /** A home loan, followed through snapshots of what's left to repay and what the home is worth. */

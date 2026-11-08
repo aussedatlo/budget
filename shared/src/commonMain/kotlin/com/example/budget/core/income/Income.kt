@@ -1,5 +1,6 @@
-package com.example.budget.core
+package com.example.budget.core.income
 
+import com.example.budget.core.BudgetCalendar
 import kotlin.time.Instant
 
 /**
