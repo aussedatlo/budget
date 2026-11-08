@@ -1,5 +1,4 @@
 import Charts
-import SwiftData
 import SwiftUI
 
 /// Money saved each month (from "invested so far"), stacked per position,
@@ -95,7 +94,8 @@ struct SavingsChart: View {
 /// Edit how much goes to each position every month.
 struct SavingsPlanView: View {
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Investment.name) private var investments: [Investment]
+    @Environment(BudgetModel.self) private var model
+    private var investments: [Investment] { model.investments }
 
     private var total: Double { investments.reduce(0) { $0 + $1.monthlyContribution } }
 
@@ -114,7 +114,7 @@ struct SavingsPlanView: View {
                                     title: investment.name,
                                     value: Binding(
                                         get: { investment.monthlyContribution > 0 ? investment.monthlyContribution : nil },
-                                        set: { investment.monthlyContribution = max($0 ?? 0, 0) }
+                                        set: { model.setMonthlyContribution(max($0 ?? 0, 0), of: investment) }
                                     )
                                 )
                             }

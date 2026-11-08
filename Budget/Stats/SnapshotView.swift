@@ -1,11 +1,12 @@
-import SwiftData
+import BudgetCore
 import SwiftUI
 
 /// Toolbar button that opens the snapshot of everything, on every tab.
 /// Its icon shows whether this month's snapshot is still to take.
 struct SnapshotButton: View {
     @Binding var isPresented: Bool
-    @Query(sort: \Snapshot.date, order: .reverse) private var snapshots: [Snapshot]
+    @Environment(BudgetModel.self) private var model
+    private var snapshots: [Snapshot] { model.snapshots }
 
     var body: some View {
         let isDone = Snapshot.isTaken(thisMonthIn: snapshots)
@@ -22,14 +23,15 @@ struct SnapshotButton: View {
 /// When months were skipped since the last snapshot, it asks which one to do.
 /// Money lent is kept up to date on the Income tab: only its repayments show here.
 struct SnapshotView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \FixedCharge.amount, order: .reverse) private var charges: [FixedCharge]
-    @Query(sort: \IncomeSource.createdAt) private var sources: [IncomeSource]
-    @Query(sort: \Investment.name) private var investments: [Investment]
-    @Query(sort: \Loan.name) private var loans: [Loan]
-    @Query(sort: \Lending.date) private var allLendings: [Lending]
-    @Query(sort: \Snapshot.date) private var snapshots: [Snapshot]
+    private var charges: [FixedCharge] { model.charges }
+    private var sources: [IncomeSource] { model.incomeSources }
+    private var investments: [Investment] { model.investments }
+    private var loans: [Loan] { model.loans }
+    private var allLendings: [Lending] { model.lendings }
+    /// Oldest first.
+    private var snapshots: [Snapshot] { model.snapshots }
 
     private struct SourceDraft {
         var amount: Double?
@@ -42,13 +44,13 @@ struct SnapshotView: View {
     @State private var askingMonth = false
     @State private var confirmingDiscard = false
     @State private var note = ""
-    @State private var sourceDrafts: [PersistentIdentifier: SourceDraft] = [:]
-    @State private var chargeDrafts: [PersistentIdentifier: Double?] = [:]
-    @State private var drafts: [PersistentIdentifier: SnapshotDraft] = [:]
-    @State private var loanDrafts: [PersistentIdentifier: LoanDraft] = [:]
+    @State private var sourceDrafts: [Int64: SourceDraft] = [:]
+    @State private var chargeDrafts: [Int64: Double?] = [:]
+    @State private var drafts: [Int64: SnapshotDraft] = [:]
+    @State private var loanDrafts: [Int64: LoanDraft] = [:]
     /// Repayments and planned savings switched off for this snapshot only.
-    @State private var skippedRepayments: Set<PersistentIdentifier> = []
-    @State private var skippedSavings: Set<PersistentIdentifier> = []
+    @State private var skippedRepayments: Set<Int64> = []
+    @State private var skippedSavings: Set<Int64> = []
 
     /// Money lent that isn't fully repaid yet.
     private var lendings: [Lending] { allLendings.filter { !$0.isSettled } }
@@ -191,7 +193,7 @@ struct SnapshotView: View {
             }
             ForEach(lendings.filter { repayment(of: $0) > 0 }) { lending in
                 switchRow("Repaid by \(lending.name)", amount: repayment(of: lending),
-                          isOn: inclusion(of: lending.persistentModelID, in: $skippedRepayments),
+                          isOn: inclusion(of: lending.id, in: $skippedRepayments),
                           identifier: "snapshot-repayment-toggle-\(lending.name)")
             }
         } header: {
@@ -224,7 +226,7 @@ struct SnapshotView: View {
             Section {
                 ForEach(planned) { investment in
                     switchRow(investment.name, amount: investment.monthlyContribution,
-                              isOn: inclusion(of: investment.persistentModelID, in: $skippedSavings),
+                              isOn: inclusion(of: investment.id, in: $skippedSavings),
                               identifier: "snapshot-saving-toggle-\(investment.name)")
                 }
             } header: {
@@ -252,7 +254,7 @@ struct SnapshotView: View {
     }
 
     /// On while `id` isn't in `skipped`.
-    private func inclusion(of id: PersistentIdentifier, in skipped: Binding<Set<PersistentIdentifier>>) -> Binding<Bool> {
+    private func inclusion(of id: Int64, in skipped: Binding<Set<Int64>>) -> Binding<Bool> {
         Binding(
             get: { !skipped.wrappedValue.contains(id) },
             set: { isOn in
@@ -319,15 +321,15 @@ struct SnapshotView: View {
     // MARK: - Drafts
 
     private func sourceDraft(of source: IncomeSource) -> SourceDraft {
-        sourceDrafts[source.persistentModelID] ?? SourceDraft(amount: source.amount, isActive: source.isActive)
+        sourceDrafts[source.id] ?? SourceDraft(amount: source.amount, isActive: source.isActive)
     }
 
     private func chargeAmount(of charge: FixedCharge) -> Double? {
-        chargeDrafts[charge.persistentModelID] ?? Optional(charge.amount)
+        chargeDrafts[charge.id] ?? Optional(charge.amount)
     }
 
     private func investmentDraft(of investment: Investment) -> SnapshotDraft {
-        drafts[investment.persistentModelID] ?? baseDraft(of: investment)
+        drafts[investment.id] ?? baseDraft(of: investment)
     }
 
     /// The latest values; "invested so far" is worked out when saving.
@@ -336,57 +338,57 @@ struct SnapshotView: View {
     }
 
     private func loanDraft(of loan: Loan) -> LoanDraft {
-        loanDrafts[loan.persistentModelID] ?? LoanDraft(from: loan.latest, loan: loan)
+        loanDrafts[loan.id] ?? LoanDraft(from: loan.latest, loan: loan)
     }
 
     private func sourceBinding(for source: IncomeSource) -> Binding<SourceDraft> {
         Binding(
             get: { sourceDraft(of: source) },
-            set: { sourceDrafts[source.persistentModelID] = $0 }
+            set: { sourceDrafts[source.id] = $0 }
         )
     }
 
     private func chargeBinding(for charge: FixedCharge) -> Binding<Double?> {
         Binding(
             get: { chargeAmount(of: charge) },
-            set: { chargeDrafts[charge.persistentModelID] = .some($0) }
+            set: { chargeDrafts[charge.id] = .some($0) }
         )
     }
 
     private func draftBinding(for investment: Investment) -> Binding<SnapshotDraft> {
         Binding(
             get: { investmentDraft(of: investment) },
-            set: { drafts[investment.persistentModelID] = $0 }
+            set: { drafts[investment.id] = $0 }
         )
     }
 
     private func loanBinding(for loan: Loan) -> Binding<LoanDraft> {
         Binding(
             get: { loanDraft(of: loan) },
-            set: { loanDrafts[loan.persistentModelID] = $0 }
+            set: { loanDrafts[loan.id] = $0 }
         )
     }
 
     // MARK: - What was changed
 
     private func isEdited(_ investment: Investment) -> Bool {
-        guard let draft = drafts[investment.persistentModelID] else { return false }
+        guard let draft = drafts[investment.id] else { return false }
         return draft.differs(from: baseDraft(of: investment))
     }
 
     private func isEdited(_ loan: Loan) -> Bool {
-        guard let draft = loanDrafts[loan.persistentModelID] else { return false }
+        guard let draft = loanDrafts[loan.id] else { return false }
         let base = LoanDraft(from: loan.latest, loan: loan)
         return draft.remaining.differs(from: base.remaining) || draft.homeValue.differs(from: base.homeValue)
     }
 
     private func isEdited(_ charge: FixedCharge) -> Bool {
-        guard let amount = chargeDrafts[charge.persistentModelID] else { return false }
+        guard let amount = chargeDrafts[charge.id] else { return false }
         return amount.differs(from: charge.amount)
     }
 
     private func isEdited(_ source: IncomeSource) -> Bool {
-        guard let draft = sourceDrafts[source.persistentModelID] else { return false }
+        guard let draft = sourceDrafts[source.id] else { return false }
         return draft.isActive != source.isActive || draft.amount.differs(from: source.amount)
     }
 
@@ -403,133 +405,57 @@ struct SnapshotView: View {
 
     // MARK: - Totals as they would be saved
 
-    private var sourcesIncome: Double {
-        var total = 0.0
-        for source in sources {
-            let draft = sourceDraft(of: source)
-            if draft.isActive { total += max(draft.amount ?? source.amount, 0) }
-        }
-        return total
+    /// Everything as checked and fixed here, for the shared core: it works out
+    /// the totals and saves the snapshot (the same code as on Android).
+    private var request: SnapshotRequest {
+        SnapshotRequest(
+            month: month.instant,
+            note: note,
+            incomeSources: sources.map { source in
+                let draft = sourceDraft(of: source)
+                return SourceEntry(id: source.id, amount: max(draft.amount ?? source.amount, 0), isActive: draft.isActive)
+            },
+            charges: charges.map { charge in
+                ChargeEntry(id: charge.id, amount: max(chargeAmount(of: charge) ?? charge.amount, 0))
+            },
+            investments: investments.compactMap { investment in
+                let draft = investmentDraft(of: investment)
+                guard draft.isValid else { return nil }
+                return InvestmentEntry(
+                    id: investment.id,
+                    value: draft.computedValue,
+                    quantity: (draft.tracksUnits ? draft.quantity : nil).kotlin,
+                    unitPrice: (draft.tracksUnits ? draft.unitPrice : nil).kotlin)
+            },
+            loans: loans.compactMap { loan in
+                let draft = loanDraft(of: loan)
+                guard draft.isValid else { return nil }
+                return LoanEntry(id: loan.id, remaining: draft.remaining ?? 0, homeValue: draft.homeValue ?? 0)
+            },
+            skippedRepayments: Set(skippedRepayments.map { KotlinLong(value: $0) }),
+            skippedSavings: Set(skippedSavings.map { KotlinLong(value: $0) }),
+            now: BudgetCalendar.shared.now())
     }
+
+    private var plan: SnapshotPlan { request.plan(state: model.state) }
 
     /// What `lending` repays this month: never more than what is left.
     private func repayment(of lending: Lending) -> Double {
-        min(lending.monthlyRepayment, lending.remaining)
+        SnapshotPlan.companion.repayment(lending: lending.core)
     }
 
-    private var repayments: Double {
-        var total = 0.0
-        for lending in lendings where !skippedRepayments.contains(lending.persistentModelID) {
-            total += repayment(of: lending)
-        }
-        return total
-    }
-
-    private var income: Double { sourcesIncome + repayments }
-
-    private var chargesTotal: Double {
-        var total = 0.0
-        for charge in charges { total += max(chargeAmount(of: charge) ?? charge.amount, 0) }
-        return total
-    }
-
-    private var savings: Double {
-        investments
-            .filter { !skippedSavings.contains($0.persistentModelID) }
-            .reduce(0) { $0 + $1.monthlyContribution }
-    }
-    private var left: Double { income - chargesTotal - savings }
-
-    private var netWorth: Double {
-        var total = 0.0
-        for investment in investments { total += investmentDraft(of: investment).computedValue }
-        for loan in loans {
-            let draft = loanDraft(of: loan)
-            total += (draft.homeValue ?? 0) - (draft.remaining ?? 0)
-        }
-        for lending in lendings { total += lending.remaining }
-        return total
-    }
+    private var income: Double { plan.income }
+    private var chargesTotal: Double { plan.charges }
+    private var savings: Double { plan.savings }
+    private var left: Double { plan.left }
+    private var netWorth: Double { plan.netWorth }
 
     // MARK: - Save
 
+    /// Saves the month's budget and values, replacing what was recorded that
+    /// month. For the current month, the amounts become the current ones.
     private func save() {
-        let date = self.date
-
-        // The budget of the month. Fixed for the current month, it becomes
-        // the current state; a past month keeps it to itself.
-        var incomeLines: [SnapshotLine] = []
-        var other = 0.0
-        for source in sources {
-            let draft = sourceDraft(of: source)
-            let amount = max(draft.amount ?? source.amount, 0)
-            if draft.isActive {
-                other += amount
-                incomeLines.append(SnapshotLine(title: source.title, amount: amount))
-            }
-            if isCurrentMonth {
-                source.amount = amount
-                source.isActive = draft.isActive
-            }
-        }
-        var repaid = 0.0
-        for lending in lendings where !skippedRepayments.contains(lending.persistentModelID) {
-            let amount = repayment(of: lending)
-            guard amount > 0 else { continue }
-            repaid += amount
-            incomeLines.append(SnapshotLine(title: "Repaid by \(lending.name)", amount: amount))
-        }
-        var chargeLines: [SnapshotLine] = []
-        for charge in charges {
-            let amount = max(chargeAmount(of: charge) ?? charge.amount, 0)
-            chargeLines.append(SnapshotLine(title: charge.title, amount: amount, category: charge.categoryRaw))
-            if isCurrentMonth { charge.amount = amount }
-        }
-
-        // Values of the month, replacing the ones already recorded that month
-        for investment in investments {
-            var draft = investmentDraft(of: investment)
-            guard draft.isValid else { continue }
-            let existing = investment.entry(inMonthOf: date)
-            draft.date = date
-            draft.note = existing?.note ?? ""
-            draft.invested = investment.investedForSnapshot(
-                at: date, savingIncluded: !skippedSavings.contains(investment.persistentModelID))
-            let entry = existing ?? ValueSnapshot()
-            draft.apply(to: entry)
-            if existing == nil {
-                context.insert(entry)
-                investment.history.append(entry)
-            }
-        }
-        for loan in loans {
-            var draft = loanDraft(of: loan)
-            guard draft.isValid else { continue }
-            let existing = loan.entry(inMonthOf: date)
-            draft.date = date
-            draft.note = existing?.note ?? ""
-            let entry = existing ?? LoanSnapshot()
-            draft.apply(to: entry)
-            if existing == nil {
-                context.insert(entry)
-                loan.history.append(entry)
-            }
-        }
-
-        let existing = taken
-        let snapshot = existing ?? Snapshot()
-        snapshot.date = date
-        snapshot.note = note
-        // Income comes only from the income lines now; `mainIncome` is kept
-        // for snapshots taken before.
-        snapshot.mainIncome = 0
-        snapshot.otherIncome = other
-        snapshot.repayments = repaid
-        snapshot.charges = chargeLines.reduce(0) { $0 + $1.amount }
-        snapshot.savings = savings
-        snapshot.incomeLines = incomeLines
-        snapshot.chargeLines = chargeLines
-        if existing == nil { context.insert(snapshot) }
+        model.take(request)
         dismiss()
     }
 }

@@ -1,4 +1,4 @@
-import SwiftData
+import BudgetCore
 import SwiftUI
 
 // MARK: - Snapshot draft
@@ -56,13 +56,16 @@ struct SnapshotDraft {
         tracksUnits ? (quantity != nil && unitPrice != nil) : value != nil
     }
 
-    func apply(to snapshot: ValueSnapshot) {
-        snapshot.date = date
-        snapshot.value = computedValue
-        snapshot.invested = invested ?? 0
-        snapshot.quantity = tracksUnits ? quantity : nil
-        snapshot.unitPrice = tracksUnits ? unitPrice : nil
-        snapshot.note = note
+    /// These values for the shared core; `id` 0 adds them, another updates those values.
+    func values(id: Int64 = 0) -> BudgetCore.ValueSnapshot {
+        BudgetCore.ValueSnapshot(
+            id: id,
+            date: date.instant,
+            value: computedValue,
+            invested: invested ?? 0,
+            quantity: (tracksUnits ? quantity : nil).kotlin,
+            unitPrice: (tracksUnits ? unitPrice : nil).kotlin,
+            note: note)
     }
 }
 
@@ -103,7 +106,7 @@ struct SnapshotFields: View {
 // MARK: - Investment
 
 struct InvestmentFormView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     let investment: Investment?
@@ -171,7 +174,7 @@ struct InvestmentFormView: View {
                         Button("Delete this investment", role: .destructive) { confirmingDelete = true }
                             .confirmDelete("Delete \(investment.name)?", message: "Its whole history goes too.",
                                            isPresented: $confirmingDelete) {
-                                context.delete(investment)
+                                model.delete(investment)
                                 dismiss()
                             }
                     }
@@ -200,23 +203,14 @@ struct InvestmentFormView: View {
 
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        if let investment {
-            investment.name = trimmed
-            investment.ticker = ticker
-            investment.kind = kind
-            investment.emoji = customEmoji
-            investment.monthlyContribution = monthlyContribution ?? 0
-        } else {
-            let new = Investment(name: trimmed, ticker: ticker, kind: kind, emoji: customEmoji)
-            new.monthlyContribution = monthlyContribution ?? 0
-            context.insert(new)
-            if draft.isValid {
-                let snapshot = ValueSnapshot()
-                draft.apply(to: snapshot)
-                context.insert(snapshot)
-                new.history.append(snapshot)
-            }
-        }
+        model.saveInvestment(
+            investment,
+            name: trimmed,
+            ticker: ticker,
+            kind: kind,
+            emoji: customEmoji,
+            monthlyContribution: monthlyContribution ?? 0,
+            first: investment == nil && draft.isValid ? draft.values() : nil)
         dismiss()
     }
 }
@@ -225,7 +219,7 @@ struct InvestmentFormView: View {
 
 /// Updates what a position is worth (no `snapshot`), or corrects past values.
 struct SnapshotFormView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     let investment: Investment
@@ -262,8 +256,7 @@ struct SnapshotFormView: View {
                     Section {
                         Button("Delete these values", role: .destructive) { confirmingDelete = true }
                             .confirmDelete("Delete these values?", isPresented: $confirmingDelete) {
-                                investment.history.removeAll { $0 == snapshot }
-                                context.delete(snapshot)
+                                model.delete(snapshot)
                                 dismiss()
                             }
                     }
@@ -285,12 +278,7 @@ struct SnapshotFormView: View {
     private func save() {
         // One set of values per day: updating twice the same day corrects it
         let existing = snapshot ?? investment.entry(on: draft.date)
-        let item = existing ?? ValueSnapshot()
-        draft.apply(to: item)
-        if existing == nil {
-            context.insert(item)
-            investment.history.append(item)
-        }
+        model.saveValueSnapshot(of: investment, draft.values(id: existing?.id ?? 0))
         dismiss()
     }
 }

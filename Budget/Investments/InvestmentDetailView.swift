@@ -1,8 +1,13 @@
-import SwiftData
 import SwiftUI
 
 struct InvestmentDetailView: View {
-    let investment: Investment
+    @Environment(BudgetModel.self) private var model
+    private let initial: Investment
+
+    init(investment: Investment) { initial = investment }
+
+    /// Kept up to date with the changes made from here.
+    private var investment: Investment { model.investments.first { $0.id == initial.id } ?? initial }
 
     @State private var showingEdit = false
     @State private var adding = false

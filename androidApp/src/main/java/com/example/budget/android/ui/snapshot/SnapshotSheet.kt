@@ -45,6 +45,10 @@ import com.example.budget.core.BudgetState
 import com.example.budget.core.Snapshot
 import com.example.budget.core.data.SnapshotPlan
 import com.example.budget.core.data.SnapshotRequest
+import com.example.budget.core.data.ChargeEntry
+import com.example.budget.core.data.InvestmentEntry
+import com.example.budget.core.data.LoanEntry
+import com.example.budget.core.data.SourceEntry
 import kotlin.math.abs
 
 /**
@@ -76,19 +80,19 @@ fun SnapshotSheet(state: BudgetState, nav: Nav) {
         note = note,
         incomeSources = state.incomeSources.map { source ->
             val (amount, active) = sources[source.id] ?: (source.amount to source.isActive)
-            SnapshotRequest.SourceEntry(source.id, amount ?: source.amount, active)
+            SourceEntry(source.id, amount ?: source.amount, active)
         },
-        charges = state.charges.map { SnapshotRequest.ChargeEntry(it.id, charges[it.id] ?: it.amount) },
+        charges = state.charges.map { ChargeEntry(it.id, charges[it.id] ?: it.amount) },
         investments = state.investments.mapNotNull { investment ->
             val draft = values.getValue(investment.id)
-            if (!draft.isValid) null else SnapshotRequest.InvestmentEntry(
+            if (!draft.isValid) null else InvestmentEntry(
                 investment.id, draft.computedValue,
                 draft.quantity.takeIf { draft.tracksUnits }, draft.unitPrice.takeIf { draft.tracksUnits },
             )
         },
         loans = state.loans.mapNotNull { loan ->
             val (remaining, home) = loans[loan.id] ?: ((loan.latest?.remaining ?: loan.borrowed) to loan.latest?.homeValue)
-            remaining?.let { SnapshotRequest.LoanEntry(loan.id, it, home ?: 0.0) }
+            remaining?.let { LoanEntry(loan.id, it, home ?: 0.0) }
         },
         skippedRepayments = skippedRepayments.filterValues { it }.keys,
         skippedSavings = skippedSavings.filterValues { it }.keys,

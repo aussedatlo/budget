@@ -60,7 +60,7 @@ class BudgetRepository(private val driver: SqlDriver) {
         }
     }
 
-    fun deleteCharge(id: Long) = write { db.chargesQueries.delete(id) }
+    fun deleteCharge(id: Long): Unit = write { db.chargesQueries.delete(id) }
 
     // MARK: - Income
 
@@ -74,7 +74,7 @@ class BudgetRepository(private val driver: SqlDriver) {
         }
     }
 
-    fun deleteIncomeSource(id: Long) = write { db.incomeQueries.delete(id) }
+    fun deleteIncomeSource(id: Long): Unit = write { db.incomeQueries.delete(id) }
 
     /** Saves the lending itself; its history is left as it is. */
     fun saveLending(lending: Lending): Long = write {
@@ -89,7 +89,7 @@ class BudgetRepository(private val driver: SqlDriver) {
         }
     }
 
-    fun deleteLending(id: Long) = write {
+    fun deleteLending(id: Long): Unit = write {
         db.lendingsQueries.deleteSnapshotsOf(id)
         db.lendingsQueries.delete(id)
     }
@@ -103,7 +103,7 @@ class BudgetRepository(private val driver: SqlDriver) {
         }
     }
 
-    fun deleteLendingSnapshot(id: Long) = write { db.lendingsQueries.deleteSnapshot(id) }
+    fun deleteLendingSnapshot(id: Long): Unit = write { db.lendingsQueries.deleteSnapshot(id) }
 
     // MARK: - Investments
 
@@ -126,13 +126,13 @@ class BudgetRepository(private val driver: SqlDriver) {
         }
     }
 
-    fun deleteInvestment(id: Long) = write {
+    fun deleteInvestment(id: Long): Unit = write {
         db.investmentsQueries.deleteSnapshotsOf(id)
         db.investmentsQueries.delete(id)
     }
 
     /** The savings plan: how much goes to each investment every month (missing ids keep theirs). */
-    fun saveSavingsPlan(contributions: Map<Long, Double>) = write {
+    fun saveSavingsPlan(contributions: Map<Long, Double>): Unit = write {
         contributions.forEach { (id, amount) -> db.investmentsQueries.updateContribution(maxOf(amount, 0.0), id) }
     }
 
@@ -148,7 +148,7 @@ class BudgetRepository(private val driver: SqlDriver) {
         }
     }
 
-    fun deleteValueSnapshot(id: Long) = write { db.investmentsQueries.deleteSnapshot(id) }
+    fun deleteValueSnapshot(id: Long): Unit = write { db.investmentsQueries.deleteSnapshot(id) }
 
     // MARK: - Home loan
 
@@ -164,7 +164,7 @@ class BudgetRepository(private val driver: SqlDriver) {
         }
     }
 
-    fun deleteLoan(id: Long) = write {
+    fun deleteLoan(id: Long): Unit = write {
         db.loansQueries.deleteSnapshotsOf(id)
         db.loansQueries.delete(id)
     }
@@ -178,7 +178,7 @@ class BudgetRepository(private val driver: SqlDriver) {
         }
     }
 
-    fun deleteLoanSnapshot(id: Long) = write { db.loansQueries.deleteSnapshot(id) }
+    fun deleteLoanSnapshot(id: Long): Unit = write { db.loansQueries.deleteSnapshot(id) }
 
     // MARK: - Snapshots
 
@@ -189,7 +189,7 @@ class BudgetRepository(private val driver: SqlDriver) {
      * Deletes a snapshot and, when `withValues`, the values recorded in its
      * month for investments, the home loan and money lent.
      */
-    fun deleteSnapshot(id: Long, withValues: Boolean) = write {
+    fun deleteSnapshot(id: Long, withValues: Boolean): Unit = write {
         val snapshot = _state.value.snapshot(id)
         if (withValues && snapshot != null) {
             val from = BudgetCalendar.startOfMonth(snapshot.date).millis
@@ -274,7 +274,7 @@ class BudgetRepository(private val driver: SqlDriver) {
     // MARK: - Whole database
 
     /** Removes everything. */
-    fun deleteAll() = write {
+    fun deleteAll(): Unit = write {
         db.chargesQueries.deleteAll()
         db.incomeQueries.deleteAll()
         db.lendingsQueries.deleteAll()
@@ -284,7 +284,7 @@ class BudgetRepository(private val driver: SqlDriver) {
     }
 
     /** Adds everything in `state` (ids are ignored: new ones are given). */
-    fun insertAll(state: BudgetState) = write { insertAllNow(state) }
+    fun insertAll(state: BudgetState): Unit = write { insertAllNow(state) }
 
     fun meta(key: String): String? = db.metaQueries.get(key).executeAsOneOrNull()
 

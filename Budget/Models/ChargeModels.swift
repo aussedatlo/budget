@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 import SwiftUI
 
 enum ChargeCategory: String, CaseIterable, Identifiable {
@@ -62,32 +61,5 @@ enum ChargeCategory: String, CaseIterable, Identifiable {
         case .leisure: Theme.mint
         case .other: Theme.pink
         }
-    }
-}
-
-/// A charge paid every month (rent, subscriptions, insurance...).
-@Model
-final class FixedCharge {
-    var title: String = ""
-    var amount: Double = 0
-    var categoryRaw: String = ChargeCategory.other.rawValue
-    /// No longer shown or edited; kept so stored data opens unchanged.
-    var dayOfMonth: Int = 1
-    var emoji: String = ""
-
-    init(title: String, amount: Double, category: ChargeCategory = .other,
-         dayOfMonth: Int = 1, emoji: String = "") {
-        self.title = title
-        self.amount = amount
-        self.categoryRaw = category.rawValue
-        self.dayOfMonth = dayOfMonth
-        self.emoji = emoji
-    }
-
-    var displayEmoji: String { emoji.isEmpty ? category.emoji : emoji }
-
-    var category: ChargeCategory {
-        get { ChargeCategory(rawValue: categoryRaw) ?? .other }
-        set { categoryRaw = newValue.rawValue }
     }
 }

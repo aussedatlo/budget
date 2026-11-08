@@ -29,11 +29,6 @@ data class SnapshotRequest(
     val skippedSavings: Set<Long> = emptySet(),
     val now: Instant = BudgetCalendar.now(),
 ) {
-    data class SourceEntry(val id: Long, val amount: Double, val isActive: Boolean)
-    data class ChargeEntry(val id: Long, val amount: Double)
-    data class InvestmentEntry(val id: Long, val value: Double, val quantity: Double? = null, val unitPrice: Double? = null)
-    data class LoanEntry(val id: Long, val remaining: Double, val homeValue: Double)
-
     /** The request starting from the current values of everything: what the screen shows before any change. */
     companion object {
         fun from(state: BudgetState, month: Instant, now: Instant = BudgetCalendar.now()) = SnapshotRequest(
@@ -53,6 +48,18 @@ data class SnapshotRequest(
     /** What would be saved, with the totals the screen shows. */
     fun plan(state: BudgetState): SnapshotPlan = SnapshotPlan(this, state)
 }
+
+/** An income line as checked in the snapshot. */
+data class SourceEntry(val id: Long, val amount: Double, val isActive: Boolean)
+
+/** A recurring charge as checked in the snapshot. */
+data class ChargeEntry(val id: Long, val amount: Double)
+
+/** What an investment is worth that month. */
+data class InvestmentEntry(val id: Long, val value: Double, val quantity: Double? = null, val unitPrice: Double? = null)
+
+/** Where the home loan stands that month. */
+data class LoanEntry(val id: Long, val remaining: Double, val homeValue: Double)
 
 /** The totals and lines of a [SnapshotRequest], as they would be saved. */
 class SnapshotPlan internal constructor(request: SnapshotRequest, state: BudgetState) {

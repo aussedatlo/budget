@@ -1,12 +1,11 @@
 import Charts
-import SwiftData
 import SwiftUI
 
 struct InvestmentsView: View {
-    @Environment(\.modelContext) private var context
-    @Query(sort: \Investment.name) private var investments: [Investment]
-    @Query(sort: \Loan.name) private var loans: [Loan]
-    @Query private var lendings: [Lending]
+    @Environment(BudgetModel.self) private var model
+    private var investments: [Investment] { model.investments }
+    private var loans: [Loan] { model.loans }
+    private var lendings: [Lending] { model.lendings }
     @Binding var showingSnapshot: Bool
     @State private var showingAdd = false
     @State private var showingAddLoan = false
@@ -97,7 +96,7 @@ struct InvestmentsView: View {
             .sheet(item: $editing) { InvestmentFormView(investment: $0) }
             .confirmDelete($deleting, title: { "Delete \($0.name)?" },
                            message: { _ in "Its whole history goes too." }) { investment in
-                withAnimation(.snappy) { context.delete(investment) }
+                withAnimation(.snappy) { model.delete(investment) }
             }
             .overlay { ConfettiView(trigger: confetti).ignoresSafeArea() }
             .sensoryFeedback(.success, trigger: confetti)
@@ -214,20 +213,28 @@ struct FlowChips<Content: View>: View {
 /// and observed by every view that shows them.
 @Observable
 final class HiddenInvestments {
-    static let key = "hiddenInvestments"
+    /// Ids in the shared database. (Versions before it kept SwiftData's ids
+    /// under "hiddenInvestments": those positions show again once.)
+    static let key = "hiddenInvestmentIds"
     static let shared = HiddenInvestments()
 
-    private(set) var ids: Set<PersistentIdentifier>
+    private(set) var ids: Set<Int64>
 
     private init() {
         let data = UserDefaults.standard.data(forKey: Self.key) ?? Data()
-        ids = (try? JSONDecoder().decode(Set<PersistentIdentifier>.self, from: data)) ?? []
+        ids = (try? JSONDecoder().decode(Set<Int64>.self, from: data)) ?? []
     }
 
-    func contains(_ investment: Investment) -> Bool { ids.contains(investment.persistentModelID) }
+    /// Starts over with nothing hidden (the demo data of the UI tests).
+    func reset() {
+        ids = []
+        UserDefaults.standard.removeObject(forKey: Self.key)
+    }
+
+    func contains(_ investment: Investment) -> Bool { ids.contains(investment.id) }
 
     func toggle(_ investment: Investment) {
-        if contains(investment) { ids.remove(investment.persistentModelID) } else { ids.insert(investment.persistentModelID) }
+        if contains(investment) { ids.remove(investment.id) } else { ids.insert(investment.id) }
         UserDefaults.standard.set(try? JSONEncoder().encode(ids), forKey: Self.key)
     }
 }

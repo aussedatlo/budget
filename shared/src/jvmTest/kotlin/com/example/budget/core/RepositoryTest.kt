@@ -4,6 +4,9 @@ import com.example.budget.core.data.BudgetRepository
 import com.example.budget.core.data.BudgetStore
 import com.example.budget.core.data.DatabaseFactory
 import com.example.budget.core.data.SnapshotRequest
+import com.example.budget.core.data.ChargeEntry
+import com.example.budget.core.data.InvestmentEntry
+import com.example.budget.core.data.SourceEntry
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -69,9 +72,9 @@ class RepositoryTest {
 
         val start = SnapshotRequest.from(repo.current, TestClock.instant)
         val request = start.copy(
-            incomeSources = listOf(SnapshotRequest.SourceEntry(salary, 2_100.0, true)),
-            charges = listOf(SnapshotRequest.ChargeEntry(rent, 820.0)),
-            investments = listOf(SnapshotRequest.InvestmentEntry(etf, 1_250.0)),
+            incomeSources = listOf(SourceEntry(salary, 2_100.0, true)),
+            charges = listOf(ChargeEntry(rent, 820.0)),
+            investments = listOf(InvestmentEntry(etf, 1_250.0)),
         )
         val plan = request.plan(repo.current)
         assertEquals(2_150.0, plan.income)
@@ -102,7 +105,7 @@ class RepositoryTest {
         val august = Instant.parse("2026-08-01T00:00:00Z")
         repo.takeSnapshot(
             SnapshotRequest.from(repo.current, august).copy(
-                incomeSources = listOf(SnapshotRequest.SourceEntry(salary, 1_500.0, true)),
+                incomeSources = listOf(SourceEntry(salary, 1_500.0, true)),
             ),
         )
         assertEquals(2_000.0, repo.current.incomeSource(salary)!!.amount)
@@ -115,7 +118,7 @@ class RepositoryTest {
         val etf = repo.saveInvestment(Investment(name = "ETF"))
         repo.saveValueSnapshot(etf, ValueSnapshot(date = day("2026-09-10"), value = 10.0))
         repo.takeSnapshot(SnapshotRequest.from(repo.current, TestClock.instant).copy(
-            investments = listOf(SnapshotRequest.InvestmentEntry(etf, 20.0)),
+            investments = listOf(InvestmentEntry(etf, 20.0)),
         ))
         assertEquals(2, repo.current.investment(etf)!!.history.size)
 

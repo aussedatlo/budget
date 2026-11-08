@@ -1,14 +1,13 @@
-import SwiftData
 import SwiftUI
 
 /// Monthly income (from the Income tab) minus recurring charges: what's left each month,
 /// next to a floating banknote of the app's currency.
 struct MonthlyView: View {
-    @Environment(\.modelContext) private var context
-    @Query(sort: \FixedCharge.amount, order: .reverse) private var charges: [FixedCharge]
-    @Query(sort: \Investment.name) private var investments: [Investment]
-    @Query private var incomeSources: [IncomeSource]
-    @Query private var lendings: [Lending]
+    @Environment(BudgetModel.self) private var model
+    private var charges: [FixedCharge] { model.charges }
+    private var investments: [Investment] { model.investments }
+    private var incomeSources: [IncomeSource] { model.incomeSources }
+    private var lendings: [Lending] { model.lendings }
     @Binding var showingSettings: Bool
     @Binding var showingSnapshot: Bool
     /// The selected tab, to jump to the Income tab from the income line.
@@ -73,7 +72,7 @@ struct MonthlyView: View {
             .sheet(isPresented: $adding) { FixedChargeFormView() }
             .sheet(item: $editing) { FixedChargeFormView(charge: $0) }
             .confirmDelete($deleting, title: { "Delete \($0.title)?" }) { charge in
-                withAnimation(.snappy) { context.delete(charge) }
+                withAnimation(.snappy) { model.delete(charge) }
             }
             .sheet(isPresented: $editingPlan) { SavingsPlanView() }
             .sensoryFeedback(.success, trigger: charges.count) { old, new in new > old }
@@ -197,7 +196,7 @@ private struct ChargeCard: View {
 }
 
 struct FixedChargeFormView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     let charge: FixedCharge?
@@ -244,7 +243,7 @@ struct FixedChargeFormView: View {
                     Section {
                         Button("Delete this charge", role: .destructive) { confirmingDelete = true }
                             .confirmDelete("Delete \(charge.title)?", isPresented: $confirmingDelete) {
-                                context.delete(charge)
+                                model.delete(charge)
                                 dismiss()
                             }
                     }
@@ -269,12 +268,12 @@ struct FixedChargeFormView: View {
     }
 
     private func save() {
-        let item = charge ?? FixedCharge(title: "", amount: 0)
-        item.title = title.trimmingCharacters(in: .whitespaces)
-        item.amount = amount ?? 0
-        item.category = category
-        item.emoji = emoji == category.emoji ? "" : emoji
-        if charge == nil { context.insert(item) }
+        model.saveCharge(
+            id: charge?.id,
+            title: title.trimmingCharacters(in: .whitespaces),
+            amount: amount ?? 0,
+            category: category,
+            emoji: emoji == category.emoji ? "" : emoji)
         dismiss()
     }
 }
