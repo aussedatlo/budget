@@ -1,4 +1,4 @@
-CREATE TABLE investment (
+CREATE TABLE investments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     ticker TEXT NOT NULL DEFAULT '',
@@ -8,9 +8,9 @@ CREATE TABLE investment (
     monthly_contribution REAL NOT NULL DEFAULT 0
 );
 
-CREATE TABLE value_snapshot (
+CREATE TABLE value_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    investment_id INTEGER NOT NULL REFERENCES investment(id),
+    investment_id INTEGER NOT NULL REFERENCES investments(id),
     date INTEGER NOT NULL,
     value REAL NOT NULL,
     invested REAL NOT NULL,
@@ -19,42 +19,42 @@ CREATE TABLE value_snapshot (
     note TEXT NOT NULL DEFAULT ''
 );
 
-CREATE INDEX value_snapshot_investment ON value_snapshot(investment_id);
+CREATE INDEX value_snapshot_investment ON value_snapshots(investment_id);
 
 selectAll:
-SELECT * FROM investment ORDER BY name COLLATE NOCASE, id;
+SELECT * FROM investments ORDER BY name COLLATE NOCASE, id;
 
 selectAllSnapshots:
-SELECT * FROM value_snapshot ORDER BY date, id;
+SELECT * FROM value_snapshots ORDER BY date, id;
 
 insert:
-INSERT INTO investment (name, ticker, kind, emoji, created_at, monthly_contribution) VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO investments (name, ticker, kind, emoji, created_at, monthly_contribution) VALUES (?, ?, ?, ?, ?, ?);
 
 update:
-UPDATE investment SET name = ?, ticker = ?, kind = ?, emoji = ?, created_at = ?, monthly_contribution = ? WHERE id = ?;
+UPDATE investments SET name = ?, ticker = ?, kind = ?, emoji = ?, created_at = ?, monthly_contribution = ? WHERE id = ?;
 
 updateContribution:
-UPDATE investment SET monthly_contribution = ? WHERE id = ?;
+UPDATE investments SET monthly_contribution = ? WHERE id = ?;
 
 delete:
-DELETE FROM investment WHERE id = ?;
+DELETE FROM investments WHERE id = ?;
 
 insertSnapshot:
-INSERT INTO value_snapshot (investment_id, date, value, invested, quantity, unit_price, note) VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO value_snapshots (investment_id, date, value, invested, quantity, unit_price, note) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 updateSnapshot:
-UPDATE value_snapshot SET date = ?, value = ?, invested = ?, quantity = ?, unit_price = ?, note = ? WHERE id = ?;
+UPDATE value_snapshots SET date = ?, value = ?, invested = ?, quantity = ?, unit_price = ?, note = ? WHERE id = ?;
 
 deleteSnapshot:
-DELETE FROM value_snapshot WHERE id = ?;
+DELETE FROM value_snapshots WHERE id = ?;
 
 deleteSnapshotsOf:
-DELETE FROM value_snapshot WHERE investment_id = ?;
+DELETE FROM value_snapshots WHERE investment_id = ?;
 
 deleteSnapshotsInRange:
-DELETE FROM value_snapshot WHERE date >= ? AND date <= ?;
+DELETE FROM value_snapshots WHERE date >= ? AND date <= ?;
 
 deleteAll {
-    DELETE FROM value_snapshot;
-    DELETE FROM investment;
+    DELETE FROM value_snapshots;
+    DELETE FROM investments;
 }

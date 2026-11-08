@@ -1,4 +1,4 @@
-CREATE TABLE income_source (
+CREATE TABLE income_sources (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     amount REAL NOT NULL,
@@ -8,19 +8,19 @@ CREATE TABLE income_source (
 );
 
 selectAll:
-SELECT * FROM income_source ORDER BY created_at, id;
+SELECT * FROM income_sources ORDER BY created_at, id;
 
 insert:
-INSERT INTO income_source (title, amount, emoji, is_active, created_at) VALUES (?, ?, ?, ?, ?);
+INSERT INTO income_sources (title, amount, emoji, is_active, created_at) VALUES (?, ?, ?, ?, ?);
 
 update:
-UPDATE income_source SET title = ?, amount = ?, emoji = ?, is_active = ?, created_at = ? WHERE id = ?;
+UPDATE income_sources SET title = ?, amount = ?, emoji = ?, is_active = ?, created_at = ? WHERE id = ?;
 
 updateAmount:
-UPDATE income_source SET amount = ?, is_active = ? WHERE id = ?;
+UPDATE income_sources SET amount = ?, is_active = ? WHERE id = ?;
 
 delete:
-DELETE FROM income_source WHERE id = ?;
+DELETE FROM income_sources WHERE id = ?;
 
 deleteAll:
-DELETE FROM income_source;
+DELETE FROM income_sources;

@@ -1,4 +1,4 @@
-CREATE TABLE snapshot (
+CREATE TABLE snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date INTEGER NOT NULL,
     note TEXT NOT NULL DEFAULT '',
@@ -10,9 +10,9 @@ CREATE TABLE snapshot (
 );
 
 -- A charge or an income line as it was in a snapshot, in list order.
-CREATE TABLE snapshot_line (
+CREATE TABLE snapshot_lines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    snapshot_id INTEGER NOT NULL REFERENCES snapshot(id),
+    snapshot_id INTEGER NOT NULL REFERENCES snapshots(id),
     -- 'charge' or 'income'
     kind TEXT NOT NULL,
     position INTEGER NOT NULL,
@@ -21,30 +21,30 @@ CREATE TABLE snapshot_line (
     category TEXT NOT NULL DEFAULT ''
 );
 
-CREATE INDEX snapshot_line_snapshot ON snapshot_line(snapshot_id);
+CREATE INDEX snapshot_line_snapshot ON snapshot_lines(snapshot_id);
 
 selectAll:
-SELECT * FROM snapshot ORDER BY date, id;
+SELECT * FROM snapshots ORDER BY date, id;
 
 selectAllLines:
-SELECT * FROM snapshot_line ORDER BY snapshot_id, kind, position;
+SELECT * FROM snapshot_lines ORDER BY snapshot_id, kind, position;
 
 insert:
-INSERT INTO snapshot (date, note, main_income, other_income, repayments, charges, savings) VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO snapshots (date, note, main_income, other_income, repayments, charges, savings) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 update:
-UPDATE snapshot SET date = ?, note = ?, main_income = ?, other_income = ?, repayments = ?, charges = ?, savings = ? WHERE id = ?;
+UPDATE snapshots SET date = ?, note = ?, main_income = ?, other_income = ?, repayments = ?, charges = ?, savings = ? WHERE id = ?;
 
 delete:
-DELETE FROM snapshot WHERE id = ?;
+DELETE FROM snapshots WHERE id = ?;
 
 insertLine:
-INSERT INTO snapshot_line (snapshot_id, kind, position, title, amount, category) VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO snapshot_lines (snapshot_id, kind, position, title, amount, category) VALUES (?, ?, ?, ?, ?, ?);
 
 deleteLinesOf:
-DELETE FROM snapshot_line WHERE snapshot_id = ?;
+DELETE FROM snapshot_lines WHERE snapshot_id = ?;
 
 deleteAll {
-    DELETE FROM snapshot_line;
-    DELETE FROM snapshot;
+    DELETE FROM snapshot_lines;
+    DELETE FROM snapshots;
 }

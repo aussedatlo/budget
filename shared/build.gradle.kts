@@ -2,14 +2,19 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
     alias(libs.plugins.sqldelight)
+    // Applied below, except for iOS-only builds (Xcode), which need no Android SDK
+    alias(libs.plugins.android.library) apply false
 }
 
+/** `-Pbudget.iosOnly=true`: the iOS framework only, as Xcode builds it. */
+val iosOnly = providers.gradleProperty("budget.iosOnly").orNull == "true"
+
 kotlin {
-    androidTarget {
-        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
     }
+
     // Fast host tests (and the database tests, on the desktop SQLite driver)
     jvm {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
@@ -19,8 +24,6 @@ kotlin {
         target.binaries.framework {
             baseName = "BudgetCore"
             isStatic = true
-            // The SQLite driver links against the system library
-            linkerOpts("-lsqlite3")
         }
     }
 
@@ -36,9 +39,6 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
-        androidMain.dependencies {
-            implementation(libs.sqldelight.android)
-        }
         iosMain.dependencies {
             implementation(libs.sqldelight.native)
         }
@@ -48,15 +48,28 @@ kotlin {
     }
 }
 
-android {
-    namespace = "com.example.budget.core"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-    defaultConfig {
-        minSdk = libs.versions.android.minSdk.get().toInt()
+if (!iosOnly) {
+    apply(plugin = "com.android.library")
+
+    kotlin {
+        androidTarget {
+            compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+        }
+        sourceSets.getByName("androidMain").dependencies {
+            implementation(libs.sqldelight.android)
+        }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+
+    extensions.configure<com.android.build.gradle.LibraryExtension> {
+        namespace = "com.example.budget.core"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        defaultConfig {
+            minSdk = libs.versions.android.minSdk.get().toInt()
+        }
+        compileOptions {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
     }
 }
 

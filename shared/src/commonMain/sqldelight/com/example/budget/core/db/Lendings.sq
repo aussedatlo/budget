@@ -1,4 +1,4 @@
-CREATE TABLE lending (
+CREATE TABLE lendings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     emoji TEXT NOT NULL DEFAULT '💸',
@@ -8,47 +8,47 @@ CREATE TABLE lending (
     note TEXT NOT NULL DEFAULT ''
 );
 
-CREATE TABLE lending_snapshot (
+CREATE TABLE lending_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    lending_id INTEGER NOT NULL REFERENCES lending(id),
+    lending_id INTEGER NOT NULL REFERENCES lendings(id),
     date INTEGER NOT NULL,
     remaining REAL NOT NULL,
     note TEXT NOT NULL DEFAULT ''
 );
 
-CREATE INDEX lending_snapshot_lending ON lending_snapshot(lending_id);
+CREATE INDEX lending_snapshot_lending ON lending_snapshots(lending_id);
 
 selectAll:
-SELECT * FROM lending ORDER BY date, id;
+SELECT * FROM lendings ORDER BY date, id;
 
 selectAllSnapshots:
-SELECT * FROM lending_snapshot ORDER BY date, id;
+SELECT * FROM lending_snapshots ORDER BY date, id;
 
 insert:
-INSERT INTO lending (name, emoji, lent, date, monthly_repayment, note) VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO lendings (name, emoji, lent, date, monthly_repayment, note) VALUES (?, ?, ?, ?, ?, ?);
 
 update:
-UPDATE lending SET name = ?, emoji = ?, lent = ?, date = ?, monthly_repayment = ?, note = ? WHERE id = ?;
+UPDATE lendings SET name = ?, emoji = ?, lent = ?, date = ?, monthly_repayment = ?, note = ? WHERE id = ?;
 
 delete:
-DELETE FROM lending WHERE id = ?;
+DELETE FROM lendings WHERE id = ?;
 
 insertSnapshot:
-INSERT INTO lending_snapshot (lending_id, date, remaining, note) VALUES (?, ?, ?, ?);
+INSERT INTO lending_snapshots (lending_id, date, remaining, note) VALUES (?, ?, ?, ?);
 
 updateSnapshot:
-UPDATE lending_snapshot SET date = ?, remaining = ?, note = ? WHERE id = ?;
+UPDATE lending_snapshots SET date = ?, remaining = ?, note = ? WHERE id = ?;
 
 deleteSnapshot:
-DELETE FROM lending_snapshot WHERE id = ?;
+DELETE FROM lending_snapshots WHERE id = ?;
 
 deleteSnapshotsOf:
-DELETE FROM lending_snapshot WHERE lending_id = ?;
+DELETE FROM lending_snapshots WHERE lending_id = ?;
 
 deleteSnapshotsInRange:
-DELETE FROM lending_snapshot WHERE date >= ? AND date <= ?;
+DELETE FROM lending_snapshots WHERE date >= ? AND date <= ?;
 
 deleteAll {
-    DELETE FROM lending_snapshot;
-    DELETE FROM lending;
+    DELETE FROM lending_snapshots;
+    DELETE FROM lendings;
 }
