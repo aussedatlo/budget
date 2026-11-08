@@ -1,0 +1,26 @@
+CREATE TABLE income_source (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    amount REAL NOT NULL,
+    emoji TEXT NOT NULL DEFAULT '💼',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM income_source ORDER BY created_at, id;
+
+insert:
+INSERT INTO income_source (title, amount, emoji, is_active, created_at) VALUES (?, ?, ?, ?, ?);
+
+update:
+UPDATE income_source SET title = ?, amount = ?, emoji = ?, is_active = ?, created_at = ? WHERE id = ?;
+
+updateAmount:
+UPDATE income_source SET amount = ?, is_active = ? WHERE id = ?;
+
+delete:
+DELETE FROM income_source WHERE id = ?;
+
+deleteAll:
+DELETE FROM income_source;

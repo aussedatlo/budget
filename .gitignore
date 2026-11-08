@@ -8,3 +8,13 @@ build/
 *.p12
 *.mobileprovision
 .DS_Store
+# Gradle / Android
+.gradle/
+.kotlin/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+shared/build/
+androidApp/build/

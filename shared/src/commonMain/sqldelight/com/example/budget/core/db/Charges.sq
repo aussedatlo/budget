@@ -1,0 +1,29 @@
+-- Dates are milliseconds since 1970 (UTC). Children are deleted by the
+-- repository, in the same transaction as their parent.
+
+CREATE TABLE fixed_charge (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category TEXT NOT NULL,
+    day_of_month INTEGER NOT NULL DEFAULT 1,
+    emoji TEXT NOT NULL DEFAULT ''
+);
+
+selectAll:
+SELECT * FROM fixed_charge ORDER BY amount DESC, id;
+
+insert:
+INSERT INTO fixed_charge (title, amount, category, day_of_month, emoji) VALUES (?, ?, ?, ?, ?);
+
+update:
+UPDATE fixed_charge SET title = ?, amount = ?, category = ?, day_of_month = ?, emoji = ? WHERE id = ?;
+
+updateAmount:
+UPDATE fixed_charge SET amount = ? WHERE id = ?;
+
+delete:
+DELETE FROM fixed_charge WHERE id = ?;
+
+deleteAll:
+DELETE FROM fixed_charge;

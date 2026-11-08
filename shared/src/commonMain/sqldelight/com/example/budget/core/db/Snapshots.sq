@@ -1,0 +1,50 @@
+CREATE TABLE snapshot (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date INTEGER NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    main_income REAL NOT NULL DEFAULT 0,
+    other_income REAL NOT NULL DEFAULT 0,
+    repayments REAL NOT NULL DEFAULT 0,
+    charges REAL NOT NULL DEFAULT 0,
+    savings REAL NOT NULL DEFAULT 0
+);
+
+-- A charge or an income line as it was in a snapshot, in list order.
+CREATE TABLE snapshot_line (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_id INTEGER NOT NULL REFERENCES snapshot(id),
+    -- 'charge' or 'income'
+    kind TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX snapshot_line_snapshot ON snapshot_line(snapshot_id);
+
+selectAll:
+SELECT * FROM snapshot ORDER BY date, id;
+
+selectAllLines:
+SELECT * FROM snapshot_line ORDER BY snapshot_id, kind, position;
+
+insert:
+INSERT INTO snapshot (date, note, main_income, other_income, repayments, charges, savings) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE snapshot SET date = ?, note = ?, main_income = ?, other_income = ?, repayments = ?, charges = ?, savings = ? WHERE id = ?;
+
+delete:
+DELETE FROM snapshot WHERE id = ?;
+
+insertLine:
+INSERT INTO snapshot_line (snapshot_id, kind, position, title, amount, category) VALUES (?, ?, ?, ?, ?, ?);
+
+deleteLinesOf:
+DELETE FROM snapshot_line WHERE snapshot_id = ?;
+
+deleteAll {
+    DELETE FROM snapshot_line;
+    DELETE FROM snapshot;
+}
