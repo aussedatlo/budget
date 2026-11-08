@@ -2,10 +2,11 @@
 """Pick the UI test classes a pull request can break, from the files it changes.
 
 Each app file is mapped to the test files that go through its screens. A
-change to a file not listed below (models, shared code, the app setup, the
-project, the test helpers) runs every test. Colors and the CI itself only
-run a quick smoke test, and a change that can't reach the app (README,
-other workflows, this file) runs none.
+change to a file not listed below (models, shared code, the shared Kotlin
+core, the Gradle build, the app setup, the project, the test helpers) runs
+every test. Colors and the CI itself only run a quick smoke test, and a
+change that can't reach the app (README, the Android app, other workflows,
+this file) runs none.
 
 Prints, for $GITHUB_OUTPUT:
   classes=<test classes, space separated, or "all">
@@ -45,6 +46,8 @@ SMOKE = ["SettingsAndLaunchTests"]
 
 # Files that never reach the app or the UI tests
 UNRELATED = ["*.md", "docs/*", ".claude/*", ".github/workflows/ios.yml",
+             # The Android app (the shared core in shared/ runs every test)
+             "androidApp/*", ".github/workflows/android.yml",
              ".github/scripts/screenshot_comment.py", ".github/scripts/impacted_tests.py",
              ".gitignore", "LICENSE*"]
 

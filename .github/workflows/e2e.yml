@@ -68,6 +68,21 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      # The shared Kotlin core is built by Gradle from the Xcode build (project.yml)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache the Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
       - name: Generate Xcode project
         run: |
           brew install xcodegen
