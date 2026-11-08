@@ -1,0 +1,60 @@
+CREATE TABLE investments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    ticker TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL,
+    emoji TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    monthly_contribution REAL NOT NULL DEFAULT 0
+);
+
+CREATE TABLE value_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    investment_id INTEGER NOT NULL REFERENCES investments(id),
+    date INTEGER NOT NULL,
+    value REAL NOT NULL,
+    invested REAL NOT NULL,
+    quantity REAL,
+    unit_price REAL,
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX value_snapshot_investment ON value_snapshots(investment_id);
+
+selectAll:
+SELECT * FROM investments ORDER BY name COLLATE NOCASE, id;
+
+selectAllSnapshots:
+SELECT * FROM value_snapshots ORDER BY date, id;
+
+insert:
+INSERT INTO investments (name, ticker, kind, emoji, created_at, monthly_contribution) VALUES (?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE investments SET name = ?, ticker = ?, kind = ?, emoji = ?, created_at = ?, monthly_contribution = ? WHERE id = ?;
+
+updateContribution:
+UPDATE investments SET monthly_contribution = ? WHERE id = ?;
+
+delete:
+DELETE FROM investments WHERE id = ?;
+
+insertSnapshot:
+INSERT INTO value_snapshots (investment_id, date, value, invested, quantity, unit_price, note) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+updateSnapshot:
+UPDATE value_snapshots SET date = ?, value = ?, invested = ?, quantity = ?, unit_price = ?, note = ? WHERE id = ?;
+
+deleteSnapshot:
+DELETE FROM value_snapshots WHERE id = ?;
+
+deleteSnapshotsOf:
+DELETE FROM value_snapshots WHERE investment_id = ?;
+
+deleteSnapshotsInRange:
+DELETE FROM value_snapshots WHERE date >= ? AND date <= ?;
+
+deleteAll {
+    DELETE FROM value_snapshots;
+    DELETE FROM investments;
+}

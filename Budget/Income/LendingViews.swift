@@ -1,5 +1,4 @@
 import Charts
-import SwiftData
 import SwiftUI
 
 // MARK: - Card
@@ -51,7 +50,13 @@ struct LendingCard: View {
 // MARK: - Detail
 
 struct LendingDetailView: View {
-    let lending: Lending
+    @Environment(BudgetModel.self) private var model
+    private let initial: Lending
+
+    init(lending: Lending) { initial = lending }
+
+    /// Kept up to date with the changes made from here.
+    private var lending: Lending { model.lendings.first { $0.id == initial.id } ?? initial }
 
     @State private var showingEdit = false
     @State private var adding = false
@@ -176,7 +181,7 @@ private struct LendingSnapshotRow: View {
 // MARK: - Forms
 
 struct LendingFormView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     let lending: Lending?
@@ -240,7 +245,7 @@ struct LendingFormView: View {
                             .confirmDelete("Delete the money lent to \(lending.name)?",
                                            message: "Its whole history goes too.",
                                            isPresented: $confirmingDelete) {
-                                context.delete(lending)
+                                model.delete(lending)
                                 dismiss()
                             }
                     }
@@ -261,22 +266,20 @@ struct LendingFormView: View {
     }
 
     private func save() {
-        let item = lending ?? Lending(name: "", lent: 0)
-        item.name = name.trimmingCharacters(in: .whitespaces)
-        item.emoji = emoji.isEmpty ? "💸" : emoji
-        item.lent = lent ?? 0
-        item.date = date
-        item.monthlyRepayment = max(monthlyRepayment ?? 0, 0)
-        if let latest = item.latest, let remaining {
-            latest.remaining = max(remaining, 0)
-        }
-        if lending == nil { context.insert(item) }
+        model.saveLending(
+            lending,
+            name: name.trimmingCharacters(in: .whitespaces),
+            emoji: emoji.isEmpty ? "💸" : emoji,
+            lent: lent ?? 0,
+            date: date,
+            monthlyRepayment: max(monthlyRepayment ?? 0, 0),
+            remaining: remaining)
         dismiss()
     }
 }
 
 struct LendingSnapshotFormView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     let lending: Lending
@@ -315,8 +318,7 @@ struct LendingSnapshotFormView: View {
                     Section {
                         Button("Delete this value", role: .destructive) { confirmingDelete = true }
                             .confirmDelete("Delete this value?", isPresented: $confirmingDelete) {
-                                lending.history.removeAll { $0 == snapshot }
-                                context.delete(snapshot)
+                                model.delete(snapshot)
                                 dismiss()
                             }
                     }
@@ -337,14 +339,7 @@ struct LendingSnapshotFormView: View {
 
     private func save() {
         let existing = snapshot ?? lending.entry(on: date)
-        let item = existing ?? LendingSnapshot()
-        item.date = date
-        item.remaining = max(remaining ?? 0, 0)
-        item.note = note
-        if existing == nil {
-            context.insert(item)
-            lending.history.append(item)
-        }
+        model.saveLendingSnapshot(of: lending, id: existing?.id, date: date, remaining: max(remaining ?? 0, 0), note: note)
         dismiss()
     }
 }

@@ -1,15 +1,15 @@
 import Charts
-import SwiftData
 import SwiftUI
 
 /// How everything moved over time: net worth, investments, the monthly
 /// budget and savings, from one snapshot to the next.
 struct StatsView: View {
-    @Environment(\.modelContext) private var context
-    @Query(sort: \Investment.name) private var investments: [Investment]
-    @Query(sort: \Loan.name) private var loans: [Loan]
-    @Query private var lendings: [Lending]
-    @Query(sort: \Snapshot.date) private var snapshots: [Snapshot]
+    @Environment(BudgetModel.self) private var model
+    private var investments: [Investment] { model.investments }
+    private var loans: [Loan] { model.loans }
+    private var lendings: [Lending] { model.lendings }
+    /// Oldest first.
+    private var snapshots: [Snapshot] { model.snapshots }
     @Binding var showingSnapshot: Bool
     @State private var selected: SnapshotSummary?
     /// Snapshot to delete once its sheet is closed, and whether the values
@@ -150,29 +150,7 @@ struct StatsView: View {
     private func deletePending() {
         guard let pending = deleting else { return }
         deleting = nil
-        let snapshot = pending.snapshot
-        guard pending.withValues else {
-            withAnimation(.snappy) { context.delete(snapshot) }
-            return
-        }
-        let calendar = Calendar.current
-        let day = snapshot.date
-        for investment in investments {
-            let entries = investment.history.filter { calendar.isDate($0.date, inSameMonthAs: day) }
-            investment.history.removeAll { entries.contains($0) }
-            entries.forEach { context.delete($0) }
-        }
-        for loan in loans {
-            let entries = loan.history.filter { calendar.isDate($0.date, inSameMonthAs: day) }
-            loan.history.removeAll { entries.contains($0) }
-            entries.forEach { context.delete($0) }
-        }
-        for lending in lendings {
-            let entries = lending.history.filter { calendar.isDate($0.date, inSameMonthAs: day) }
-            lending.history.removeAll { entries.contains($0) }
-            entries.forEach { context.delete($0) }
-        }
-        withAnimation(.snappy) { context.delete(snapshot) }
+        withAnimation(.snappy) { model.delete(pending.snapshot, withValues: pending.withValues) }
     }
 }
 
@@ -182,7 +160,7 @@ struct SnapshotSummary: Identifiable {
     let wealth: WealthPoint
     /// Net worth change since the previous snapshot.
     let change: Double?
-    var id: PersistentIdentifier { snapshot.persistentModelID }
+    var id: Int64 { snapshot.id }
 }
 
 // MARK: - Charts

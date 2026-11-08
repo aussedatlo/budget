@@ -1,13 +1,13 @@
-import SwiftData
 import SwiftUI
 
 /// Everything that comes in each month: income lines that can be switched
 /// on and off, and money lent being paid back.
 struct IncomeView: View {
-    @Environment(\.modelContext) private var context
-    @Query(sort: \IncomeSource.createdAt) private var sources: [IncomeSource]
-    @Query(sort: \Lending.date) private var lendings: [Lending]
-    @Query(sort: \Snapshot.date, order: .reverse) private var snapshots: [Snapshot]
+    @Environment(BudgetModel.self) private var model
+    private var sources: [IncomeSource] { model.incomeSources }
+    private var lendings: [Lending] { model.lendings }
+    /// Newest first.
+    private var snapshots: [Snapshot] { model.snapshots.reversed() }
     @Binding var showingSnapshot: Bool
     @State private var addingSource = false
     @State private var addingLending = false
@@ -51,7 +51,7 @@ struct IncomeView: View {
             .sheet(isPresented: $addingLending) { LendingFormView() }
             .sheet(item: $editing) { IncomeSourceFormView(source: $0) }
             .confirmDelete($deleting, title: { "Delete \($0.title)?" }) { source in
-                withAnimation(.snappy) { context.delete(source) }
+                withAnimation(.snappy) { model.delete(source) }
             }
             .sensoryFeedback(.success, trigger: sources.count + lendings.count) { old, new in new > old }
             .onChange(of: totals.total) { old, new in
@@ -218,7 +218,7 @@ private struct IncomeSourceCard: View {
 }
 
 struct IncomeSourceFormView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     let source: IncomeSource?
@@ -264,7 +264,7 @@ struct IncomeSourceFormView: View {
                     Section {
                         Button("Delete this income", role: .destructive) { confirmingDelete = true }
                             .confirmDelete("Delete \(source.title)?", isPresented: $confirmingDelete) {
-                                context.delete(source)
+                                model.delete(source)
                                 dismiss()
                             }
                     }
@@ -285,12 +285,12 @@ struct IncomeSourceFormView: View {
     }
 
     private func save() {
-        let item = source ?? IncomeSource(title: "", amount: 0)
-        item.title = title.trimmingCharacters(in: .whitespaces)
-        item.amount = amount ?? 0
-        item.emoji = emoji.isEmpty ? "💼" : emoji
-        item.isActive = isActive
-        if source == nil { context.insert(item) }
+        model.saveIncomeSource(
+            id: source?.id,
+            title: title.trimmingCharacters(in: .whitespaces),
+            amount: amount ?? 0,
+            emoji: emoji.isEmpty ? "💼" : emoji,
+            isActive: isActive)
         dismiss()
     }
 }

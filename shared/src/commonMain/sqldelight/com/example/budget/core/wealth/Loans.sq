@@ -1,0 +1,53 @@
+CREATE TABLE loans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    emoji TEXT NOT NULL DEFAULT '🏠',
+    borrowed REAL NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE loan_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loan_id INTEGER NOT NULL REFERENCES loans(id),
+    date INTEGER NOT NULL,
+    remaining REAL NOT NULL,
+    home_value REAL NOT NULL,
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX loan_snapshot_loan ON loan_snapshots(loan_id);
+
+selectAll:
+SELECT * FROM loans ORDER BY name COLLATE NOCASE, id;
+
+selectAllSnapshots:
+SELECT * FROM loan_snapshots ORDER BY date, id;
+
+insert:
+INSERT INTO loans (name, emoji, borrowed, created_at) VALUES (?, ?, ?, ?);
+
+update:
+UPDATE loans SET name = ?, emoji = ?, borrowed = ?, created_at = ? WHERE id = ?;
+
+delete:
+DELETE FROM loans WHERE id = ?;
+
+insertSnapshot:
+INSERT INTO loan_snapshots (loan_id, date, remaining, home_value, note) VALUES (?, ?, ?, ?, ?);
+
+updateSnapshot:
+UPDATE loan_snapshots SET date = ?, remaining = ?, home_value = ?, note = ? WHERE id = ?;
+
+deleteSnapshot:
+DELETE FROM loan_snapshots WHERE id = ?;
+
+deleteSnapshotsOf:
+DELETE FROM loan_snapshots WHERE loan_id = ?;
+
+deleteSnapshotsInRange:
+DELETE FROM loan_snapshots WHERE date >= ? AND date <= ?;
+
+deleteAll {
+    DELETE FROM loan_snapshots;
+    DELETE FROM loans;
+}

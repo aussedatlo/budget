@@ -1,0 +1,54 @@
+CREATE TABLE lendings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    emoji TEXT NOT NULL DEFAULT '💸',
+    lent REAL NOT NULL,
+    date INTEGER NOT NULL,
+    monthly_repayment REAL NOT NULL DEFAULT 0,
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE lending_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lending_id INTEGER NOT NULL REFERENCES lendings(id),
+    date INTEGER NOT NULL,
+    remaining REAL NOT NULL,
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX lending_snapshot_lending ON lending_snapshots(lending_id);
+
+selectAll:
+SELECT * FROM lendings ORDER BY date, id;
+
+selectAllSnapshots:
+SELECT * FROM lending_snapshots ORDER BY date, id;
+
+insert:
+INSERT INTO lendings (name, emoji, lent, date, monthly_repayment, note) VALUES (?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE lendings SET name = ?, emoji = ?, lent = ?, date = ?, monthly_repayment = ?, note = ? WHERE id = ?;
+
+delete:
+DELETE FROM lendings WHERE id = ?;
+
+insertSnapshot:
+INSERT INTO lending_snapshots (lending_id, date, remaining, note) VALUES (?, ?, ?, ?);
+
+updateSnapshot:
+UPDATE lending_snapshots SET date = ?, remaining = ?, note = ? WHERE id = ?;
+
+deleteSnapshot:
+DELETE FROM lending_snapshots WHERE id = ?;
+
+deleteSnapshotsOf:
+DELETE FROM lending_snapshots WHERE lending_id = ?;
+
+deleteSnapshotsInRange:
+DELETE FROM lending_snapshots WHERE date >= ? AND date <= ?;
+
+deleteAll {
+    DELETE FROM lending_snapshots;
+    DELETE FROM lendings;
+}

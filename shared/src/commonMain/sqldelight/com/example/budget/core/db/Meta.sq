@@ -1,0 +1,16 @@
+-- Small facts about the database itself, such as whether the data of the
+-- earlier iOS versions was imported.
+CREATE TABLE meta (
+    key TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+get:
+SELECT value FROM meta WHERE key = ?;
+
+put:
+INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?);
+
+-- The id of the row just inserted on this connection.
+lastId:
+SELECT last_insert_rowid();

@@ -1,5 +1,5 @@
+import BudgetCore
 import Charts
-import SwiftData
 import SwiftUI
 
 // MARK: - Draft & fields
@@ -26,11 +26,9 @@ struct LoanDraft {
 
     var isValid: Bool { remaining != nil }
 
-    func apply(to snapshot: LoanSnapshot) {
-        snapshot.date = date
-        snapshot.remaining = remaining ?? 0
-        snapshot.homeValue = homeValue ?? 0
-        snapshot.note = note
+    /// These values for the shared core; `id` 0 adds them, another updates those values.
+    func values(id: Int64 = 0) -> BudgetCore.LoanSnapshot {
+        BudgetCore.LoanSnapshot(id: id, date: date.instant, remaining: remaining ?? 0, homeValue: homeValue ?? 0, note: note)
     }
 }
 
@@ -112,8 +110,13 @@ struct LoanProgressBar: View {
 // MARK: - Detail
 
 struct LoanDetailView: View {
-    @Environment(\.modelContext) private var context
-    let loan: Loan
+    @Environment(BudgetModel.self) private var model
+    private let initial: Loan
+
+    init(loan: Loan) { initial = loan }
+
+    /// Kept up to date with the changes made from here.
+    private var loan: Loan { model.loans.first { $0.id == initial.id } ?? initial }
 
     @State private var showingEdit = false
     @State private var adding = false
@@ -240,7 +243,7 @@ private struct LoanSnapshotRow: View {
 // MARK: - Forms
 
 struct LoanFormView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     let loan: Loan?
@@ -298,7 +301,7 @@ struct LoanFormView: View {
                         Button("Delete this loan", role: .destructive) { confirmingDelete = true }
                             .confirmDelete("Delete \(loan.name)?", message: "Its whole history goes too.",
                                            isPresented: $confirmingDelete) {
-                                context.delete(loan)
+                                model.delete(loan)
                                 dismiss()
                             }
                     }
@@ -320,34 +323,20 @@ struct LoanFormView: View {
 
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        if let loan {
-            loan.name = trimmed
-            loan.emoji = emoji.isEmpty ? "🏠" : emoji
-            loan.borrowed = borrowed ?? 0
-            if let latest = loan.latest {
-                draft.apply(to: latest)
-            } else if draft.isValid {
-                let snapshot = LoanSnapshot()
-                draft.apply(to: snapshot)
-                context.insert(snapshot)
-                loan.history.append(snapshot)
-            }
-        } else {
-            let new = Loan(name: trimmed, emoji: emoji.isEmpty ? "🏠" : emoji, borrowed: borrowed ?? 0)
-            context.insert(new)
-            if draft.isValid {
-                let snapshot = LoanSnapshot()
-                draft.apply(to: snapshot)
-                context.insert(snapshot)
-                new.history.append(snapshot)
-            }
-        }
+        // The latest values are corrected; a loan without any gets its first ones
+        let latest = loan?.latest
+        model.saveLoan(
+            loan,
+            name: trimmed,
+            emoji: emoji.isEmpty ? "🏠" : emoji,
+            borrowed: borrowed ?? 0,
+            values: latest != nil || draft.isValid ? draft.values(id: latest?.id ?? 0) : nil)
         dismiss()
     }
 }
 
 struct LoanSnapshotFormView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(BudgetModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     let loan: Loan
@@ -383,8 +372,7 @@ struct LoanSnapshotFormView: View {
                     Section {
                         Button("Delete these values", role: .destructive) { confirmingDelete = true }
                             .confirmDelete("Delete these values?", isPresented: $confirmingDelete) {
-                                loan.history.removeAll { $0 == snapshot }
-                                context.delete(snapshot)
+                                model.delete(snapshot)
                                 dismiss()
                             }
                     }
@@ -405,12 +393,7 @@ struct LoanSnapshotFormView: View {
 
     private func save() {
         let existing = snapshot ?? loan.entry(on: draft.date)
-        let item = existing ?? LoanSnapshot()
-        draft.apply(to: item)
-        if existing == nil {
-            context.insert(item)
-            loan.history.append(item)
-        }
+        model.saveLoanSnapshot(of: loan, draft.values(id: existing?.id ?? 0))
         dismiss()
     }
 }

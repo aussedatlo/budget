@@ -1,6 +1,6 @@
 # Budget
 
-A small iOS app (SwiftUI and SwiftData, iOS 17+) for tracking:
+A small budget app for iPhone and iPad (SwiftUI, iOS 17+) and Android (Jetpack Compose, Android 8+), for tracking:
 
 Budget, Income and Wealth open with the same header: the tab's icon, one amount, and a bar showing what that amount is made of, with each part's amount and share.
 
@@ -20,27 +20,78 @@ In the snapshot screen, each item shows its last recorded value, and what you ch
 
 The design is calm: neutral cards, one dusty-rose accent, an [OpenMoji](https://openmoji.org) icon for each item, numbers that roll when they change, and a small confetti burst when net worth reaches a new high. All data stays on the device.
 
+## Architecture
+
+Both apps share one core written in Kotlin Multiplatform (`shared/`): the data model, every calculation (budget, wealth, trends, savings), the snapshot logic, the database and the sample data of the tests. Each platform keeps a native UI on top of it.
+
+```
+shared/        Kotlin Multiplatform core, used by both apps, one package per feature:
+  charges/       recurring charges
+  income/        income lines and money lent
+  wealth/        investments, home loans, net worth, savings
+  snapshots/     monthly snapshots, trends, SnapshotRequest (what a snapshot saves)
+  data/          BudgetRepository, the database setup and the SwiftData import
+                 (each feature has its model and calculations, its *.sq tables
+                 in sqldelight/ under the same package, and its *Data class
+                 that reads and writes them)
+  commonTest     calculation tests;  jvmTest: repository and data import tests
+Budget/        iOS app (SwiftUI); links the core as BudgetCore.framework
+androidApp/    Android app (Jetpack Compose, Material 3); Robolectric UI tests
+```
+
+- **One source of truth.** `BudgetRepository` holds the whole state (`BudgetState`) and runs every change in a transaction, including the ones that span features such as taking a snapshot. Each feature's own `*Data` class does its reads and writes. Android observes it as a `StateFlow`, iOS through `BudgetModel` (`Budget/Models`), an `@Observable` store passed to the views in the environment.
+- **Same numbers everywhere.** The screens only display: totals, what's left, net worth and what a snapshot saves are worked out by the core, and tested once (`./gradlew :shared:jvmTest`).
+- **Moving from SwiftData.** Versions before the shared core kept the data in SwiftData. At the first launch of this version, the iOS app reads the old store (without changing it) and imports everything into the shared database, once (`LegacyStore.swift`, `LegacyImport.kt`). Positions left out of the Wealth totals show again once after the move.
+
 ## Project layout
 
 ```
 project.yml                 XcodeGen spec (the .xcodeproj is generated, not committed)
-Budget/App                  App entry, tabs, settings, demo data
-Budget/Models               SwiftData models + calculations
+Budget/App                  App entry, tabs, settings, demo data, import of SwiftData data
+Budget/Models               Views over the shared core's models + BudgetModel (the store)
 Budget/Income               Income, other income and money lent
 Budget/Monthly              Income vs. recurring charges
 Budget/Investments          Investments UI
 Budget/Stats                Snapshot of everything + evolution charts
 BudgetUITests               E2E tests (screenshots on PRs)
+shared/                     Kotlin Multiplatform core (see Architecture)
+androidApp/                 Android app
 .github/workflows/ios.yml   CI: build, sign, export .ipa
+.github/workflows/android.yml  CI: core and Android tests, APK; signed APK/AAB on tags
 ```
 
-Local development on a Mac:
+Local development on a Mac (needs a JDK 17 or newer, for example `brew install openjdk@17`, since Xcode builds the shared core with Gradle):
 
 ```sh
 brew install xcodegen
 xcodegen generate
 open Budget.xcodeproj
 ```
+
+The first build downloads Gradle and the Kotlin/Native toolchain, which takes a few minutes.
+
+## Android
+
+Open the repository root in Android Studio, or build from the command line (JDK 17 and the Android SDK):
+
+```sh
+./gradlew :shared:jvmTest                 # shared core tests
+./gradlew :androidApp:testDebugUnitTest   # Android UI tests (Robolectric)
+./gradlew :androidApp:installDebug        # install on a connected phone
+```
+
+`adb shell am start -n com.example.budget/com.example.budget.android.MainActivity --ez demo-data true` opens the app on the sample data, in memory, like the iOS UI tests.
+
+Every push that changes the core or the Android app runs `.github/workflows/android.yml`: the core tests, the Android tests and a debug APK (workflow artifact). A `v*` tag also attaches an APK and an AAB to the GitHub release, signed with your key when these repository secrets are set (otherwise a debug-signed APK):
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 release.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+| `ANDROID_KEY_ALIAS` | key alias |
+| `ANDROID_KEY_PASSWORD` | key password |
+
+To install the APK, download it on the phone and allow installs from that app when Android asks. The Android app uses the system emoji rather than OpenMoji.
 
 ## E2E tests and screenshots (pull requests)
 
@@ -54,7 +105,7 @@ To add a screen, call `snapshot("NN-name")` in a test. The number sets the order
 
 How the CI keeps the run short:
 
-- Only the tests a pull request can break run: `.github/scripts/impacted_tests.py` maps each app file to the test files that use its screens. Shared code, models, the app setup and the test helpers run every test. Colors (`Theme.swift`, assets) and CI changes only run the quick launch and settings tests. README-only changes run none, and no macOS runner starts. Add the `all-tests` label to run everything.
+- Only the tests a pull request can break run: `.github/scripts/impacted_tests.py` maps each app file to the test files that use its screens. Shared code, models, the shared Kotlin core, the app setup and the test helpers run every test. Colors (`Theme.swift`, assets) and CI changes only run the quick launch and settings tests. README-only and Android-only changes run none, and no macOS runner starts. Add the `all-tests` label to run everything.
 - One job builds the app and the tests (`build-for-testing`). The test jobs (up to 4, fewer when few tests run) download that build and only run the tests (`test-without-building`).
 - The test classes are split over the jobs by how long each class took in the latest run (`.github/scripts/shard_tests.py`), or by number of tests when no timings are saved yet.
 - The iPad simulator boots while the build downloads. Each job runs one simulator: on a standard macOS runner, 2 at the same time made clones fail to boot and every test slower.

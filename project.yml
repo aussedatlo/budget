@@ -17,6 +17,18 @@ targets:
     platform: iOS
     sources:
       - Budget
+    # The shared Kotlin core (shared/), built by Gradle into BudgetCore.framework
+    # before the app's own code. Needs a JDK 17 or newer.
+    preBuildScripts:
+      - name: Build the shared core
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          if [ -z "$JAVA_HOME" ] && [ -x /usr/libexec/java_home ]; then
+            export JAVA_HOME="$(/usr/libexec/java_home -v 17+ 2>/dev/null || true)"
+          fi
+          cd "$SRCROOT"
+          ./gradlew -Pbudget.iosOnly=true :shared:embedAndSignAppleFrameworkForXcode
     scheme:
       testTargets:
         - BudgetUITests
@@ -33,6 +45,10 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
+        FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)/shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS: "$(inherited) -framework BudgetCore -lsqlite3"
+        # The Gradle build above reads and writes outside the sandbox
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
 
   BudgetUITests:
     type: bundle.ui-testing
