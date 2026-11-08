@@ -1,0 +1,125 @@
+name: Android
+
+# Linux runners: cheap enough to build and test every push that touches the
+# shared core or the Android app. Release tags also build the APK.
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+    paths:
+      - "shared/**"
+      - "androidApp/**"
+      - "gradle/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # attaches the APK to GitHub releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Shared core tests (JVM)
+        run: ./gradlew --no-configuration-cache :shared:jvmTest
+
+      - name: Android tests (Robolectric)
+        run: ./gradlew --no-configuration-cache :androidApp:testDebugUnitTest
+
+      - name: Build the debug APK
+        run: ./gradlew --no-configuration-cache :androidApp:assembleDebug
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            shared/build/reports/tests
+            androidApp/build/reports/tests
+          retention-days: 7
+
+      - name: Upload the debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Budget-debug-${{ github.run_number }}
+          path: androidApp/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Signing key
+        id: signing
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set: attaching a debug-signed APK instead of a release one."
+          fi
+
+      - name: Build the APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARGS="--no-configuration-cache -Pbudget.versionName=$VERSION -Pbudget.versionCode=${{ github.run_number }}"
+          mkdir -p "$RUNNER_TEMP/apk"
+          if [ "${{ steps.signing.outputs.enabled }}" = "true" ]; then
+            ./gradlew $ARGS :androidApp:assembleRelease :androidApp:bundleRelease
+            cp androidApp/build/outputs/apk/release/*.apk "$RUNNER_TEMP/apk/Budget-$VERSION.apk"
+            cp androidApp/build/outputs/bundle/release/*.aab "$RUNNER_TEMP/apk/Budget-$VERSION.aab"
+          else
+            ./gradlew $ARGS :androidApp:assembleDebug
+            cp androidApp/build/outputs/apk/debug/*.apk "$RUNNER_TEMP/apk/Budget-$VERSION-debug.apk"
+          fi
+          ls -la "$RUNNER_TEMP/apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Budget-android-${{ github.ref_name }}
+          path: ${{ runner.temp }}/apk/*
+
+      - name: Attach to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
+          gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP"/apk/* --clobber

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The database is backed up with the rest of the app's data. -->
+<full-backup-content>
+    <include domain="database" path="budget.db" />
+    <include domain="sharedpref" path="." />
+</full-backup-content>

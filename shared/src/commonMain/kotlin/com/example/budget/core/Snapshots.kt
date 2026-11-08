@@ -104,3 +104,22 @@ object Wealth {
         }
     }
 }
+
+/** A snapshot with the net worth at the end of its month. */
+data class SnapshotSummary(
+    val snapshot: Snapshot,
+    val wealth: WealthPoint,
+    /** Net worth change since the previous snapshot. */
+    val change: Double?,
+)
+
+object Trends {
+    /** Every snapshot, newest first, each with the net worth at the end of its month. */
+    fun summaries(state: BudgetState): List<SnapshotSummary> {
+        var previous: Double? = null
+        return state.snapshots.sortedBy { it.date }.map { snapshot ->
+            val wealth = Wealth.pointAt(snapshot.endOfMonth, state.investments, state.loans, state.lendings)
+            SnapshotSummary(snapshot, wealth, previous?.let { wealth.netWorth - it }).also { previous = wealth.netWorth }
+        }.reversed()
+    }
+}
